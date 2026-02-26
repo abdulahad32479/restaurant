@@ -1,18 +1,19 @@
 import * as React from "react"
 import { cn } from "@/src/lib/utils"
-import { Button as ShadcnButton, buttonVariants } from "@/src/components/ui/button"
+import { Loader2 } from "lucide-react"
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'accent' | 'ghost' | 'outline' | 'danger'
   size?: 'sm' | 'md' | 'lg' | 'icon'
   fullWidth?: boolean
   icon?: React.ReactNode
+  isLoading?: boolean
   children?: React.ReactNode
   className?: string
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', fullWidth, icon, children, ...props }, ref) => {
+  ({ className, variant = 'primary', size = 'md', fullWidth, icon, isLoading, children, disabled, ...props }, ref) => {
     
     // Map custom variants to styles
     const getVariantClasses = (v: string) => {
@@ -40,6 +41,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
+        disabled={disabled || isLoading}
         className={cn(
           "inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
           getVariantClasses(variant),
@@ -49,7 +51,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         )}
         {...props}
       >
-        {icon && <span className={children ? "mr-2" : ""}>{icon}</span>}
+        {isLoading ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          icon && <span className={children ? "mr-2" : ""}>{icon}</span>
+        )}
         {children}
       </button>
     )
