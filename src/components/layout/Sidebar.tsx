@@ -14,11 +14,13 @@ import {
   Users,
   BarChart3,
   Settings,
-  ChevronLeft
+  ChevronLeft,
+  LogOut
 } from "lucide-react"
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+  { icon: Package, label: "Products", href: "/dashboard/products" },
   { icon: ShoppingCart, label: "POS Billing", href: "/dashboard/pos" },
   { icon: ChefHat, label: "Kitchen Display", href: "/dashboard/kitchen-display" },
   { icon: ClipboardList, label: "Orders", href: "/dashboard/orders" },
@@ -34,8 +36,11 @@ interface SidebarProps {
   onClose: () => void
 }
 
+import { useAuth } from "@/src/context/AuthContext"
+
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
+  const { logout, user } = useAuth()
   const [collapsed, setCollapsed] = React.useState(false)
   
   // No longer strictly managing isMobile here for classes, using tailwind breakpoints instead
@@ -130,20 +135,35 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <ChevronLeft className="h-5 w-5" />
         </button>
 
-        <div className="p-6 border-t border-base overflow-hidden">
+        <div className="p-4 border-t border-base space-y-2">
+          <button
+            onClick={() => {
+              logout();
+              window.location.href = '/login';
+            }}
+            className={cn(
+              "flex items-center gap-3 w-full rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 text-tertiary hover:bg-red-500/10 hover:text-red-500 group",
+              collapsed && !isOpen && "justify-center px-0"
+            )}
+            title="Logout"
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            {(!collapsed || isOpen) && <span>Logout</span>}
+          </button>
+
           {(!collapsed || isOpen) ? (
-            <div className="flex items-center gap-3 px-1 animate-in fade-in slide-in-from-left-2 duration-300">
+            <div className="flex items-center gap-3 px-1 pt-2 animate-in fade-in slide-in-from-left-2 duration-300">
               <div className="w-8 h-8 shrink-0 rounded-full bg-accent text-bg-main flex items-center justify-center font-bold text-xs ring-2 ring-accent/20">
-                A
+                {user?.username?.charAt(0).toUpperCase() || 'A'}
               </div>
               <div className="flex flex-col overflow-hidden">
-                <span className="text-xs font-bold text-white truncate">Admin User</span>
-                <span className="text-[10px] text-tertiary">Manager</span>
+                <span className="text-xs font-bold text-white truncate">{user?.username || 'Admin User'}</span>
+                <span className="text-[10px] text-tertiary">{user?.role || 'Manager'}</span>
               </div>
             </div>
           ) : (
-            <div className="w-8 h-8 rounded-full bg-accent text-bg-main flex items-center justify-center font-bold text-xs mx-auto shrink-0">
-              A
+            <div className="w-8 h-8 rounded-full bg-accent text-bg-main flex items-center justify-center font-bold text-xs mx-auto shrink-0 mt-2">
+              {user?.username?.charAt(0).toUpperCase() || 'A'}
             </div>
           )}
         </div>
