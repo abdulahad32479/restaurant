@@ -6,7 +6,7 @@ import { User } from '@/src/types';
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (token: string, user: User) => void;
+  login: (token: string, refreshToken: string, user: User) => void;
   logout: () => void;
   isAuthenticated: boolean;
   loading: boolean;
@@ -31,16 +31,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         console.error('Failed to parse stored user', e);
         localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
       }
     }
     setLoading(false);
   }, []);
 
-  const login = (newToken: string, newUser: User) => {
+  const login = (newToken: string, newRefreshToken: string, newUser: User) => {
     setToken(newToken);
     setUser(newUser);
     localStorage.setItem('access_token', newToken);
+    localStorage.setItem('refresh_token', newRefreshToken);
     localStorage.setItem('user', JSON.stringify(newUser));
   };
 
@@ -48,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
     localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
   };
 

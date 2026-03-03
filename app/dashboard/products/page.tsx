@@ -3,22 +3,28 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/src/components/Button';
 import { productService } from '@/src/services/product.service';
-import { Product } from '@/src/types';
+import { categoryService } from '@/src/services/category.service';
+import { Product, Category } from '@/src/types';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { Plus, Package, RefreshCw } from 'lucide-react';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchProducts = async () => {
+  const fetchData = async () => {
     setIsLoading(true);
     try {
-      const data = await productService.getAll();
-      setProducts(data);
+      const [productsData, categoriesData] = await Promise.all([
+        productService.getAll(),
+        categoryService.getAll()
+      ]);
+      setProducts(productsData);
+      setCategories(categoriesData);
     } catch (error) {
-      console.error('Failed to fetch products', error);
+      console.error('Failed to fetch products or categories', error);
       toast.error('Failed to load products');
     } finally {
       setIsLoading(false);
@@ -26,8 +32,13 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    fetchProducts();
+    fetchData();
   }, []);
+
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId);
+    return category ? category.name : categoryId;
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -40,7 +51,7 @@ export default function ProductsPage() {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={fetchProducts}
+            onClick={fetchData}
             disabled={isLoading}
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
@@ -61,9 +72,11 @@ export default function ProductsPage() {
             <thead className="bg-[#1A1A1A] border-b border-[#2A2A2A]">
               <tr>
                 <th className="px-6 py-4 text-sm font-semibold text-[#B3B3B3]">Product</th>
+                <th className="px-6 py-4 text-sm font-semibold text-[#B3B3B3]">SKU</th>
                 <th className="px-6 py-4 text-sm font-semibold text-[#B3B3B3]">Category</th>
                 <th className="px-6 py-4 text-sm font-semibold text-[#B3B3B3]">Price</th>
                 <th className="px-6 py-4 text-sm font-semibold text-[#B3B3B3]">Stock</th>
+                <th className="px-6 py-4 text-sm font-semibold text-[#B3B3B3]">Status</th>
                 <th className="px-6 py-4 text-sm font-semibold text-right text-[#B3B3B3]">Actions</th>
               </tr>
             </thead>
@@ -73,14 +86,16 @@ export default function ProductsPage() {
                   <tr key={i} className="animate-pulse">
                     <td className="px-6 py-4"><div className="h-4 bg-[#2A2A2A] rounded w-32"></div></td>
                     <td className="px-6 py-4"><div className="h-4 bg-[#2A2A2A] rounded w-20"></div></td>
+                    <td className="px-6 py-4"><div className="h-4 bg-[#2A2A2A] rounded w-20"></div></td>
                     <td className="px-6 py-4"><div className="h-4 bg-[#2A2A2A] rounded w-16"></div></td>
+                    <td className="px-6 py-4"><div className="h-4 bg-[#2A2A2A] rounded w-12"></div></td>
                     <td className="px-6 py-4"><div className="h-4 bg-[#2A2A2A] rounded w-12"></div></td>
                     <td className="px-6 py-4 text-right"><div className="h-4 bg-[#2A2A2A] rounded w-8 ml-auto"></div></td>
                   </tr>
                 ))
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-[#B3B3B3]">
+                  <td colSpan={7} className="px-6 py-12 text-center text-[#B3B3B3]">
                     <Package className="w-12 h-12 mx-auto mb-4 opacity-20" />
                     <p>No products found. Add your first product!</p>
                   </td>
@@ -100,11 +115,17 @@ export default function ProductsPage() {
                         <span className="font-medium text-white">{product.name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-[#B3B3B3]">{product.category}</td>
+                    <td className="px-6 py-4 text-[#B3B3B3] font-mono text-xs">{product.sku}</td>
+                    <td className="px-6 py-4 text-[#B3B3B3]">{getCategoryName(product.category)}</td>
                     <td className="px-6 py-4 font-semibold text-dukes-gold">${Number(product.price).toFixed(2)}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${product.stock > 10 ? 'bg-[#10B98115] text-[#10B981]' : 'bg-[#EF444415] text-[#EF4444]'}`}>
-                        {product.stock} in stock
+                      <span className={`font-medium ${Number(product.stock || 0) <= 5 ? 'text-error' : 'text-white'}`}>
+                        {product.stock ?? 0}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${product.is_active ? 'bg-[#10B98115] text-[#10B981]' : 'bg-[#EF444415] text-[#EF4444]'}`}>
+                        {product.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">

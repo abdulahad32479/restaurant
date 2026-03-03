@@ -22,9 +22,9 @@ export default function LoginPage() {
       const data = await authService.login({ username, password });
       
       // The backend returns { access, refresh }. We'll mock a user object if not provided
-      const user = data.user || { id: '1', username, email: '', role: 'admin' };
+      const user = data.user || { id: '1', username, email: '', role: 'admin' as const, branch: '00000000-0000-0000-0000-000000000000' };
       
-      login(data.access, user);
+      login(data.access, data.refresh, user);
       toast.success('Login successful!');
       router.push('/dashboard');
     } catch (error: any) {

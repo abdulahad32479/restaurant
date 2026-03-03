@@ -1,114 +1,306 @@
 "use client"
 
-import React, { useState } from 'react';
-import { Button, IconButton } from '@/src/components/Button';
-import { Input } from '@/src/components/Input';
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/src/components/Button';
+import { Input, Select } from '@/src/components/Input';
 import { Badge } from '@/src/components/Badge';
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, ChevronRight, ShoppingCart } from 'lucide-react';
-
-const categories = [
-  { id: 'all', name: 'All Items' },
-  { id: 'burgers', name: 'Burgers' },
-  { id: 'pizza', name: 'Pizza' },
-  { id: 'drinks', name: 'Drinks' },
-  { id: 'desserts', name: 'Desserts' },
-  { id: 'sides', name: 'Sides' },
-];
-
-const products = [
-  { id: 1, name: 'Royal Cheese Burger', price: 12.99, category: 'burgers', image: '/api/placeholder/150/150' },
-  { id: 2, name: 'Spicy Chicken Wings', price: 8.99, category: 'sides', image: '/api/placeholder/150/150' },
-  { id: 3, name: 'Margherita Pizza', price: 14.50, category: 'pizza', image: '/api/placeholder/150/150' },
-  { id: 4, name: 'Chocolate Shake', price: 5.50, category: 'drinks', image: '/api/placeholder/150/150' },
-  { id: 5, name: 'French Fries', price: 4.50, category: 'sides', image: '/api/placeholder/150/150' },
-  { id: 6, name: 'Caesar Salad', price: 9.99, category: 'sides', image: '/api/placeholder/150/150' },
-  { id: 7, name: 'Beef Tacos', price: 10.50, category: 'sides', image: '/api/placeholder/150/150' },
-  { id: 8, name: 'Lemonade', price: 3.50, category: 'drinks', image: '/api/placeholder/150/150' },
-];
+import { 
+  Search, Plus, Minus, CreditCard, Banknote, 
+  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2
+} from 'lucide-react';
+import { productService } from '@/src/services/product.service';
+import { categoryService } from '@/src/services/category.service';
+import { branchService } from '@/src/services/branch.service';
+import { tableService } from '@/src/services/table.service';
+import { orderService } from '@/src/services/order.service';
+import { Product, Category, Branch, Table, OrderType, OrderStatus } from '@/src/types';
+import toast from 'react-hot-toast';
 
 export default function POS() {
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [cart, setCart] = useState<{ id: number; name: string; price: number; quantity: number }[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
   
-  const addToCart = (product: any) => {
+  // Data state
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [tables, setTables] = useState<Table[]>([]);
+  
+  // Selection state
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [selectedTable, setSelectedTable] = useState('');
+  const [orderType, setOrderType] = useState<OrderType>('dine_in');
+  
+  // Cart state
+  const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [pData, cData, bData, tData] = await Promise.all([
+          productService.getAll(),
+          categoryService.getAll(),
+          branchService.getAll(),
+          tableService.getAll()
+        ]);
+        
+        setProducts(pData.filter(p => p.is_active));
+        setCategories(cData);
+        setBranches(bData);
+        setTables(tData.filter(t => t.is_active));
+        
+        if (bData.length > 0) setSelectedBranch(bData[0].id);
+      } catch (error) {
+        console.error('Failed to fetch POS data', error);
+        toast.error('Failed to load products or categories');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const addToCart = (product: Product) => {
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
+      const existing = prev.find(item => item.product.id === product.id);
       if (existing) {
         return prev.map(item => 
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { product, quantity: 1 }];
     });
   };
   
-  const updateQuantity = (id: number, delta: number) => {
+  const updateQuantity = (productId: string, delta: number) => {
     setCart(prev => prev.map(item => {
-      if (item.id === id) {
+      if (item.product.id === productId) {
         return { ...item, quantity: Math.max(0, item.quantity + delta) };
       }
       return item;
     }).filter(item => item.quantity > 0));
   };
   
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const tax = subtotal * 0.1;
-  const total = subtotal + tax;
+  const subtotal = cart.reduce((sum, item) => sum + (parseFloat(item.product.price) * item.quantity), 0);
+  const totalTax = cart.reduce((sum, item) => {
+    const taxRate = parseFloat(item.product.tax_percentage || '10') / 100;
+    return sum + (parseFloat(item.product.price) * item.quantity * taxRate);
+  }, 0);
+  const total = subtotal + totalTax;
   
   const filteredProducts = products.filter(product => {
     const matchesCategory = activeCategory === 'all' || product.category === activeCategory;
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          product.sku.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
+
+  const handleCheckout = async (paymentMethod: 'cash' | 'card' | 'other') => {
+    if (cart.length === 0) return;
+    if (!selectedBranch) {
+      toast.error('Please select a branch');
+      return;
+    }
+    if (orderType === 'dine_in' && !selectedTable) {
+      toast.error('Please select a table');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // 1. Create order
+      const orderData = {
+        branch: selectedBranch,
+        order_type: orderType,
+        table_no: orderType === 'dine_in' ? selectedTable : undefined,
+        items: cart.map(item => ({
+          product: item.product.id,
+          quantity: item.quantity,
+          unit_price: item.product.price
+        })),
+        status: 'draft' as OrderStatus,
+        subtotal: subtotal.toFixed(2),
+        total: total.toFixed(2)
+      };
+
+      console.log('Sending order data:', JSON.stringify(orderData, null, 2));
+      const newOrder = await orderService.create(orderData);
+      console.log('Order created successfully:', newOrder);
+      
+      // 2. Explicitly confirm the order to make it visible in KDS
+      try {
+        await orderService.confirm(newOrder.id);
+        console.log('Order confirmed');
+      } catch (confirmError) {
+        console.error('Order confirmation failed', confirmError);
+      }
+      
+      // 3. Process payment
+      try {
+        await orderService.addPayment(newOrder.id, {
+          order: newOrder.id,
+          method: paymentMethod,
+          amount: total.toFixed(2),
+          status: 'completed',
+          transaction_reference: `POS-${Date.now()}`
+        });
+        console.log('Payment added');
+      } catch (paymentError) {
+        console.error('Payment recording failed', paymentError);
+        toast.error('Order created but payment recording failed');
+      }
+
+      toast.success('Order completed successfully!');
+      setCart([]);
+      setSelectedTable('');
+    } catch (error: any) {
+      console.error('Checkout failed', error);
+      const errorData = error.response?.data;
+      
+      let errorMessage = 'Failed to complete order (Server Error 500)';
+      
+      if (typeof errorData === 'string' && !errorData.includes('<!doctype html>')) {
+        errorMessage = errorData;
+      } else if (typeof errorData === 'object' && errorData !== null) {
+        errorMessage = Object.entries(errorData)
+          .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+          .join(', ');
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
   
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-20">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col lg:flex-row min-h-full gap-6 animate-fade-in text-white pb-8">
       {/* Product Section (Left) */}
-      <div className="flex-1 flex flex-col gap-4 md:gap-6 min-w-0">
-        {/* Categories */}
-        <div className="flex gap-2 md:gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          {categories.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              className={`
-                px-4 md:px-6 py-2.5 md:py-3 rounded-xl whitespace-nowrap text-sm md:text-base font-medium transition-all
-                ${activeCategory === cat.id 
-                  ? 'bg-[#8B0000] text-white shadow-md' 
-                  : 'bg-[#1F1F1F] text-[#B3B3B3] hover:bg-[#2A2A2A] hover:text-white'
-                }
-              `}
+      <div className="flex-1 flex flex-col gap-6 min-w-0">
+        {/* Header Controls */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Select 
+            value={selectedBranch}
+            onChange={(e) => {
+              setSelectedBranch(e.target.value);
+              setSelectedTable('');
+            }}
+            options={[
+              { value: '', label: 'Select Branch' },
+              ...branches.map(br => ({ value: br.id, label: br.name }))
+            ]}
+            icon={<Store className="w-4 h-4" />}
+            className="bg-[#1A1A1A] border-[#2A2A2A]"
+          />
+
+          <div className="flex bg-[#1A1A1A] rounded-xl p-1 border border-[#2A2A2A]">
+            <button 
+              onClick={() => {
+                setOrderType('dine_in');
+              }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${orderType === 'dine_in' ? 'bg-[#2A2A2A] text-white' : 'text-[#808080]'}`}
             >
-              {cat.name}
+              DINE IN
             </button>
-          ))}
+            <button 
+              onClick={() => {
+                setOrderType('takeaway');
+                setSelectedTable('');
+              }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${orderType === 'takeaway' ? 'bg-[#2A2A2A] text-white' : 'text-[#808080]'}`}
+            >
+              TAKEAWAY
+            </button>
+          </div>
+
+          {orderType === 'dine_in' && (
+            <Select 
+              value={selectedTable}
+              onChange={(e) => setSelectedTable(e.target.value)}
+              options={[
+                { value: '', label: 'Select Table' },
+                ...Array.from({ length: 10 }, (_, i) => ({
+                  value: `${i + 1}`,
+                  label: `Table ${i + 1}`
+                }))
+              ]}
+              icon={<LayoutGrid className="w-4 h-4" />}
+              className="bg-[#1A1A1A] border-[#2A2A2A]"
+            />
+          )}
         </div>
-        
+
         {/* Search */}
         <div className="relative">
           <Input 
             placeholder="Search products..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            icon={<Search className="w-5 h-5" />}
+            icon={<Search className="w-5 h-5 text-[#808080]" />}
+            className="bg-[#1A1A1A] border-[#2A2A2A]"
           />
+        </div>
+
+        {/* Categories */}
+        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+          <button
+            onClick={() => setActiveCategory('all')}
+            className={`px-5 py-2 rounded-xl whitespace-nowrap text-xs font-bold transition-all border ${
+              activeCategory === 'all' 
+                ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' 
+                : 'bg-[#1A1A1A] border-[#2A2A2A] text-[#808080] hover:border-[#404040]'
+            }`}
+          >
+            All Items
+          </button>
+          {categories.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              className={`px-5 py-2 rounded-xl whitespace-nowrap text-xs font-bold transition-all border ${
+                activeCategory === cat.id 
+                  ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' 
+                  : 'bg-[#1A1A1A] border-[#2A2A2A] text-[#808080] hover:border-[#404040]'
+              }`}
+            >
+              {cat.name}
+            </button>
+          ))}
         </div>
         
         {/* Products Grid */}
         <div className="flex-1 overflow-y-auto min-h-[400px]">
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredProducts.map(product => (
               <div 
                 key={product.id}
                 onClick={() => addToCart(product)}
-                className="bg-[#1F1F1F] border border-[#2A2A2A] rounded-xl p-3 md:p-4 cursor-pointer hover:border-[#D4AF37] hover:shadow-lg transition-all active:scale-95 group"
+                className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl p-4 cursor-pointer hover:border-[#D4AF37]/50 transition-all active:scale-95 group"
               >
-                <div className="aspect-square bg-[#2A2A2A] rounded-lg mb-2 md:mb-3 overflow-hidden">
-                  <div className="w-full h-full bg-gradient-to-br from-[#2A2A2A] to-[#333333] group-hover:scale-110 transition-transform duration-500" />
+                <div className="aspect-square bg-[#0A0A0A] rounded-xl mb-3 overflow-hidden border border-[#2A2A2A]">
+                  {product.image ? (
+                    <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center opacity-10">
+                      <ShoppingCart className="w-10 h-10" />
+                    </div>
+                  )}
                 </div>
-                <h3 className="font-semibold text-white text-sm md:text-base mb-1 truncate">{product.name}</h3>
-                <p className="text-[#D4AF37] font-bold text-sm md:text-base">${product.price.toFixed(2)}</p>
+                <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
+                <div className="flex items-center justify-between">
+                  <p className="text-[#808080] text-[10px] font-mono">{product.sku}</p>
+                  <p className="text-primary font-black text-sm">${parseFloat(product.price).toFixed(2)}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -116,81 +308,96 @@ export default function POS() {
       </div>
       
       {/* Cart Section (Right) */}
-      <div className="w-full lg:w-[380px] xl:w-[420px] bg-[#1F1F1F] border border-[#2A2A2A] rounded-2xl flex flex-col shadow-xl h-fit lg:sticky lg:top-24">
-        <div className="p-5 md:p-6 border-b border-[#2A2A2A]">
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="text-xl font-bold text-white">Current Order</h2>
-            <Badge variant="warning" size="sm">Table 5</Badge>
-          </div>
-          <p className="text-sm text-[#B3B3B3]">Walk-in Customer</p>
+      <div className="w-full lg:w-[400px] bg-[#1A1A1A] border border-[#2A2A2A] rounded-3xl flex flex-col shadow-2xl h-[calc(100vh-140px)] sticky top-24">
+        <div className="p-6 border-b border-[#2A2A2A] bg-[#0A0A0A]/30">
+          <h2 className="text-xl font-bold italic uppercase tracking-tight">Order Details</h2>
+          <p className="text-[10px] text-[#808080] font-bold uppercase tracking-widest mt-1">
+            {orderType.replace('_', ' ')} {selectedTable && `• Table ${selectedTable}`}
+          </p>
         </div>
         
         {/* Cart Items */}
-        <div className="max-h-[400px] lg:max-h-[none] overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {cart.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center text-[#B3B3B3] opacity-50">
-              <div className="w-16 h-16 bg-[#2A2A2A] rounded-full flex items-center justify-center mb-4 border border-base">
-                <ShoppingCart className="w-8 h-8 text-tertiary" />
-              </div>
-              <p className="text-sm font-medium">Cart is empty</p>
+            <div className="h-full flex flex-col items-center justify-center text-[#2A2A2A]">
+              <ShoppingCart className="w-16 h-16 mb-2" />
+              <p className="font-bold uppercase tracking-[0.2em] text-[10px]">Cart is empty</p>
             </div>
           ) : (
             cart.map(item => (
-              <div key={item.id} className="flex items-center gap-3 p-3 bg-[#1A1A1A] rounded-xl border border-[#2A2A2A] group hover:border-accent/30 transition-colors">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#2A2A2A] to-[#252525] rounded-lg flex-shrink-0 border border-base" />
+              <div key={item.product.id} className="flex items-center gap-3 p-3 bg-[#0A0A0A]/40 rounded-xl border border-[#2A2A2A]">
+                <div className="w-12 h-12 bg-black rounded-lg shrink-0 border border-[#2A2A2A] overflow-hidden">
+                  {item.product.image ? (
+                    <img src={item.product.image} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center opacity-10">
+                      <ShoppingCart className="w-4 h-4" />
+                    </div>
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-white text-sm truncate">{item.name}</h4>
-                  <p className="text-[#D4AF37] text-xs font-bold">${item.price.toFixed(2)}</p>
+                  <h4 className="font-bold text-xs truncate uppercase">{item.product.name}</h4>
+                  <p className="text-primary text-[10px] font-black">${(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
-                    onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, -1); }}
-                    className="w-7 h-7 rounded-lg bg-[#2A2A2A] hover:bg-[#333333] flex items-center justify-center text-white transition-colors"
+                    onClick={() => updateQuantity(item.product.id, -1)}
+                    className="w-7 h-7 rounded-lg bg-[#2A2A2A] hover:bg-[#333] flex items-center justify-center transition-colors"
                   >
-                    <Minus className="w-3.5 h-3.5" />
+                    <Minus className="w-3 h-3" />
                   </button>
-                  <span className="w-5 text-center font-bold text-sm">{item.quantity}</span>
+                  <span className="w-4 text-center text-xs font-bold">{item.quantity}</span>
                   <button 
-                    onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, 1); }}
-                    className="w-7 h-7 rounded-lg bg-[#8B0000] hover:bg-[#A80000] flex items-center justify-center text-white transition-colors"
+                    onClick={() => updateQuantity(item.product.id, 1)}
+                    className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center transition-all active:scale-95"
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-3 h-3" />
                   </button>
                 </div>
+                <button 
+                  onClick={() => updateQuantity(item.product.id, -item.quantity)}
+                  className="p-1.5 text-[#EF444450] hover:text-[#EF4444] transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             ))
           )}
         </div>
         
         {/* Totals & Actions */}
-        <div className="p-5 md:p-6 bg-[#1A1A1A] border-t border-[#2A2A2A] rounded-b-2xl">
+        <div className="p-6 bg-[#0A0A0A]/40 border-t border-[#2A2A2A]">
           <div className="space-y-3 mb-6">
-            <div className="flex justify-between text-[#B3B3B3] text-sm">
+            <div className="flex justify-between text-[#808080] text-[10px] font-bold uppercase tracking-[0.2em]">
               <span>Subtotal</span>
               <span className="text-white">${subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-[#B3B3B3] text-sm">
-              <span>Tax (10%)</span>
-              <span className="text-white">${tax.toFixed(2)}</span>
+            <div className="flex justify-between text-[#808080] text-[10px] font-bold uppercase tracking-[0.2em]">
+              <span>Tax (Dynamic)</span>
+              <span className="text-white">${totalTax.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-xl font-black text-white pt-3 border-t border-[#2A2A2A]">
-              <span>Total</span>
-              <span className="text-[#D4AF37]">${total.toFixed(2)}</span>
+            <div className="flex justify-between text-2xl font-black text-white pt-4 border-t border-[#2A2A2A]">
+              <span className="italic uppercase">Total</span>
+              <span className="text-primary">${total.toFixed(2)}</span>
             </div>
           </div>
           
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <button className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#2A2A2A] hover:bg-[#333333] text-[#B3B3B3] hover:text-white transition-all">
-              <Banknote className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Cash</span>
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <button 
+              onClick={() => handleCheckout('cash')}
+              disabled={isProcessing || cart.length === 0}
+              className="flex items-center justify-center gap-2 py-4 rounded-xl bg-[#2A2A2A] hover:bg-[#333] font-bold text-[10px] uppercase tracking-widest transition-all"
+            >
+              <Banknote className="w-4 h-4" />
+              Cash
             </button>
-            <button className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#8B0000] text-white shadow-lg shadow-primary/20 ring-1 ring-primary-hover active:scale-95 transition-all">
-              <CreditCard className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Card</span>
-            </button>
-            <button className="flex flex-col items-center justify-center p-3 rounded-xl bg-[#2A2A2A] hover:bg-[#333333] text-[#B3B3B3] hover:text-white transition-all">
-              <Smartphone className="w-6 h-6 mb-1" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">App</span>
+            <button 
+              onClick={() => handleCheckout('card')}
+              disabled={isProcessing || cart.length === 0}
+              className="flex items-center justify-center gap-2 py-4 rounded-xl bg-[#2A2A2A] hover:bg-[#333] font-bold text-[10px] uppercase tracking-widest transition-all"
+            >
+              <CreditCard className="w-4 h-4" />
+              Card
             </button>
           </div>
           
@@ -198,12 +405,19 @@ export default function POS() {
             variant="primary" 
             fullWidth 
             size="lg"
-            className="text-white font-black h-14 bg-gradient-to-r from-primary to-primary-hover shadow-glow-primary hover:shadow-glow-primary/50 transition-all border-none"
-            disabled={cart.length === 0}
+            className="text-white font-black h-16 text-base italic uppercase tracking-tight shadow-xl shadow-primary/20"
+            disabled={cart.length === 0 || isProcessing}
+            isLoading={isProcessing}
+            onClick={() => handleCheckout('cash')}
           >
-            Process Payment
+            Create Order
             <ChevronRight className="w-5 h-5 ml-2" />
           </Button>
+          
+          <div className="mt-4 flex items-center justify-center gap-1.5 opacity-30">
+            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+            <span className="text-[9px] font-bold uppercase tracking-widest">Live Sync Enabled</span>
+          </div>
         </div>
       </div>
     </div>

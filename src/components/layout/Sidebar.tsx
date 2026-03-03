@@ -15,7 +15,9 @@ import {
   BarChart3,
   Settings,
   ChevronLeft,
-  LogOut
+  LogOut,
+  History,
+  Store
 } from "lucide-react"
 
 const sidebarItems = [
@@ -23,9 +25,8 @@ const sidebarItems = [
   { icon: Package, label: "Products", href: "/dashboard/products" },
   { icon: ShoppingCart, label: "POS Billing", href: "/dashboard/pos" },
   { icon: ChefHat, label: "Kitchen Display", href: "/dashboard/kitchen-display" },
-  { icon: ClipboardList, label: "Orders", href: "/dashboard/orders" },
   { icon: UtensilsCrossed, label: "Menu", href: "/dashboard/menu" },
-  { icon: Package, label: "Inventory", href: "/dashboard/inventory" },
+  { icon: ClipboardList, label: "Orders", href: "/dashboard/orders" },
   { icon: Users, label: "Staff", href: "/dashboard/staff" },
   { icon: BarChart3, label: "Analytics", href: "/dashboard/reports" },
   { icon: Settings, label: "Settings", href: "/dashboard/settings" },

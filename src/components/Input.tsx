@@ -63,20 +63,27 @@ TextArea.displayName = "TextArea"
 // --- Select ---
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
+  icon?: React.ReactNode
   options?: { value: string; label: string }[]
   fullWidth?: boolean
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, label, options = [], fullWidth = true, children, ...props }, ref) => {
+  ({ className, label, icon, options = [], fullWidth = true, children, ...props }, ref) => {
     return (
       <div className={cn("flex flex-col gap-1.5", fullWidth && "w-full")}>
         {label && <label className="text-sm font-medium text-[#B3B3B3]">{label}</label>}
         <div className="relative">
+          {icon && (
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B3B3B3]">
+              {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5" })}
+            </div>
+          )}
           <select
             ref={ref}
             className={cn(
               "flex h-12 w-full appearance-none rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2 pr-10 text-sm text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200",
+              icon && "pl-10",
               className
             )}
             {...props}
