@@ -3,7 +3,7 @@ import { Category } from '../types';
 
 export const categoryService = {
   getAll: async () => {
-    const response = await apiClient.get<Category[]>('/v1/categories/');
+    const response = await apiClient.get<Category[]>('v1/categories/');
     return response.data;
   },
 
@@ -13,7 +13,7 @@ export const categoryService = {
   },
 
   getById: async (id: string) => {
-    const response = await apiClient.get<Category>(`/v1/categories/${id}/`);
+    const response = await apiClient.get<Category>(`v1/categories/${id}/`);
     return response.data;
   },
 
@@ -28,7 +28,7 @@ export const categoryService = {
   },
 
   delete: async (id: string) => {
-    const response = await apiClient.delete(`/v1/categories/${id}/`);
+    const response = await apiClient.delete(`v1/categories/${id}/`);
     return response.data;
   },
 };

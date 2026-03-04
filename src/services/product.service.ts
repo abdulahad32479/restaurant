@@ -3,12 +3,12 @@ import { Product } from '../types';
 
 export const productService = {
   getAll: async () => {
-    const response = await apiClient.get<Product[]>('/v1/products/');
+    const response = await apiClient.get<Product[]>('v1/products/');
     return response.data;
   },
 
   getById: async (id: string) => {
-    const response = await apiClient.get<Product>(`/v1/products/${id}/`);
+    const response = await apiClient.get<Product>(`v1/products/${id}/`);
     return response.data;
   },
 
@@ -16,7 +16,7 @@ export const productService = {
     const config = productData instanceof FormData 
       ? { headers: { 'Content-Type': 'multipart/form-data' } }
       : {};
-    const response = await apiClient.post<Product>('/v1/products/', productData, config);
+    const response = await apiClient.post<Product>('v1/products/', productData, config);
     return response.data;
   },
 
@@ -24,7 +24,7 @@ export const productService = {
     const config = productData instanceof FormData 
       ? { headers: { 'Content-Type': 'multipart/form-data' } }
       : {};
-    const response = await apiClient.put<Product>(`/v1/products/${id}/`, productData, config);
+    const response = await apiClient.put<Product>(`v1/products/${id}/`, productData, config);
     return response.data;
   },
 
@@ -32,12 +32,12 @@ export const productService = {
     const config = productData instanceof FormData 
       ? { headers: { 'Content-Type': 'multipart/form-data' } }
       : {};
-    const response = await apiClient.patch<Product>(`/v1/products/${id}/`, productData, config);
+    const response = await apiClient.patch<Product>(`v1/products/${id}/`, productData, config);
     return response.data;
   },
 
   delete: async (id: string) => {
-    const response = await apiClient.delete(`/v1/products/${id}/`);
+    const response = await apiClient.delete(`v1/products/${id}/`);
     return response.data;
   }
 };

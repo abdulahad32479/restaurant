@@ -1,17 +1,20 @@
-"use client"
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/src/lib/utils';
-import { VerticalTabs } from '@/src/components/DukesTabs';
 import { Card } from '@/src/components/Card';
 import { Button } from '@/src/components/Button';
-import { Input, Select } from '@/src/components/Input';
+import { Input, Select, TextArea } from '@/src/components/Input';
 import { Toggle } from '@/src/components/FormControls';
-import { Settings, User, Bell, Shield, Database, Printer, CreditCard, Plus, Download } from 'lucide-react';
+import { Settings, User, Bell, Shield, Database, Printer, CreditCard, Plus, Download, Store, UserCircle, Edit, Trash2, Search, MapPin, Mail, Phone } from 'lucide-react';
 import { Badge } from '@/src/components/Badge';
+import { branchService } from '@/src/services/branch.service';
+import { customerService } from '@/src/services/customer.service';
+import { Branch, Customer } from '@/src/types';
+import toast from 'react-hot-toast';
 
 const settingsTabs = [
   { id: 'general', label: 'General', icon: <Settings className="w-5 h-5" /> },
+  { id: 'branches', label: 'Branches', icon: <Store className="w-5 h-5" /> },
+  { id: 'customers', label: 'Customers', icon: <UserCircle className="w-5 h-5" /> },
   { id: 'account', label: 'Account', icon: <User className="w-5 h-5" /> },
   { id: 'notifications', label: 'Notifications', icon: <Bell className="w-5 h-5" /> },
   { id: 'security', label: 'Security', icon: <Shield className="w-5 h-5" /> },
@@ -22,6 +25,10 @@ const settingsTabs = [
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
@@ -31,6 +38,29 @@ export default function SettingsPage() {
     twoFactor: false,
     sessionTimeout: '30'
   });
+
+  const fetchData = async () => {
+    if (activeTab === 'branches' || activeTab === 'customers') {
+      setIsLoading(true);
+      try {
+        if (activeTab === 'branches') {
+          const data = await branchService.getAll();
+          setBranches(data);
+        } else {
+          const data = await customerService.getAll();
+          setCustomers(data);
+        }
+      } catch (error) {
+        toast.error(`Failed to load ${activeTab}`);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [activeTab]);
 
   return (
     <div className="space-y-6 animate-fade-in text-white pb-10">
@@ -67,7 +97,7 @@ export default function SettingsPage() {
         
         {/* Content Area */}
         <div className="flex-1 min-w-0">
-          <Card className="p-5 md:p-8 bg-secondary border-base shadow-xl rounded-2xl">
+          <Card className="p-5 md:p-8 bg-secondary border-base shadow-xl rounded-2xl min-h-[500px]">
             {activeTab === 'general' && (
               <div className="space-y-8 animate-in fade-in duration-500">
                 <div>
@@ -110,6 +140,82 @@ export default function SettingsPage() {
               </div>
             )}
             
+            {activeTab === 'branches' && (
+              <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Store className="w-5 h-5 text-accent" />
+                    Branch Management
+                  </h3>
+                  <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />}>Add Branch</Button>
+                </div>
+                
+                <div className="space-y-3">
+                  {isLoading ? (
+                    <div className="flex justify-center p-10"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div></div>
+                  ) : (
+                    branches.map(branch => (
+                      <div key={branch.id} className="p-4 rounded-2xl bg-white/5 border border-base group hover:border-accent/30 transition-all flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center text-accent">
+                            <MapPin className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-white">{branch.name}</p>
+                            <p className="text-xs text-tertiary">{branch.city}, {branch.address}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button className="p-2 text-tertiary hover:text-white"><Edit className="w-4 h-4" /></button>
+                          <button className="p-2 text-tertiary hover:text-error"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {!isLoading && branches.length === 0 && <p className="text-center text-tertiary py-10 italic">No branches found.</p>}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'customers' && (
+              <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <UserCircle className="w-5 h-5 text-accent" />
+                    Customer Directory
+                  </h3>
+                  <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />}>Add Customer</Button>
+                </div>
+                
+                <div className="space-y-3">
+                  {isLoading ? (
+                    <div className="flex justify-center p-10"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div></div>
+                  ) : (
+                    customers.map(customer => (
+                      <div key={customer.id} className="p-4 rounded-2xl bg-white/5 border border-base group hover:border-accent/30 transition-all flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
+                            <User className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-white">{customer.name}</p>
+                            <p className="text-xs text-tertiary flex items-center gap-2">
+                              <Phone className="w-3 h-3" /> {customer.phone}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button className="p-2 text-tertiary hover:text-white"><Edit className="w-4 h-4" /></button>
+                          <button className="p-2 text-tertiary hover:text-error"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {!isLoading && customers.length === 0 && <p className="text-center text-tertiary py-10 italic">No customers found.</p>}
+                </div>
+              </div>
+            )}
+
             {activeTab === 'account' && (
               <div className="space-y-8 animate-in fade-in duration-500">
                 <h3 className="text-xl font-bold text-white mb-6">Account Profile</h3>
