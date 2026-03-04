@@ -22,13 +22,17 @@ export const userService = {
     return response.data;
   },
 
-  patch: async (id: string, data: Partial<User>) => {
-    const response = await apiClient.patch<User>(`v1/users/${id}/`, data);
+  patch: async (id: string, data: Partial<User>): Promise<User> => {
+    const response = await apiClient.patch(`/v1/users/${id}/`, data);
     return response.data;
   },
 
-  getCurrentUser: async () => {
-    const response = await apiClient.get<User>('v1/me/');
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete(`/v1/users/${id}/`);
+  },
+
+  getCurrentUser: async (): Promise<User> => {
+    const response = await apiClient.get('/v1/me/');
     return response.data;
   },
 

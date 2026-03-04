@@ -1,19 +1,24 @@
+"use client"
+
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/src/lib/utils';
 import { Card } from '@/src/components/Card';
 import { Button } from '@/src/components/Button';
 import { Input, Select, TextArea } from '@/src/components/Input';
 import { Toggle } from '@/src/components/FormControls';
-import { Settings, User, Bell, Shield, Database, Printer, CreditCard, Plus, Download, Store, UserCircle, Edit, Trash2, Search, MapPin, Mail, Phone } from 'lucide-react';
+import { Modal } from '@/src/components/Modal';
+import { Settings, User, Bell, Shield, Database, Printer, CreditCard, Plus, Download, Store, UserCircle, Edit, Trash2, Search, MapPin, Mail, Phone, Grid } from 'lucide-react';
 import { Badge } from '@/src/components/Badge';
 import { branchService } from '@/src/services/branch.service';
 import { customerService } from '@/src/services/customer.service';
-import { Branch, Customer } from '@/src/types';
+import { tableService } from '@/src/services/table.service';
+import { Branch, Customer, Table } from '@/src/types';
 import toast from 'react-hot-toast';
 
 const settingsTabs = [
   { id: 'general', label: 'General', icon: <Settings className="w-5 h-5" /> },
   { id: 'branches', label: 'Branches', icon: <Store className="w-5 h-5" /> },
+  { id: 'tables', label: 'Tables', icon: <Grid className="w-5 h-5" /> },
   { id: 'customers', label: 'Customers', icon: <UserCircle className="w-5 h-5" /> },
   { id: 'account', label: 'Account', icon: <User className="w-5 h-5" /> },
   { id: 'notifications', label: 'Notifications', icon: <Bell className="w-5 h-5" /> },
@@ -27,7 +32,18 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [tables, setTables] = useState<Table[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [editingBranchId, setEditingBranchId] = useState<string | null>(null);
+  const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
+  const [editingTableId, setEditingTableId] = useState<string | null>(null);
+
+  const [branchForm, setBranchForm] = useState({ name: '', address: '', city: '', phone_number: '', email: '', is_active: true });
+  const [customerForm, setCustomerForm] = useState({ name: '', phone: '', address: '', branch: '' });
+  const [tableForm, setTableForm] = useState({ name: '', capacity: 4, branch: '', is_occupied: false, is_active: true });
   
   const [notifications, setNotifications] = useState({
     email: true,
@@ -40,15 +56,26 @@ export default function SettingsPage() {
   });
 
   const fetchData = async () => {
-    if (activeTab === 'branches' || activeTab === 'customers') {
+    if (activeTab === 'branches' || activeTab === 'customers' || activeTab === 'tables') {
       setIsLoading(true);
       try {
         if (activeTab === 'branches') {
           const data = await branchService.getAll();
           setBranches(data);
-        } else {
-          const data = await customerService.getAll();
-          setCustomers(data);
+        } else if (activeTab === 'customers') {
+          const [cData, bData] = await Promise.all([
+            customerService.getAll(),
+            branchService.getAll()
+          ]);
+          setCustomers(cData);
+          setBranches(bData);
+        } else if (activeTab === 'tables') {
+          const data = await tableService.getAll();
+          setTables(data);
+          if (branches.length === 0) {
+            const bData = await branchService.getAll();
+            setBranches(bData);
+          }
         }
       } catch (error) {
         toast.error(`Failed to load ${activeTab}`);
@@ -61,6 +88,118 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchData();
   }, [activeTab]);
+
+  const handleCreateBranch = async () => {
+    try {
+      setIsLoading(true);
+      await branchService.create(branchForm);
+      const data = await branchService.getAll();
+      setBranches(data);
+      setIsBranchModalOpen(false);
+      setBranchForm({ name: '', address: '', city: '', phone_number: '', email: '', is_active: true });
+      toast.success('Branch created');
+    } catch (e) {
+      console.error('Failed to create branch', e);
+      toast.error('Failed to create branch');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateBranch = async () => {
+    if (!editingBranchId) return;
+    try {
+      setIsLoading(true);
+      await branchService.update(editingBranchId, branchForm);
+      const data = await branchService.getAll();
+      setBranches(data);
+      setIsBranchModalOpen(false);
+      setEditingBranchId(null);
+      setBranchForm({ name: '', address: '', city: '', phone_number: '', email: '', is_active: true });
+      toast.success('Branch updated');
+    } catch (e) {
+      console.error('Failed to update branch', e);
+      toast.error('Failed to update branch');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateCustomer = async () => {
+    if (!customerForm.name || !customerForm.branch) {
+      toast.error('Name and Branch are required');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await customerService.create(customerForm as any);
+      const data = await customerService.getAll();
+      setCustomers(data);
+      setIsCustomerModalOpen(false);
+      setCustomerForm({ name: '', phone: '', address: '', branch: '' });
+      toast.success('Customer created');
+    } catch (e) {
+      console.error('Failed to create customer', e);
+      toast.error('Failed to create customer');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateCustomer = async () => {
+    if (!editingCustomerId) return;
+    try {
+      setIsLoading(true);
+      await customerService.update(editingCustomerId, customerForm as any);
+      const data = await customerService.getAll();
+      setCustomers(data);
+      setIsCustomerModalOpen(false);
+      setEditingCustomerId(null);
+      setCustomerForm({ name: '', phone: '', address: '', branch: '' });
+      toast.success('Customer updated');
+    } catch (e) {
+      console.error('Failed to update customer', e);
+      toast.error('Failed to update customer');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateTable = async () => {
+    try {
+      setIsLoading(true);
+      await tableService.create(tableForm);
+      const data = await tableService.getAll();
+      setTables(data);
+      setIsTableModalOpen(false);
+      setTableForm({ name: '', capacity: 4, branch: '', is_occupied: false, is_active: true });
+      toast.success('Table created');
+    } catch (e) {
+      console.error('Failed to create table', e);
+      toast.error('Failed to create table');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateTable = async () => {
+    if (!editingTableId) return;
+    try {
+      setIsLoading(true);
+      await tableService.update(editingTableId, tableForm);
+      const data = await tableService.getAll();
+      setTables(data);
+      setIsTableModalOpen(false);
+      setEditingTableId(null);
+      setTableForm({ name: '', capacity: 4, branch: '', is_occupied: false, is_active: true });
+      toast.success('Table updated');
+    } catch (e) {
+      console.error('Failed to update table', e);
+      toast.error('Failed to update table');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in text-white pb-10">
@@ -147,7 +286,7 @@ export default function SettingsPage() {
                     <Store className="w-5 h-5 text-accent" />
                     Branch Management
                   </h3>
-                  <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />}>Add Branch</Button>
+                  <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setIsBranchModalOpen(true)}>Add Branch</Button>
                 </div>
                 
                 <div className="space-y-3">
@@ -165,14 +304,124 @@ export default function SettingsPage() {
                             <p className="text-xs text-tertiary">{branch.city}, {branch.address}</p>
                           </div>
                         </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button className="p-2 text-tertiary hover:text-white"><Edit className="w-4 h-4" /></button>
-                          <button className="p-2 text-tertiary hover:text-error"><Trash2 className="w-4 h-4" /></button>
+                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            className="p-2 text-tertiary hover:text-white"
+                            onClick={() => {
+                              setEditingBranchId(branch.id);
+                              setBranchForm({ name: branch.name || '', address: branch.address || '', city: branch.city || '', phone_number: branch.phone_number || '', email: branch.email || '', is_active: !!branch.is_active });
+                              setIsBranchModalOpen(true);
+                            }}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            className="p-2 text-tertiary hover:text-error"
+                            onClick={async () => {
+                              if (!confirm('Delete this branch? This action cannot be undone.')) return;
+                              try {
+                                setIsLoading(true);
+                                await branchService.delete(branch.id);
+                                const data = await branchService.getAll();
+                                setBranches(data);
+                                toast.success('Branch deleted');
+                              } catch (e) {
+                                console.error('Failed to delete branch', e);
+                                toast.error('Failed to delete branch');
+                              } finally {
+                                setIsLoading(false);
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     ))
                   )}
                   {!isLoading && branches.length === 0 && <p className="text-center text-tertiary py-10 italic">No branches found.</p>}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'tables' && (
+              <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Grid className="w-5 h-5 text-accent" />
+                    Table Management
+                  </h3>
+                  <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setIsTableModalOpen(true)}>Add Table</Button>
+                </div>
+                
+                <div className="space-y-3">
+                  {isLoading ? (
+                    <div className="flex justify-center p-10"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div></div>
+                  ) : (
+                    tables.map(table => {
+                      const branchName = branches.find(b => b.id === table.branch)?.name || table.branch_name || 'Unknown Branch';
+                      return (
+                        <div key={table.id} className="p-4 rounded-2xl bg-white/5 border border-base group hover:border-accent/30 transition-all flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center text-accent font-bold">
+                              {table.name}
+                            </div>
+                            <div>
+                              <p className="font-bold text-white">Table {table.name}</p>
+                              <p className="text-xs text-tertiary">Capacity: {table.capacity} • {branchName}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <Badge variant={table.is_active ? 'success' : 'error'} size="sm">
+                              {table.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                            <Badge variant={table.is_occupied ? 'warning' : 'secondary'} size="sm">
+                              {table.is_occupied ? 'Occupied' : 'Free'}
+                            </Badge>
+                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                              <button
+                                className="p-2 text-tertiary hover:text-white"
+                                onClick={() => {
+                                  setEditingTableId(table.id);
+                                  setTableForm({ 
+                                    name: table.name || '', 
+                                    capacity: table.capacity || 4, 
+                                    branch: table.branch || '', 
+                                    is_occupied: !!table.is_occupied, 
+                                    is_active: !!table.is_active 
+                                  });
+                                  setIsTableModalOpen(true);
+                                }}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                className="p-2 text-tertiary hover:text-error"
+                                onClick={async () => {
+                                  if (!confirm('Delete this table?')) return;
+                                  try {
+                                    setIsLoading(true);
+                                    await tableService.delete(table.id);
+                                    const data = await tableService.getAll();
+                                    setTables(data);
+                                    toast.success('Table deleted');
+                                  } catch (e) {
+                                    console.error('Failed to delete table', e);
+                                    toast.error('Failed to delete table');
+                                  } finally {
+                                    setIsLoading(false);
+                                  }
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  {!isLoading && tables.length === 0 && <p className="text-center text-tertiary py-10 italic">No tables found.</p>}
                 </div>
               </div>
             )}
@@ -184,7 +433,7 @@ export default function SettingsPage() {
                     <UserCircle className="w-5 h-5 text-accent" />
                     Customer Directory
                   </h3>
-                  <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />}>Add Customer</Button>
+                  <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setIsCustomerModalOpen(true)}>Add Customer</Button>
                 </div>
                 
                 <div className="space-y-3">
@@ -204,9 +453,37 @@ export default function SettingsPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button className="p-2 text-tertiary hover:text-white"><Edit className="w-4 h-4" /></button>
-                          <button className="p-2 text-tertiary hover:text-error"><Trash2 className="w-4 h-4" /></button>
+                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            className="p-2 text-tertiary hover:text-white"
+                            onClick={() => {
+                              setEditingCustomerId(customer.id);
+                              setCustomerForm({ name: customer.name || '', phone: customer.phone || '', address: customer.address || '', branch: customer.branch || '' });
+                              setIsCustomerModalOpen(true);
+                            }}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            className="p-2 text-tertiary hover:text-error"
+                            onClick={async () => {
+                              if (!confirm('Delete this customer?')) return;
+                              try {
+                                setIsLoading(true);
+                                await customerService.delete(customer.id);
+                                const data = await customerService.getAll();
+                                setCustomers(data);
+                                toast.success('Customer deleted');
+                              } catch (e) {
+                                console.error('Failed to delete customer', e);
+                                toast.error('Failed to delete customer');
+                              } finally {
+                                setIsLoading(false);
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     ))
@@ -422,6 +699,91 @@ export default function SettingsPage() {
           </Card>
         </div>
       </div>
+      {/* Modals for creating branch/customer */}
+      <Modal
+        isOpen={isBranchModalOpen}
+        onClose={() => {
+          setIsBranchModalOpen(false);
+          setEditingBranchId(null);
+        }}
+        title={editingBranchId ? 'Edit Branch' : 'Create Branch'}
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => { setIsBranchModalOpen(false); setEditingBranchId(null); }}>Cancel</Button>
+            <Button variant="primary" onClick={editingBranchId ? handleUpdateBranch : handleCreateBranch} isLoading={isLoading}>{editingBranchId ? 'Update' : 'Create'}</Button>
+          </>
+        )}
+      >
+        <div className="grid grid-cols-1 gap-3">
+          <Input label="Name" value={branchForm.name} onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })} />
+          <Input label="City" value={branchForm.city} onChange={(e) => setBranchForm({ ...branchForm, city: e.target.value })} />
+          <Input label="Address" value={branchForm.address} onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })} />
+          <Input label="Phone" value={branchForm.phone_number} onChange={(e) => setBranchForm({ ...branchForm, phone_number: e.target.value })} />
+          <Input label="Email" value={branchForm.email} onChange={(e) => setBranchForm({ ...branchForm, email: e.target.value })} />
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isCustomerModalOpen}
+        onClose={() => { setIsCustomerModalOpen(false); setEditingCustomerId(null); }}
+        title={editingCustomerId ? 'Edit Customer' : 'Create Customer'}
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => { setIsCustomerModalOpen(false); setEditingCustomerId(null); }}>Cancel</Button>
+            <Button variant="primary" onClick={editingCustomerId ? handleUpdateCustomer : handleCreateCustomer} isLoading={isLoading}>{editingCustomerId ? 'Update' : 'Create'}</Button>
+          </>
+        )}
+      >
+        <div className="grid grid-cols-1 gap-3">
+          <Input label="Name" value={customerForm.name} onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })} />
+          <Select 
+            label="Branch *"
+            value={customerForm.branch}
+            onChange={(e) => setCustomerForm({ ...customerForm, branch: e.target.value })}
+            options={[
+              { value: '', label: 'Select Branch' },
+              ...branches.map(b => ({ value: b.id, label: b.name }))
+            ]}
+          />
+          <Input label="Phone" value={customerForm.phone} onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })} />
+          <Input label="Address" value={customerForm.address} onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })} />
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isTableModalOpen}
+        onClose={() => { setIsTableModalOpen(false); setEditingTableId(null); }}
+        title={editingTableId ? 'Edit Table' : 'Create Table'}
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => { setIsTableModalOpen(false); setEditingTableId(null); }}>Cancel</Button>
+            <Button variant="primary" onClick={editingTableId ? handleUpdateTable : handleCreateTable} isLoading={isLoading}>{editingTableId ? 'Update' : 'Create'}</Button>
+          </>
+        )}
+      >
+        <div className="grid grid-cols-1 gap-4">
+          <Input label="Table Name / Number" value={tableForm.name} onChange={(e) => setTableForm({ ...tableForm, name: e.target.value })} />
+          <Input label="Capacity" type="number" value={tableForm.capacity as any} onChange={(e) => setTableForm({ ...tableForm, capacity: parseInt(e.target.value) || 0 })} />
+          
+          <Select 
+            label="Branch"
+            value={tableForm.branch}
+            onChange={(e) => setTableForm({ ...tableForm, branch: e.target.value })}
+            options={[
+              { value: '', label: 'Select a branch' },
+              ...branches.map(b => ({ value: b.id, label: b.name }))
+            ]}
+          />
+
+          <div className="flex flex-col gap-3 mt-2">
+            <Toggle 
+              label="Active (Visible in POS)" 
+              checked={tableForm.is_active} 
+              onChange={(c) => setTableForm({ ...tableForm, is_active: c })} 
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

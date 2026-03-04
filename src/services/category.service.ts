@@ -8,7 +8,7 @@ export const categoryService = {
   },
 
   create: async (data: Omit<Category, 'id'>) => {
-    const response = await apiClient.post<Category>('/v1/categories/', data);
+    const response = await apiClient.post<Category>('v1/categories/', data);
     return response.data;
   },
 
@@ -18,12 +18,12 @@ export const categoryService = {
   },
 
   update: async (id: string, data: Partial<Category>) => {
-    const response = await apiClient.put<Category>(`/v1/categories/${id}/`, data);
+    const response = await apiClient.put<Category>(`v1/categories/${id}/`, data);
     return response.data;
   },
 
   patch: async (id: string, data: Partial<Category>) => {
-    const response = await apiClient.patch<Category>(`/v1/categories/${id}/`, data);
+    const response = await apiClient.patch<Category>(`v1/categories/${id}/`, data);
     return response.data;
   },
 

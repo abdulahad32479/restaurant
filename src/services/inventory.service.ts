@@ -22,18 +22,23 @@ export const inventoryService = {
     return response.data;
   },
 
-  addStock: async (data: { product: string; branch: string; quantity: number; reason?: string }) => {
-    const response = await apiClient.post<StockMovement>('v1/inventory/add_stock/', data);
+  addStock: async (data: { product: string; branch: string; quantity: number; note?: string }) => {
+    const response = await apiClient.post<StockMovement>('v1/inventory/add_stock/', { ...data, quantity: String(data.quantity) });
     return response.data;
   },
 
-  reduceStock: async (data: { product: string; branch: string; quantity: number; reason?: string }) => {
-    const response = await apiClient.post<StockMovement>('v1/inventory/reduce_stock/', data);
+  reduceStock: async (data: { product: string; branch: string; quantity: number; note?: string }) => {
+    const response = await apiClient.post<StockMovement>('v1/inventory/reduce_stock/', { ...data, quantity: String(data.quantity) });
     return response.data;
   },
 
   getMovements: async () => {
     const response = await apiClient.get<StockMovement[]>('v1/stock-movements/');
+    return response.data;
+  }
+  ,
+  delete: async (id: string) => {
+    const response = await apiClient.delete(`v1/inventory/${id}/`);
     return response.data;
   }
 };

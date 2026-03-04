@@ -31,7 +31,7 @@ interface KPICardProps {
   change: string
   changeType: 'positive' | 'negative' | 'neutral'
   icon: React.ReactNode
-  iconBg: string
+  iconBg?: string
 }
 
 export function KPICard({ title, value, change, changeType, icon, iconBg }: KPICardProps) {
@@ -53,9 +53,17 @@ export function KPICard({ title, value, change, changeType, icon, iconBg }: KPIC
             <span>{change}</span>
           </div>
         </div>
-        <div className={cn("p-3 rounded-xl flex items-center justify-center text-white", iconBg.startsWith('bg-') ? iconBg : '')} style={!iconBg.startsWith('bg-') ? { backgroundColor: iconBg.replace('bg-[', '').replace(']', '') } : undefined}>
+        <div
+          className={cn(
+            "p-3 rounded-xl flex items-center justify-center text-white",
+            (typeof iconBg === 'string' && iconBg.startsWith('bg-')) ? iconBg : ''
+          )}
+          style={typeof iconBg === 'string' && !iconBg.startsWith('bg-') ? { backgroundColor: iconBg.replace('bg-[', '').replace(']', '') } : undefined}
+        >
           {/* Handle arbitrary bg colors or Tailwind classes */}
-          {React.cloneElement(icon as React.ReactElement, { className: "w-6 h-6 text-current" })}
+          {React.isValidElement(icon)
+            ? React.cloneElement(icon as React.ReactElement, { className: "w-6 h-6 text-current" })
+            : icon}
         </div>
       </div>
     </Card>

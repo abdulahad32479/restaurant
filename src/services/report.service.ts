@@ -1,5 +1,12 @@
 import apiClient from '../lib/axios';
-import { SalesSummary, LowStockReport } from '../types';
+import { 
+  SalesSummary, 
+  LowStockReport, 
+  SalesByBranchReport, 
+  SalesByProductReport, 
+  PaymentSummaryReport,
+  ZReport
+} from '../types';
 
 export const reportService = {
   getSalesSummary: async () => {
@@ -8,17 +15,17 @@ export const reportService = {
   },
 
   getSalesByBranch: async () => {
-    const response = await apiClient.get('v1/reports/sales-by-branch/');
+    const response = await apiClient.get<SalesByBranchReport[]>('v1/reports/sales-by-branch/');
     return response.data;
   },
 
   getSalesByProduct: async () => {
-    const response = await apiClient.get('v1/reports/sales-by-product/');
+    const response = await apiClient.get<SalesByProductReport[]>('v1/reports/sales-by-product/');
     return response.data;
   },
 
   getPaymentSummary: async () => {
-    const response = await apiClient.get('v1/reports/payment-summary/');
+    const response = await apiClient.get<PaymentSummaryReport[]>('v1/reports/payment-summary/');
     return response.data;
   },
 
@@ -27,8 +34,8 @@ export const reportService = {
     return response.data;
   },
 
-  generateZReport: async () => {
-    const response = await apiClient.post('v1/reports/z-report/');
+  generateZReport: async (data: { date: string; counted_cash: string; branch: string }) => {
+    const response = await apiClient.post<ZReport>('v1/reports/z-report/', data);
     return response.data;
   }
 };

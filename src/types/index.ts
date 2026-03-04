@@ -40,9 +40,14 @@ export interface Category {
 export interface Customer {
   id: string;
   name: string;
-  phone_number: string;
+  branch: string; // Branch ID
+  branch_name?: string;
+  address?: string;
+  phone?: string;
+  phone_number?: string;
   email?: string;
-  loyalty_points?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Table {
@@ -76,9 +81,10 @@ export interface OrderItem {
   id?: string;
   product: string; // Product ID
   product_name?: string;
+  order?: string;
   quantity: number;
   unit_price?: string;
-  tax_amount?: string;
+  taxamount?: string;
   discount_amount?: string;
   total_price?: string;
   created_at?: string;
@@ -107,8 +113,8 @@ export interface Order {
   notes?: string;
   status: OrderStatus;
   subtotal: string;
-  tax_amount?: string;
-  discount_amount?: string;
+  taxamount: string;
+  discount_amount: string;
   total: string;
   paid_amount: string;
   is_paid: boolean;
@@ -130,6 +136,7 @@ export interface Payment {
   order: string;
   method: 'cash' | 'card' | 'other';
   amount: string;
+  created_by?: string;
   status: 'pending' | 'completed' | 'failed';
   transaction_reference?: string;
   idempotency_key?: string;
@@ -145,18 +152,24 @@ export interface InventoryItem {
   quantity: number;
   min_quantity?: number;
   max_quantity?: number;
-  last_updated: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface StockMovement {
   id: string;
-  product: string;
-  branch: string;
-  quantity: number;
-  movement_type: 'addition' | 'reduction' | 'sale' | 'waste';
-  reason?: string;
+  branch_name: string;
+  product_name: string;
+  by: string;
+  movement_types: 'incoming' | 'outgoing' | 'order' | 'adjustment' | 'return'; // Based on schema enum
+  reference_type: string;
+  reference_id: string;
+  quantity: string;
+  quantity_before: string;
+  quantity_after: string;
+  notes?: string;
   created_at: string;
-  created_by: string;
+  updated_at: string;
 }
 
 export interface SalesSummary {
@@ -182,10 +195,29 @@ export interface ZReport {
 }
 
 export interface LowStockReport {
-  product_id: string;
-  product_name: string;
-  current_stock: number;
-  branch_name: string;
+  product__id: number;
+  product__name: string;
+  quantity: number;
+  min_quantity: number;
+}
+
+export interface SalesByBranchReport {
+  branch__id: number;
+  branch__name: string;
+  total_orders: number;
+  total_sales: string;
+}
+
+export interface SalesByProductReport {
+  product__id: number;
+  product__name: string;
+  quantity_sold: number;
+  revenue: string;
+}
+
+export interface PaymentSummaryReport {
+  method: string;
+  total: string;
 }
 
 export interface ApiResponse<T> {

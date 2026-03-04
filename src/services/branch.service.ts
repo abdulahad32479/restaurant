@@ -26,4 +26,8 @@ export const branchService = {
     const response = await apiClient.patch<Branch>(`v1/branches/${id}/`, data);
     return response.data;
   },
+  delete: async (id: string) => {
+    const response = await apiClient.delete(`v1/branches/${id}/`);
+    return response.data;
+  }
 };

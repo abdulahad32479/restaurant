@@ -11,6 +11,7 @@ import { orderService } from '@/src/services/order.service';
 import { branchService } from '@/src/services/branch.service';
 import { Order, Branch, OrderStatus } from '@/src/types';
 import toast from 'react-hot-toast';
+import { Modal } from '@/src/components/Modal';
 
 export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -20,6 +21,10 @@ export default function Orders() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [branchFilter, setBranchFilter] = useState('all');
+
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -41,6 +46,22 @@ export default function Orders() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleUpdateStatus = async (orderId: string, action: 'confirm' | 'cancel' | 'complete' | 'ready') => {
+    setIsUpdatingStatus(orderId);
+    try {
+      if (action === 'confirm') await orderService.confirmPost(orderId);
+      if (action === 'cancel') await orderService.cancelPost(orderId, 'Cancelled from dashboard');
+      if (action === 'complete') await orderService.completePost(orderId);
+      if (action === 'ready') await orderService.markReadyPost(orderId);
+      toast.success(`Order ${action}d successfully`);
+      fetchData();
+    } catch (e) {
+      toast.error(`Failed to ${action} order`);
+    } finally {
+      setIsUpdatingStatus(null);
+    }
+  };
   
   const filteredOrders = orders.filter(order => {
     const matchesSearch = (order.id || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -128,7 +149,45 @@ export default function Orders() {
       align: 'right' as const,
       render: (value: any, row: Order) => (
         <div className="flex items-center justify-end gap-2">
-          <button className="p-2.5 hover:bg-white/5 rounded-xl transition-all group" title="View Details">
+          {row.status === 'draft' && (
+            <button 
+              className="p-1.5 hover:bg-success/10 rounded-lg transition-all text-success" 
+              title="Confirm Order"
+              onClick={() => handleUpdateStatus(row.id, 'confirm')}
+              disabled={isUpdatingStatus === row.id}
+            >
+              Confirm
+            </button>
+          )}
+          {row.status === 'confirmed' && (
+            <button 
+              className="p-1.5 hover:bg-accent/10 rounded-lg transition-all text-accent" 
+              title="Mark Ready"
+              onClick={() => handleUpdateStatus(row.id, 'ready')}
+              disabled={isUpdatingStatus === row.id}
+            >
+              Ready
+            </button>
+          )}
+          {row.status === 'ready' && (
+            <button 
+              className="p-1.5 hover:bg-success/10 rounded-lg transition-all text-success font-bold" 
+              title="Complete Order"
+              onClick={() => handleUpdateStatus(row.id, 'complete')}
+              disabled={isUpdatingStatus === row.id}
+            >
+              Complete
+            </button>
+          )}
+          
+          <button 
+            className="p-2.5 hover:bg-white/5 rounded-xl transition-all group" 
+            title="View Details"
+            onClick={() => {
+              setSelectedOrder(row);
+              setIsDetailsModalOpen(true);
+            }}
+          >
             <Eye className="w-4 h-4 text-tertiary group-hover:text-accent" />
           </button>
           <button 
@@ -229,6 +288,122 @@ export default function Orders() {
             <span className="text-[10px] font-black uppercase tracking-widest text-[#B3B3B3]">Live Syncing</span>
         </div>
       </div>
+
+      {/* Order Details Modal */}
+      <Modal
+        isOpen={isDetailsModalOpen}
+        onClose={() => { setIsDetailsModalOpen(false); setSelectedOrder(null); }}
+        title={`Order Details - ${selectedOrder?.id.substring(0, 8).toUpperCase()}`}
+        size="lg"
+      >
+        {selectedOrder && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white/5 p-4 rounded-xl border border-base">
+                <p className="text-xs text-tertiary uppercase tracking-widest mb-1">Customer / Table</p>
+                <p className="font-bold text-white text-lg">{selectedOrder.table_no || selectedOrder.order_type.toUpperCase()}</p>
+              </div>
+              <div className="bg-white/5 p-4 rounded-xl border border-base">
+                <p className="text-xs text-tertiary uppercase tracking-widest mb-1">Status</p>
+                <Badge variant={getStatusBadgeVariant(selectedOrder.status)}>
+                  {selectedOrder.status.toUpperCase()}
+                </Badge>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-bold text-white mb-3 uppercase tracking-widest text-xs">Order Items</h4>
+              <div className="bg-bg-main border border-base rounded-xl overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-white/5">
+                    <tr>
+                      <th className="px-4 py-3 text-xs font-bold text-tertiary">Item</th>
+                      <th className="px-4 py-3 text-xs font-bold text-tertiary text-center">Qty</th>
+                      <th className="px-4 py-3 text-xs font-bold text-tertiary text-right">Price</th>
+                      <th className="px-4 py-3 text-xs font-bold text-tertiary text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-base/50">
+                    {selectedOrder.items?.map((item: any, idx: number) => (
+                      <tr key={idx} className="hover:bg-white/5">
+                        <td className="px-4 py-3 text-sm text-white">{item.product_name || item.product}</td>
+                        <td className="px-4 py-3 text-sm font-bold text-center">{item.quantity}</td>
+                        <td className="px-4 py-3 text-sm text-right text-tertiary">${Number(item.unit_price || 0).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-bold text-accent">
+                          ${Number(item.total_price || (Number(item.unit_price || 0) * Number(item.quantity || 0))).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    {!selectedOrder.items?.length && (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-6 text-center text-tertiary italic text-sm">No items found</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-base">
+              <span className="text-sm font-bold text-tertiary uppercase tracking-widest">Total Amount</span>
+              <span className="text-2xl font-black text-accent">${Number(selectedOrder.total).toFixed(2)}</span>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-base">
+              {['draft', 'confirmed', 'ready'].includes(selectedOrder.status) && (
+                <Button 
+                  variant="outline" 
+                  className="bg-error/10 text-error hover:bg-error/20 border-error/20"
+                  onClick={() => {
+                    handleUpdateStatus(selectedOrder.id, 'cancel');
+                    setIsDetailsModalOpen(false);
+                  }}
+                  disabled={isUpdatingStatus === selectedOrder.id}
+                >
+                  Cancel Order
+                </Button>
+              )}
+              {selectedOrder.status === 'draft' && (
+                <Button 
+                  variant="primary" 
+                  onClick={() => {
+                    handleUpdateStatus(selectedOrder.id, 'confirm');
+                    setIsDetailsModalOpen(false);
+                  }}
+                  disabled={isUpdatingStatus === selectedOrder.id}
+                >
+                  Confirm Order
+                </Button>
+              )}
+              {selectedOrder.status === 'confirmed' && (
+                <Button 
+                  variant="primary" 
+                  onClick={() => {
+                    handleUpdateStatus(selectedOrder.id, 'ready');
+                    setIsDetailsModalOpen(false);
+                  }}
+                  disabled={isUpdatingStatus === selectedOrder.id}
+                >
+                  Mark Ready
+                </Button>
+              )}
+              {selectedOrder.status === 'ready' && (
+                <Button 
+                  variant="primary" 
+                  onClick={() => {
+                    handleUpdateStatus(selectedOrder.id, 'complete');
+                    setIsDetailsModalOpen(false);
+                  }}
+                  disabled={isUpdatingStatus === selectedOrder.id}
+                >
+                  Complete Order
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>Close</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

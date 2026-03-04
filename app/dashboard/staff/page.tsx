@@ -23,6 +23,8 @@ export default function StaffManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   
   // New User Form State
   const [newUser, setNewUser] = useState({
@@ -62,17 +64,29 @@ export default function StaffManagement() {
     return matchesSearch && matchesRole;
   });
   
-  const handleAddStaff = async () => {
-    if (!newUser.username || !newUser.email || !newUser.password || !newUser.branch) {
+  const handleSaveStaff = async () => {
+    // Only require password for new users
+    if (!newUser.username || !newUser.email || (!editingUserId && !newUser.password) || !newUser.branch) {
       toast.error('Please fill in all required fields');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await userService.create(newUser);
-      toast.success('Staff member created successfully!');
+      if (editingUserId) {
+        // If password is empty, we don't send it to the backend to keep the existing one
+        const dataToUpdate = { ...newUser };
+        if (!dataToUpdate.password) {
+          delete (dataToUpdate as any).password;
+        }
+        await userService.update(editingUserId, dataToUpdate);
+        toast.success('Staff member updated successfully!');
+      } else {
+        await userService.create(newUser);
+        toast.success('Staff member created successfully!');
+      }
       setIsAddModalOpen(false);
+      setEditingUserId(null);
       setNewUser({
         username: '',
         email: '',
@@ -83,10 +97,25 @@ export default function StaffManagement() {
       });
       fetchData();
     } catch (error: any) {
-      console.error('Failed to create staff', error);
-      toast.error(error.response?.data?.detail || 'Failed to create staff member');
+      console.error(editingUserId ? 'Failed to update staff' : 'Failed to create staff', error);
+      toast.error(error.response?.data?.detail || (editingUserId ? 'Failed to update staff member' : 'Failed to create staff member'));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteStaff = async (id: string, username: string) => {
+    if (!confirm(`Are you sure you want to delete ${username}?`)) return;
+    setIsDeletingId(id);
+    try {
+      await userService.delete(id);
+      toast.success('Staff member deleted successfully');
+      fetchData();
+    } catch (error) {
+      console.error('Failed to delete staff', error);
+      toast.error('Failed to delete staff member');
+    } finally {
+      setIsDeletingId(null);
     }
   };
 
@@ -137,10 +166,28 @@ export default function StaffManagement() {
       align: 'right' as const,
       render: (value: any, row: User) => (
         <div className="flex items-center justify-end gap-2">
-          <button className="p-2.5 hover:bg-white/5 rounded-xl transition-all hover:text-accent">
+          <button 
+            className="p-2.5 hover:bg-white/5 rounded-xl transition-all hover:text-accent"
+            onClick={() => {
+              setEditingUserId(row.id);
+              setNewUser({
+                username: row.username,
+                email: row.email,
+                password: '', // Don't explicitly pre-fill password
+                role: row.role as any,
+                branch: row.branch || '',
+                is_active: row.is_active === undefined ? true : row.is_active
+              });
+              setIsAddModalOpen(true);
+            }}
+          >
             <Edit className="w-4 h-4" />
           </button>
-          <button className="p-2.5 hover:bg-error/10 rounded-xl transition-all text-error/60 hover:text-error">
+          <button 
+            className={`p-2.5 hover:bg-error/10 rounded-xl transition-all text-error/60 hover:text-error ${isDeletingId === row.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+            onClick={() => handleDeleteStaff(row.id, row.username)}
+            disabled={isDeletingId === row.id}
+          >
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
@@ -212,19 +259,35 @@ export default function StaffManagement() {
         </p>
       </div>
       
-      {/* Add Staff Modal */}
+      {/* Add/Edit Staff Modal */}
       <Modal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        title="Add New Staff Member"
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setEditingUserId(null);
+          setNewUser({
+            username: '', email: '', password: '', role: 'staff' as any, branch: '', is_active: true
+          });
+        }}
+        title={editingUserId ? "Edit Staff Member" : "Add New Staff Member"}
         size="lg"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setIsAddModalOpen(false)} disabled={isSubmitting}>
+            <Button 
+              variant="secondary" 
+              onClick={() => {
+                setIsAddModalOpen(false);
+                setEditingUserId(null);
+                setNewUser({
+                  username: '', email: '', password: '', role: 'staff' as any, branch: '', is_active: true
+                });
+              }} 
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleAddStaff} isLoading={isSubmitting}>
-              Create Account
+            <Button variant="primary" onClick={handleSaveStaff} isLoading={isSubmitting}>
+              {editingUserId ? "Update Account" : "Create Account"}
             </Button>
           </>
         }
@@ -250,7 +313,7 @@ export default function StaffManagement() {
             <Input 
               label="Password" 
               type="password" 
-              placeholder="********" 
+              placeholder={editingUserId ? "Leave blank to keep current" : "********"} 
               icon={<Lock className="w-4 h-4" />}
               value={newUser.password}
               onChange={(e) => setNewUser({...newUser, password: e.target.value})}

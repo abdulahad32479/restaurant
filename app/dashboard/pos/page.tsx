@@ -13,7 +13,7 @@ import { categoryService } from '@/src/services/category.service';
 import { branchService } from '@/src/services/branch.service';
 import { tableService } from '@/src/services/table.service';
 import { orderService } from '@/src/services/order.service';
-import { Product, Category, Branch, Table, OrderType, OrderStatus } from '@/src/types';
+import { Product, Category, Branch, Table, OrderType } from '@/src/types';
 import toast from 'react-hot-toast';
 
 export default function POS() {
@@ -110,28 +110,27 @@ export default function POS() {
 
     setIsProcessing(true);
     try {
-      // 1. Create order
-      const orderData = {
+      // 1. Create order — only send fields the backend accepts
+      const orderData: any = {
         branch: selectedBranch,
         order_type: orderType,
-        table_no: orderType === 'dine_in' ? selectedTable : undefined,
         items: cart.map(item => ({
           product: item.product.id,
           quantity: item.quantity,
-          unit_price: item.product.price
         })),
-        status: 'draft' as OrderStatus,
-        subtotal: subtotal.toFixed(2),
-        total: total.toFixed(2)
       };
+
+      if (orderType === 'dine_in' && selectedTable) {
+        orderData.table_id = selectedTable;
+      }
 
       console.log('Sending order data:', JSON.stringify(orderData, null, 2));
       const newOrder = await orderService.create(orderData);
-      console.log('Order created successfully:', newOrder);
+      console.log('Order created:', newOrder);
       
-      // 2. Explicitly confirm the order to make it visible in KDS
+      // 2. Confirm the order
       try {
-        await orderService.confirm(newOrder.id);
+        await orderService.confirmPost(newOrder.id);
         console.log('Order confirmed');
       } catch (confirmError) {
         console.error('Order confirmation failed', confirmError);
@@ -140,11 +139,9 @@ export default function POS() {
       // 3. Process payment
       try {
         await orderService.addPayment(newOrder.id, {
-          order: newOrder.id,
           method: paymentMethod,
           amount: total.toFixed(2),
-          status: 'completed',
-          transaction_reference: `POS-${Date.now()}`
+          idempotency_key: `POS-${Date.now()}`,
         });
         console.log('Payment added');
       } catch (paymentError) {
@@ -152,14 +149,14 @@ export default function POS() {
         toast.error('Order created but payment recording failed');
       }
 
-      toast.success('Order completed successfully!');
+      toast.success('Order placed successfully!');
       setCart([]);
       setSelectedTable('');
     } catch (error: any) {
       console.error('Checkout failed', error);
       const errorData = error.response?.data;
       
-      let errorMessage = 'Failed to complete order (Server Error 500)';
+      let errorMessage = 'Failed to complete order';
       
       if (typeof errorData === 'string' && !errorData.includes('<!doctype html>')) {
         errorMessage = errorData;

@@ -171,9 +171,9 @@ export default function Dashboard() {
                   <AlertCircle className="w-5 h-5 text-error" />
                 </div>
                 <div>
-                  <p className="font-black text-white uppercase text-xs tracking-tight">Critical Stock: {item.product_name}</p>
+                  <p className="font-black text-white uppercase text-xs tracking-tight">Critical Stock: {item.product__name}</p>
                   <p className="text-[10px] text-[#808080] font-bold uppercase tracking-widest mt-1">
-                    Only <span className="text-error">{item.current_stock} units</span> left at <span className="text-white">{item.branch_name}</span>
+                    Only <span className="text-error">{item.quantity} units</span> left (Min: {item.min_quantity})
                   </p>
                 </div>
               </div>

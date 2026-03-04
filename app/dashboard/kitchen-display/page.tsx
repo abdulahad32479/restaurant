@@ -23,14 +23,17 @@ export default function KitchenDisplay() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeStatus, setActiveStatus] = useState('all');
+  const [processingOrders, setProcessingOrders] = useState<Record<string, boolean>>({});
   
   const fetchOrdersAndProducts = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     else setIsRefreshing(true);
     
     try {
+      // Fetch only relevant statuses for kitchen
+      const kitchenStatuses = 'draft,confirmed,preparing,ready,served';
       const [orderData, productData] = await Promise.all([
-        orderService.getAll(),
+        orderService.getAll(kitchenStatuses),
         productService.getAll()
       ]);
 
@@ -39,10 +42,7 @@ export default function KitchenDisplay() {
       productData.forEach((p: any) => { pMap[p.id] = p.name; });
       setProducts(pMap);
 
-      // Only show orders that are in kitchen-relevant statuses
-      const kitchenStatuses = ['draft', 'confirmed', 'preparing', 'ready', 'served'];
-      const activeOrders = orderData.filter((order: any) => kitchenStatuses.includes(order.status));
-      setOrders(activeOrders);
+      setOrders(orderData);
     } catch (error) {
       console.error('Failed to fetch kitchen data', error);
       if (!silent) toast.error('Failed to load kitchen display');
@@ -58,18 +58,38 @@ export default function KitchenDisplay() {
     return () => clearInterval(interval);
   }, [fetchOrdersAndProducts]);
   
-  const handleStatusUpdate = async (orderId: string, action: 'prepare' | 'ready' | 'serve' | 'confirm') => {
+  const handleStatusUpdate = async (order: Order, action: 'prepare' | 'ready' | 'serve' | 'confirm') => {
+    setProcessingOrders(prev => ({ ...prev, [order.id]: true }));
     try {
-      if (action === 'confirm') await orderService.confirm(orderId);
-      else if (action === 'prepare') await orderService.markPreparing(orderId);
-      else if (action === 'ready') await orderService.markReady(orderId);
-      else if (action === 'serve') await orderService.complete(orderId); // Use complete instead of served
+
+      if (action === 'confirm') {
+        await orderService.confirmPost(order.id);
+      } else if (action === 'prepare') {
+        await orderService.markPreparingPost(order.id);
+      } else if (action === 'ready') {
+        await orderService.markReadyPost(order.id);
+      } else if (action === 'serve') {
+        await orderService.markServedPost(order.id);
+      }
       
-      toast.success(`Order updated!`);
-      fetchOrdersAndProducts(true);
-    } catch (error) {
-      console.error('Update failed', error);
-      toast.error('Failed to update order status');
+      toast.success(`Order ${action}ed!`);
+      await fetchOrdersAndProducts(true);
+    } catch (error: any) {
+      console.error(`Update (${action}) failed`, error);
+      const errorData = error.response?.data;
+      let errorMessage = `Failed to ${action} order`;
+      
+      if (typeof errorData === 'string' && !errorData.includes('<!doctype html>')) {
+        errorMessage = errorData;
+      } else if (typeof errorData === 'object' && errorData !== null) {
+        errorMessage = Object.entries(errorData)
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : JSON.stringify(v)}`)
+          .join(', ');
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setProcessingOrders(prev => ({ ...prev, [order.id]: false }));
     }
   };
   
@@ -199,32 +219,42 @@ export default function KitchenDisplay() {
                 <div className="space-y-3 pt-6 border-t border-[#2A2A2A]">
                   {order.status === 'draft' && (
                     <button 
-                      onClick={() => handleStatusUpdate(order.id, 'confirm')}
-                      className="w-full px-4 py-4 bg-[#808080] text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[#999] transition-all active:scale-95"
+                      onClick={() => handleStatusUpdate(order, 'confirm')}
+                      disabled={processingOrders[order.id]}
+                      className="w-full px-4 py-4 bg-[#808080] text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[#999] transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Confirm Order
+                      {processingOrders[order.id] ? 'Confirming...' : 'Confirm Order'}
                     </button>
                   ) || order.status === 'confirmed' && (
                     <button 
-                      onClick={() => handleStatusUpdate(order.id, 'prepare')}
-                      className="w-full px-4 py-4 bg-[#3B82F6] text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[#3B82F6]/90 transition-all active:scale-95 shadow-lg shadow-[#3B82F6]/20"
+                      onClick={() => handleStatusUpdate(order, 'prepare')}
+                      disabled={processingOrders[order.id]}
+                      className="w-full px-4 py-4 bg-[#3B82F6] text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[#3B82F6]/90 transition-all active:scale-95 shadow-lg shadow-[#3B82F6]/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Start Cooking
+                      {processingOrders[order.id] ? 'Starting...' : 'Start Cooking'}
                     </button>
                   ) || order.status === 'preparing' && (
                     <button 
-                      onClick={() => handleStatusUpdate(order.id, 'ready')}
-                      className="w-full px-4 py-4 bg-[#10B981] text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[#10B981]/90 transition-all active:scale-95 shadow-lg shadow-[#10B981]/20"
+                      onClick={() => handleStatusUpdate(order, 'ready')}
+                      disabled={processingOrders[order.id]}
+                      className="w-full px-4 py-4 bg-[#10B981] text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[#10B981]/90 transition-all active:scale-95 shadow-lg shadow-[#10B981]/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Mark as Ready
+                      {processingOrders[order.id] ? 'Finalizing...' : 'Mark as Ready'}
                     </button>
                   ) || order.status === 'ready' && (
                     <button 
-                      onClick={() => handleStatusUpdate(order.id, 'serve')}
-                      className="w-full px-4 py-4 bg-white text-black font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-white/90 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-white/10"
+                      onClick={() => handleStatusUpdate(order, 'serve')}
+                      disabled={processingOrders[order.id]}
+                      className="w-full px-4 py-4 bg-white text-black font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-white/90 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <CheckCircle className="w-4 h-4" />
-                      Complete & Serve
+                      {processingOrders[order.id] ? (
+                        'Completing...'
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4" />
+                          Complete & Serve
+                        </>
+                      )}
                     </button>
                   )}
                 </div>

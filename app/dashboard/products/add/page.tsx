@@ -105,7 +105,7 @@ export default function AddProduct() {
             product: newProduct.id,
             branch: formData.branch,
             quantity: formData.stock,
-            reason: 'Initial stock on product creation'
+            note: 'Initial stock on product creation'
           });
           toast.success('Product and initial stock added!');
         } catch (invError) {
