@@ -3,8 +3,13 @@ import { Product } from '../types';
 
 export const productService = {
   getAll: async () => {
-    const response = await apiClient.get<Product[]>('v1/products/');
-    return response.data;
+    const response = await apiClient.get<any>('v1/products/');
+    if (Array.isArray(response.data)) {
+      return response.data;
+    } else if (response.data && Array.isArray(response.data.results)) {
+      return response.data.results;
+    }
+    return [];
   },
 
   getById: async (id: string) => {

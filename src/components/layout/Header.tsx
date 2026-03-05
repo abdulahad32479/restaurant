@@ -1,11 +1,16 @@
+"use client"
+
 import { Bell, Search, LogOut, Command, Menu } from "lucide-react"
 import { Button } from "@/src/components/ui/button"
+import { useAuth } from "@/src/context/AuthContext"
 
 interface HeaderProps {
   onMenuClick: () => void
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
+  const { user, logout } = useAuth();
+
   return (
     <header className="flex h-16 md:h-20 items-center justify-between border-b border-base bg-secondary/50 backdrop-blur-md px-4 md:px-8 sticky top-0 z-20">
       <div className="flex flex-1 items-center gap-4">
@@ -50,16 +55,24 @@ export function Header({ onMenuClick }: HeaderProps) {
 
         <div className="flex items-center gap-2 md:gap-4 md:pl-2">
           <div className="flex flex-col items-end hidden lg:flex">
-            <p className="text-sm font-bold text-white leading-none">Admin User</p>
-            <p className="text-[11px] font-medium text-accent mt-1">Manager</p>
+            <p className="text-sm font-bold text-white leading-none">{user?.username || 'Admin User'}</p>
+            <p className="text-[11px] font-medium text-accent mt-1">{user?.role || 'Staff'}</p>
           </div>
           <div className="group relative cursor-pointer">
             <div className="flex h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-xl md:rounded-2xl bg-gradient-to-br from-accent to-accent-active text-bg-main font-black shadow-glow-accent group-hover:scale-105 transition-transform duration-300">
-              A
+              {user?.username?.charAt(0).toUpperCase() || 'A'}
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 md:h-3.5 md:w-3.5 bg-success rounded-full ring-2 ring-secondary" />
           </div>
-          <Button variant="ghost" size="icon" className="text-tertiary hover:text-error hover:bg-error/5 transition-all ml-1 md:ml-2 h-9 w-9">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-tertiary hover:text-error hover:bg-error/5 transition-all ml-1 md:ml-2 h-9 w-9"
+            onClick={() => {
+              logout();
+              window.location.href = '/login';
+            }}
+          >
             <LogOut className="h-4 w-4 md:h-5 md:w-5" />
           </Button>
         </div>

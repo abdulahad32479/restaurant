@@ -27,7 +27,7 @@ export default function Reports() {
   const [isGeneratingZ, setIsGeneratingZ] = useState(false);
   const [zForm, setZForm] = useState({
     date: new Date().toISOString().split('T')[0],
-    counted_cash: '',
+    counted_cash: '', // Sent as string for backend Decimal field
     branch: ''
   });
 

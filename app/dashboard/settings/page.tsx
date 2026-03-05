@@ -14,6 +14,7 @@ import { customerService } from '@/src/services/customer.service';
 import { tableService } from '@/src/services/table.service';
 import { Branch, Customer, Table } from '@/src/types';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/src/context/AuthContext';
 
 const settingsTabs = [
   { id: 'general', label: 'General', icon: <Settings className="w-5 h-5" /> },
@@ -29,8 +30,10 @@ const settingsTabs = [
 ];
 
 export default function SettingsPage() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('general');
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [activeBranch, setActiveBranch] = useState<Branch | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -56,37 +59,37 @@ export default function SettingsPage() {
   });
 
   const fetchData = async () => {
-    if (activeTab === 'branches' || activeTab === 'customers' || activeTab === 'tables') {
-      setIsLoading(true);
-      try {
-        if (activeTab === 'branches') {
-          const data = await branchService.getAll();
-          setBranches(data);
-        } else if (activeTab === 'customers') {
-          const [cData, bData] = await Promise.all([
-            customerService.getAll(),
-            branchService.getAll()
-          ]);
-          setCustomers(cData);
-          setBranches(bData);
-        } else if (activeTab === 'tables') {
-          const data = await tableService.getAll();
-          setTables(data);
-          if (branches.length === 0) {
-            const bData = await branchService.getAll();
-            setBranches(bData);
-          }
-        }
-      } catch (error) {
-        toast.error(`Failed to load ${activeTab}`);
-      } finally {
-        setIsLoading(false);
+    setIsLoading(true);
+    try {
+      if (activeTab === 'general' && user?.branch) {
+        const b = await branchService.getById(user.branch);
+        setActiveBranch(b);
       }
+      
+      if (activeTab === 'branches' || activeTab === 'customers' || activeTab === 'tables' || activeTab === 'general') {
+        const [bData] = await Promise.all([
+          branchService.getAll()
+        ]);
+        setBranches(bData);
+        
+        if (activeTab === 'customers') {
+          const cData = await customerService.getAll();
+          setCustomers(cData);
+        } else if (activeTab === 'tables') {
+          const tData = await tableService.getAll();
+          setTables(tData);
+        }
+      }
+    } catch (error) {
+      toast.error(`Failed to load data for ${activeTab}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   const handleCreateBranch = async () => {
@@ -245,12 +248,12 @@ export default function SettingsPage() {
                     Restaurant Information
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Input label="Restaurant Name" defaultValue="Duke's Diner" />
-                    <Input label="Branch ID" defaultValue="BR-001" disabled />
-                    <Input label="Phone Number" defaultValue="+1 (555) 123-4567" />
-                    <Input label="Email" defaultValue="contact@dukesdiner.com" />
+                    <Input label="Restaurant Name" defaultValue={activeBranch?.name || "Duke's Diner"} key={activeBranch?.id + 'name'} />
+                    <Input label="Branch ID" defaultValue={activeBranch?.id || "BR-001"} disabled key={activeBranch?.id + 'id'} />
+                    <Input label="Phone Number" defaultValue={activeBranch?.phone_number || "+1 (555) 123-4567"} key={activeBranch?.id + 'phone'} />
+                    <Input label="Email" defaultValue={activeBranch?.email || "contact@dukesdiner.com"} key={activeBranch?.id + 'email'} />
                     <div className="md:col-span-2">
-                      <Input label="Business Address" defaultValue="123 Main St, New York, NY 10001" />
+                      <Input label="Business Address" defaultValue={activeBranch?.address || "123 Main St, New York, NY 10001"} key={activeBranch?.id + 'address'} />
                     </div>
                   </div>
                 </div>
@@ -507,10 +510,10 @@ export default function SettingsPage() {
                   </div>
                   <div className="flex-1 space-y-4 w-full">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input label="Full Name" defaultValue="Admin User" />
-                      <Input label="Employee ID" defaultValue="EMP-2026-0045" disabled />
+                      <Input label="Full Name / Username" defaultValue={user?.username || "Admin User"} key={user?.id + 'un'} />
+                      <Input label="Employee / User ID" defaultValue={user?.id || "EMP-2026-0045"} disabled key={user?.id + 'id'} />
                     </div>
-                    <Input label="Professional Email" defaultValue="admin@dukespos.com" />
+                    <Input label="Professional Email" defaultValue={user?.email || "admin@dukespos.com"} key={user?.id + 'em'} />
                   </div>
                 </div>
               </div>

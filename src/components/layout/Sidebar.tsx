@@ -17,18 +17,26 @@ import {
   ChevronLeft,
   LogOut,
   History,
-  Store
+  Store,
+  Shield
 } from "lucide-react"
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Package, label: "Products", href: "/dashboard/products" },
-  { icon: ShoppingCart, label: "POS Billing", href: "/dashboard/pos" },
+  { icon: ShoppingCart, label: "POS", href: "/dashboard/pos" },
   { icon: ChefHat, label: "Kitchen Display", href: "/dashboard/kitchen-display" },
-  { icon: UtensilsCrossed, label: "Menu", href: "/dashboard/menu" },
   { icon: ClipboardList, label: "Orders", href: "/dashboard/orders" },
+  { icon: UtensilsCrossed, label: "Menu", href: "/dashboard/menu" },
+  { icon: Package, label: "Inventory", href: "/dashboard/inventory" },
+  { icon: History, label: "Stock Movements", href: "/dashboard/movements" },
+  { icon: Package, label: "Products", href: "/dashboard/products" },
+  { icon: UtensilsCrossed, label: "Categories", href: "/dashboard/categories" },
+  { icon: Store, label: "Branches", href: "/dashboard/branches" },
+  { icon: ClipboardList, label: "Tables", href: "/dashboard/tables" },
+  { icon: Users, label: "Customers", href: "/dashboard/customers" },
   { icon: Users, label: "Staff", href: "/dashboard/staff" },
-  { icon: BarChart3, label: "Analytics", href: "/dashboard/reports" },
+  { icon: Shield, label: "Admin Users", href: "/dashboard/admin/users" },
+  { icon: BarChart3, label: "Reports", href: "/dashboard/reports" },
   { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ]
 

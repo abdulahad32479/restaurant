@@ -11,6 +11,7 @@ import { Category, Branch } from '@/src/types';
 import toast from 'react-hot-toast';
 import { AlertCircle, Package, Plus, Search, RefreshCw, ArrowLeft, CloudUpload, X } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function AddProduct() {
   const router = useRouter();
@@ -297,10 +298,11 @@ export default function AddProduct() {
                 </label>
                 {imageFile && (
                   <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-[#2A2A2A]">
-                    <img 
+                    <Image 
                       src={URL.createObjectURL(imageFile)} 
                       alt="Preview" 
-                      className="w-full h-full object-cover" 
+                      fill
+                      className="object-cover" 
                     />
                     <button 
                       type="button" 

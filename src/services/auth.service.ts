@@ -13,7 +13,10 @@ export const authService = {
   },
 
   logout: async () => {
-    // Optionally call backend logout
+    const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
+    if (refreshToken) {
+      await apiClient.post('v1/logout/', { refresh: refreshToken });
+    }
     return true;
   }
 };

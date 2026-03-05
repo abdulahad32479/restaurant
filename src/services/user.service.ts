@@ -37,7 +37,7 @@ export const userService = {
   },
 
   logout: async () => {
-    const response = await apiClient.post('v1/logout/');
-    return response.data;
+    const { authService } = await import('./auth.service');
+    return authService.logout();
   }
 };

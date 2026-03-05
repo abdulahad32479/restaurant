@@ -74,15 +74,17 @@ export default function StaffManagement() {
     setIsSubmitting(true);
     try {
       if (editingUserId) {
-        // If password is empty, we don't send it to the backend to keep the existing one
-        const dataToUpdate = { ...newUser };
+        const dataToUpdate = { ...newUser } as any;
         if (!dataToUpdate.password) {
-          delete (dataToUpdate as any).password;
+          delete dataToUpdate.password;
         }
+        delete dataToUpdate.is_active;
         await userService.update(editingUserId, dataToUpdate);
         toast.success('Staff member updated successfully!');
       } else {
-        await userService.create(newUser);
+        const dataToCreate = { ...newUser } as any;
+        delete dataToCreate.is_active;
+        await userService.create(dataToCreate);
         toast.success('Staff member created successfully!');
       }
       setIsAddModalOpen(false);

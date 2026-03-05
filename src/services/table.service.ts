@@ -3,17 +3,17 @@ import { Table } from '../types';
 
 export const tableService = {
   getAll: async () => {
-    const response = await apiClient.get<Table[]>('v1/tables/');
-    return response.data;
+    const response = await apiClient.get<any>('v1/tables/');
+    if (Array.isArray(response.data)) {
+      return response.data;
+    } else if (response.data && Array.isArray(response.data.results)) {
+      return response.data.results;
+    }
+    return [];
   },
 
   create: async (data: Omit<Table, 'id'>) => {
     const response = await apiClient.post<Table>('v1/tables/', data);
-    return response.data;
-  },
-
-  getById: async (id: string) => {
-    const response = await apiClient.get<Table>(`v1/tables/${id}/`);
     return response.data;
   },
 

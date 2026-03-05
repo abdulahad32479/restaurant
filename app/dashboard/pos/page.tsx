@@ -130,7 +130,7 @@ export default function POS() {
       
       // 2. Confirm the order
       try {
-        await orderService.confirmPost(newOrder.id);
+        await orderService.confirm(newOrder.id, newOrder);
         console.log('Order confirmed');
       } catch (confirmError) {
         console.error('Order confirmation failed', confirmError);
@@ -226,10 +226,12 @@ export default function POS() {
               onChange={(e) => setSelectedTable(e.target.value)}
               options={[
                 { value: '', label: 'Select Table' },
-                ...Array.from({ length: 10 }, (_, i) => ({
-                  value: `${i + 1}`,
-                  label: `Table ${i + 1}`
-                }))
+                ...tables
+                  .filter(t => !selectedBranch || t.branch === selectedBranch)
+                  .map(t => ({
+                    value: t.id,
+                    label: `Table ${t.name} (Cap: ${t.capacity})`
+                  }))
               ]}
               icon={<LayoutGrid className="w-4 h-4" />}
               className="bg-[#1A1A1A] border-[#2A2A2A]"
@@ -309,7 +311,7 @@ export default function POS() {
         <div className="p-6 border-b border-[#2A2A2A] bg-[#0A0A0A]/30">
           <h2 className="text-xl font-bold italic uppercase tracking-tight">Order Details</h2>
           <p className="text-[10px] text-[#808080] font-bold uppercase tracking-widest mt-1">
-            {orderType.replace('_', ' ')} {selectedTable && `• Table ${selectedTable}`}
+            {orderType.replace('_', ' ')} {selectedTable && `• Table ${tables.find(t => t.id === selectedTable)?.name || selectedTable}`}
           </p>
         </div>
         

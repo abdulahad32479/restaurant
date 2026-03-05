@@ -96,6 +96,7 @@ export type OrderStatus = 'draft' | 'confirmed' | 'preparing' | 'ready' | 'serve
 
 export interface Order {
   id: string;
+  order_number?: string;
   branch: string;
   branch_name?: string;
   items: OrderItem[];
@@ -104,6 +105,7 @@ export interface Order {
   table_id?: string; // used for creation
   table_no?: string;
   customer?: string;
+  created_by?: string;
   delivery_info?: {
     id?: string;
     name: string;
