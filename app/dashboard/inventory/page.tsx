@@ -41,7 +41,7 @@ export default function Inventory() {
         inventoryService.getMovements(),
         productService.getAll(),
         branchService.getAll()
-      ]);
+      ]) as [InventoryItem[], StockMovement[], Product[], Branch[]];
       setItems(inventoryData || []);
       setMovements(movementsData || []);
       setProducts(productsData || []);

@@ -33,4 +33,5 @@ export const typography = {
   small: '12px',
 };
 
-export default { colors, spacing, radii, typography };
+const tokens = { colors, spacing, radii, typography };
+export default tokens;

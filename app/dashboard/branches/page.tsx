@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { Table } from '@/src/components/Table';
 import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
-import { Input, Select } from '@/src/components/Input';
+import { Input } from '@/src/components/Input';
 import { Modal } from '@/src/components/Modal';
-import { Plus, Edit, Trash2, Store } from 'lucide-react';
+import { Plus, Edit, Trash2, Store, RefreshCw } from 'lucide-react';
 import { Card } from '@/src/components/Card';
 import { branchService } from '@/src/services/branch.service';
 import { Branch } from '@/src/types';
@@ -89,23 +89,25 @@ export default function BranchManagement() {
       header: 'Branch Name',
       render: (value: string, row: Branch) => (
         <div className="flex items-center gap-3">
-          <Store className="w-5 h-5 text-primary" />
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Store className="w-5 h-5 text-primary" />
+          </div>
           <div>
-            <p className="font-bold text-white">{value}</p>
-            <p className="text-xs text-tertiary">{row.city}, {row.address}</p>
+            <p className="font-bold text-white uppercase tracking-tight">{value}</p>
+            <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest">{row.city}, {row.address}</p>
           </div>
         </div>
       ),
     },
     {
       key: 'phone_number',
-      header: 'Phone',
-      render: (value: string) => <span className="text-tertiary">{value}</span>,
-    },
-    {
-      key: 'email',
-      header: 'Email',
-      render: (value: string) => <span className="text-tertiary">{value}</span>,
+      header: 'Contact Info',
+      render: (value: string, row: Branch) => (
+        <div className="flex flex-col">
+          <span className="text-white text-sm font-medium">{value}</span>
+          <span className="text-[10px] text-tertiary">{row.email}</span>
+        </div>
+      ),
     },
     {
       key: 'is_active',
@@ -121,22 +123,28 @@ export default function BranchManagement() {
       header: 'Actions',
       align: 'right' as const,
       render: (_: any, row: Branch) => (
-        <div className="flex gap-2">
-          <button className="p-2 hover:bg-white/5 rounded-xl" onClick={() => {
-            setEditingBranchId(row.id);
-            setBranchForm({
-              name: row.name || '',
-              address: row.address || '',
-              city: row.city || '',
-              phone_number: row.phone_number || '',
-              email: row.email || '',
-              is_active: !!row.is_active,
-            });
-            setIsModalOpen(true);
-          }}>
-            <Edit className="w-4 h-4" />
+        <div className="flex justify-end gap-2">
+          <button 
+            className="p-2.5 hover:bg-white/5 rounded-xl transition-all group" 
+            onClick={() => {
+              setEditingBranchId(row.id);
+              setBranchForm({
+                name: row.name || '',
+                address: row.address || '',
+                city: row.city || '',
+                phone_number: row.phone_number || '',
+                email: row.email || '',
+                is_active: !!row.is_active,
+              });
+              setIsModalOpen(true);
+            }}
+          >
+            <Edit className="w-4 h-4 text-tertiary group-hover:text-accent" />
           </button>
-          <button className="p-2 text-error hover:text-error/80" onClick={() => handleDelete(row.id, row.name)}>
+          <button 
+            className="p-2.5 text-error/60 hover:text-error hover:bg-error/5 rounded-xl transition-all" 
+            onClick={() => handleDelete(row.id, row.name)}
+          >
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
@@ -145,35 +153,69 @@ export default function BranchManagement() {
   ];
 
   return (
-    <div className="space-y-6 p-6 bg-gray-900 min-h-screen text-white">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Branch Management</h1>
-        <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setIsModalOpen(true)}>
-          Add Branch
-        </Button>
+    <div className="space-y-6 animate-fade-in pb-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-black text-white italic uppercase tracking-tighter mb-1">Branch Network</h1>
+          <p className="text-sm text-tertiary">Manage restaurant locations and contact profiles</p>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={fetchData} icon={<RefreshCw className="w-4 h-4" />}>
+            Refresh
+          </Button>
+          <Button variant="primary" size="sm" icon={<Plus className="w-5 h-5" />} onClick={() => setIsModalOpen(true)}>
+            Add Branch
+          </Button>
+        </div>
       </div>
-      <Card className="bg-secondary border-base p-4">
+
+      <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0">
         {isLoading ? (
-          <div className="flex justify-center p-10"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary" /></div>
+          <div className="flex justify-center p-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
+          </div>
         ) : (
           <Table columns={columns} data={branches} />
         )}
       </Card>
-      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingBranchId(null); }} title={editingBranchId ? 'Edit Branch' : 'Create Branch'} footer={
-        <>
-          <Button variant="outline" onClick={() => { setIsModalOpen(false); setEditingBranchId(null); }} disabled={isSubmitting}>Cancel</Button>
-          <Button variant="primary" onClick={handleSave} isLoading={isSubmitting}>{editingBranchId ? 'Update' : 'Create'}</Button>
-        </>
-      }>
-        <div className="grid gap-4">
-          <Input label="Name" value={branchForm.name} onChange={e => setBranchForm({ ...branchForm, name: e.target.value })} />
-          <Input label="City" value={branchForm.city} onChange={e => setBranchForm({ ...branchForm, city: e.target.value })} />
-          <Input label="Address" value={branchForm.address} onChange={e => setBranchForm({ ...branchForm, address: e.target.value })} />
-          <Input label="Phone" value={branchForm.phone_number} onChange={e => setBranchForm({ ...branchForm, phone_number: e.target.value })} />
-          <Input label="Email" value={branchForm.email} onChange={e => setBranchForm({ ...branchForm, email: e.target.value })} />
-          <div className="flex items-center">
-            <input type="checkbox" checked={branchForm.is_active} onChange={e => setBranchForm({ ...branchForm, is_active: e.target.checked })} className="mr-2" />
-            <span className="text-sm font-bold">Active Branch</span>
+
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={() => { setIsModalOpen(false); setEditingBranchId(null); }} 
+        title={editingBranchId ? 'Edit Branch Profile' : 'Register New Branch'}
+        size="md"
+        footer={
+          <div className="flex justify-end gap-3 w-full">
+            <Button variant="outline" onClick={() => { setIsModalOpen(false); setEditingBranchId(null); }} disabled={isSubmitting}>Cancel</Button>
+            <Button variant="primary" onClick={handleSave} isLoading={isSubmitting}>{editingBranchId ? 'Update Branch' : 'Save Branch'}</Button>
+          </div>
+        }
+      >
+        <div className="space-y-4 pt-2">
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Branch Name" placeholder="e.g. Duke's Downtown" value={branchForm.name} onChange={e => setBranchForm({ ...branchForm, name: e.target.value })} />
+            <Input label="City" placeholder="e.g. New York" value={branchForm.city} onChange={e => setBranchForm({ ...branchForm, city: e.target.value })} />
+          </div>
+          <Input label="Full Address" placeholder="123 Luxury Ave..." value={branchForm.address} onChange={e => setBranchForm({ ...branchForm, address: e.target.value })} />
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Phone Number" placeholder="+1..." value={branchForm.phone_number} onChange={e => setBranchForm({ ...branchForm, phone_number: e.target.value })} />
+            <Input label="Email Address" placeholder="branch@dukes.com" value={branchForm.email} onChange={e => setBranchForm({ ...branchForm, email: e.target.value })} />
+          </div>
+          
+          <div className="bg-white/5 p-4 rounded-xl border border-base flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-white">Operational Status</span>
+              <span className="text-[10px] text-tertiary uppercase tracking-widest font-black">Is this branch currently active?</span>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={branchForm.is_active} 
+                onChange={e => setBranchForm({ ...branchForm, is_active: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+            </label>
           </div>
         </div>
       </Modal>

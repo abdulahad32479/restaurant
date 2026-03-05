@@ -70,7 +70,7 @@ export default function KitchenDisplay() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [orders.length]);
 
   useEffect(() => {
     fetchOrdersAndProducts();

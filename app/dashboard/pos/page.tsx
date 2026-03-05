@@ -46,10 +46,10 @@ export default function POS() {
           tableService.getAll()
         ]);
         
-        setProducts(pData.filter(p => p.is_active));
+        setProducts(pData.filter((p: Product) => p.is_active));
         setCategories(cData);
         setBranches(bData);
-        setTables(tData.filter(t => t.is_active));
+        setTables(tData.filter((t: Table) => t.is_active));
         
         if (bData.length > 0) setSelectedBranch(bData[0].id);
       } catch (error) {

@@ -20,19 +20,20 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [summary, orders, lowStockData, tables] = await Promise.all([
+        const [summary, orders, lowStockData, tablesData] = await Promise.all([
           reportService.getSalesSummary(),
           orderService.getAll(),
           reportService.getLowStock(),
           tableService.getAll()
         ]);
 
-        setSalesSummary(summary);
-        setRecentOrders(orders.slice(0, 5));
-        setLowStock(lowStockData);
+        const tables = tablesData as any[];
+        setSalesSummary(summary as SalesSummary);
+        setRecentOrders((orders as Order[]).slice(0, 5));
+        setLowStock(lowStockData as LowStockReport[]);
         
         const totalTables = tables.length;
-        const occupiedTables = tables.filter(t => t.is_occupied).length;
+        const occupiedTables = tables.filter((t: any) => t.is_occupied).length;
         setTableOccupancy({ occupied: occupiedTables, total: totalTables });
       } catch (error) {
         console.error('Failed to fetch dashboard data', error);

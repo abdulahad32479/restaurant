@@ -6,7 +6,7 @@ import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
 import { Modal } from '@/src/components/Modal';
-import { UserPlus, Edit, Trash2, Shield } from 'lucide-react';
+import { UserPlus, Edit, Trash2, Shield, RefreshCw } from 'lucide-react';
 import { Card } from '@/src/components/Card';
 import { userService } from '@/src/services/user.service';
 import { branchService } from '@/src/services/branch.service';
@@ -35,8 +35,7 @@ export default function AdminUserManagement() {
     try {
       const [uData, bData] = await Promise.all([
         userService.getAll(),
-        // Assuming branchService exists for branch list
-        import('@/src/services/branch.service').then(m => m.branchService.getAll()),
+        branchService.getAll(),
       ]);
       setUsers(uData);
       setBranches(bData);
@@ -98,22 +97,22 @@ export default function AdminUserManagement() {
   const columns = [
     {
       key: 'username',
-      header: 'Username',
+      header: 'Staff Member',
       render: (value: string, row: any) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary font-bold border border-primary/20 shadow-sm">
             {value.charAt(0).toUpperCase()}
           </div>
           <div>
-            <p className="font-bold text-white">{value}</p>
-            <p className="text-xs text-tertiary">{row.email}</p>
+            <p className="font-bold text-white uppercase tracking-tight">{value}</p>
+            <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest">{row.email}</p>
           </div>
         </div>
       ),
     },
     {
       key: 'role',
-      header: 'Role',
+      header: 'Access Level',
       render: (value: string) => (
         <Badge variant="secondary" className="bg-white/5 text-tertiary border-0 font-bold uppercase tracking-widest text-[10px]">
           {value}
@@ -121,10 +120,11 @@ export default function AdminUserManagement() {
       ),
     },
     {
-      key: 'branch',
-      header: 'Branch',
+      key: 'branch_name',
+      header: 'Assigned Branch',
       render: (value: string, row: any) => (
-        <span className="text-tertiary">{value || row.branch || '-'}
+        <span className="text-tertiary font-medium">
+          {value || row.branch || '-'}
         </span>
       ),
     },
@@ -142,15 +142,21 @@ export default function AdminUserManagement() {
       header: 'Actions',
       align: 'right' as const,
       render: (_: any, row: any) => (
-        <div className="flex gap-2">
-          <button className="p-2 hover:bg-white/5 rounded-xl" onClick={() => {
-            setEditingUserId(row.id);
-            setNewUser({ username: row.username, email: row.email, password: '', role: row.role, branch: row.branch || '', is_active: row.is_active });
-            setIsModalOpen(true);
-          }}>
-            <Edit className="w-4 h-4" />
+        <div className="flex justify-end gap-2">
+          <button 
+            className="p-2.5 hover:bg-white/5 rounded-xl transition-all group" 
+            onClick={() => {
+              setEditingUserId(row.id);
+              setNewUser({ username: row.username, email: row.email, password: '', role: row.role, branch: row.branch || '', is_active: row.is_active });
+              setIsModalOpen(true);
+            }}
+          >
+            <Edit className="w-4 h-4 text-tertiary group-hover:text-accent" />
           </button>
-          <button className="p-2 text-error hover:text-error/80" onClick={() => handleDelete(row.id, row.username)}>
+          <button 
+            className="p-2.5 text-error/60 hover:text-error hover:bg-error/5 rounded-xl transition-all" 
+            onClick={() => handleDelete(row.id, row.username)}
+          >
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
@@ -159,35 +165,70 @@ export default function AdminUserManagement() {
   ];
 
   return (
-    <div className="space-y-6 p-6 bg-gray-900 min-h-screen text-white">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Admin User Management</h1>
-        <Button variant="primary" size="sm" icon={<UserPlus className="w-4 h-4" />} onClick={() => setIsModalOpen(true)}>
-          Add Admin
-        </Button>
+    <div className="space-y-6 animate-fade-in pb-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-black text-white italic uppercase tracking-tighter mb-1">Administrative Access</h1>
+          <p className="text-sm text-tertiary">Manage system administrators and staff permissions</p>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={fetchData} icon={<RefreshCw className="w-4 h-4" />}>
+            Refresh
+          </Button>
+          <Button variant="primary" size="sm" icon={<UserPlus className="w-5 h-5" />} onClick={() => setIsModalOpen(true)}>
+            Add Administrator
+          </Button>
+        </div>
       </div>
-      <Card className="bg-secondary border-base p-4">
+
+      <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0">
         {isLoading ? (
-          <div className="flex justify-center p-10"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary" /></div>
+          <div className="flex justify-center p-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
+          </div>
         ) : (
           <Table columns={columns} data={users} />
         )}
       </Card>
-      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingUserId(null); }} title={editingUserId ? 'Edit Admin User' : 'Create Admin User'} footer={
-        <>
-          <Button variant="outline" onClick={() => { setIsModalOpen(false); setEditingUserId(null); }} disabled={isSubmitting}>Cancel</Button>
-          <Button variant="primary" onClick={handleSave} isLoading={isSubmitting}>{editingUserId ? 'Update' : 'Create'}</Button>
-        </>
-      }>
-        <div className="grid gap-4">
-          <Input label="Username" value={newUser.username} onChange={e => setNewUser({ ...newUser, username: e.target.value })} />
-          <Input label="Email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} />
-          <Input label="Password" type="password" placeholder={editingUserId ? 'Leave blank to keep current' : ''} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} />
-          <Select label="Branch" value={newUser.branch} onChange={e => setNewUser({ ...newUser, branch: e.target.value })} options={[{ value: '', label: 'Select Branch' }, ...branches.map((b: Branch) => ({ value: b.id, label: b.name }))]} />
-          <Select label="Role" value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value as any })} options={[{ value: 'admin', label: 'Admin' }, { value: 'manager', label: 'Manager' }, { value: 'staff', label: 'Staff' }]} />
-          <div className="flex items-center">
-            <input type="checkbox" checked={newUser.is_active} onChange={e => setNewUser({ ...newUser, is_active: e.target.checked })} className="mr-2" />
-            <span className="text-sm font-bold">Active Account</span>
+
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={() => { setIsModalOpen(false); setEditingUserId(null); }} 
+        title={editingUserId ? 'Modify Admin Attributes' : 'Grant Administrative Access'}
+        size="md"
+        footer={
+          <div className="flex justify-end gap-3 w-full">
+            <Button variant="outline" onClick={() => { setIsModalOpen(false); setEditingUserId(null); }} disabled={isSubmitting}>Cancel</Button>
+            <Button variant="primary" onClick={handleSave} isLoading={isSubmitting}>{editingUserId ? 'Update Permissions' : 'Create Account'}</Button>
+          </div>
+        }
+      >
+        <div className="space-y-4 pt-2">
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Username" placeholder="e.g. john_duke" value={newUser.username} onChange={e => setNewUser({ ...newUser, username: e.target.value })} />
+            <Input label="Email Address" placeholder="staff@dukes.com" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} />
+          </div>
+          <Input label="Secure Password" type="password" placeholder={editingUserId ? 'Leave blank to keep current' : 'Min. 8 characters'} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} />
+          
+          <div className="grid grid-cols-2 gap-4">
+            <Select label="Assigned Branch" value={newUser.branch} onChange={e => setNewUser({ ...newUser, branch: e.target.value })} options={[{ value: '', label: 'Select Location' }, ...branches.map((b: Branch) => ({ value: b.id, label: b.name }))]} />
+            <Select label="System Role" value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value as any })} options={[{ value: 'admin', label: 'Administrator' }, { value: 'manager', label: 'Manager' }, { value: 'staff', label: 'Service Staff' }]} />
+          </div>
+
+          <div className="bg-white/5 p-4 rounded-xl border border-base flex items-center justify-between mt-2">
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-white">Account Status</span>
+              <span className="text-[10px] text-tertiary uppercase tracking-widest font-black">Enable or disable this user profile</span>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={newUser.is_active} 
+                onChange={e => setNewUser({ ...newUser, is_active: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+            </label>
           </div>
         </div>
       </Modal>
