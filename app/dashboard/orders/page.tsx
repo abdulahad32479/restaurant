@@ -5,7 +5,7 @@ import { Table, Pagination } from '@/src/components/Table';
 import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
-import { Search, Calendar, Download, Eye, Store, Printer, MoreVertical, PlayCircle, CheckCircle2, PackageCheck, CheckCheck } from 'lucide-react';
+import { Search, Calendar, Download, Eye, Store, Printer, MoreVertical, PlayCircle, CheckCircle2, PackageCheck, CheckCheck, Edit } from 'lucide-react';
 import { Card } from '@/src/components/Card';
 import { orderService } from '@/src/services/order.service';
 import { branchService } from '@/src/services/branch.service';
@@ -13,8 +13,13 @@ import { tableService } from '@/src/services/table.service';
 import { Order, Branch, OrderStatus } from '@/src/types';
 import toast from 'react-hot-toast';
 import { Modal } from '@/src/components/Modal';
+import { useRouter } from 'next/navigation';
+import { useReactToPrint } from 'react-to-print';
+import { Receipt } from '@/src/components/Receipt';
+import { useRef } from 'react';
 
 export default function Orders() {
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [tables, setTables] = useState<Record<string, string>>({});
@@ -26,6 +31,17 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
+  
+  // Printing state
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({
+    contentRef: receiptRef,
+    pageStyle: `
+      @page { size: auto; margin: 0mm; }
+      @media print { body { -webkit-print-color-adjust: exact; } }
+    `
+  } as any);
+  const [orderToPrint, setOrderToPrint] = useState<Order | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -180,13 +196,22 @@ export default function Orders() {
       render: (value: any, row: Order) => (
         <div className="flex items-center justify-end gap-2">
           {row.status === 'draft' && (
-            <button 
-              className="p-1.5 hover:bg-white/10 rounded-lg transition-all text-tertiary hover:text-white" 
-              onClick={() => handleUpdateStatus(row, 'confirm')}
-              disabled={isUpdatingStatus === row.id}
-            >
-              Confirm
-            </button>
+            <>
+              <button 
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-all text-tertiary hover:text-white" 
+                onClick={() => router.push(`/dashboard/pos?edit=${row.id}`)}
+                title="Edit Order"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+              <button 
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-all text-tertiary hover:text-white" 
+                onClick={() => handleUpdateStatus(row, 'confirm')}
+                disabled={isUpdatingStatus === row.id}
+              >
+                Confirm
+              </button>
+            </>
           )}
           {row.status === 'confirmed' && (
             <button 
@@ -222,6 +247,19 @@ export default function Orders() {
               disabled={isUpdatingStatus === row.id}
             >
               Complete
+            </button>
+          )}
+
+          {row.status === 'completed' && (
+            <button 
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-all text-tertiary hover:text-white" 
+              title="Print Receipt"
+              onClick={() => {
+                setOrderToPrint(row);
+                setTimeout(() => handlePrint(), 150);
+              }}
+            >
+              <Printer className="w-4 h-4" />
             </button>
           )}
           
@@ -423,12 +461,28 @@ export default function Orders() {
                    Finalize Order
                 </Button>
               )}
-              
+              {selectedOrder.status === 'completed' && (
+                <Button 
+                  variant="primary" 
+                  icon={<Printer className="w-4 h-4" />}
+                  onClick={() => {
+                    setOrderToPrint(selectedOrder);
+                    setTimeout(() => handlePrint(), 150);
+                  }}
+                >
+                  Print Receipt
+                </Button>
+              )}
               <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>Close</Button>
             </div>
           </div>
         )}
       </Modal>
+
+      {/* Hidden Receipt for Printing */}
+      <div className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none">
+        {orderToPrint && <Receipt ref={receiptRef} order={orderToPrint} />}
+      </div>
     </div>
   );
 }
