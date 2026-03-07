@@ -298,7 +298,7 @@ export default function POS() {
                 <h3 className="font-bold text-sm mb-1 truncate">{product.name}</h3>
                 <div className="flex items-center justify-between">
                   <p className="text-[#808080] text-[10px] font-mono">{product.sku}</p>
-                  <p className="text-primary font-black text-sm">${parseFloat(product.price).toFixed(2)}</p>
+                  <p className="text-primary font-black text-sm">Rs. {parseFloat(product.price).toFixed(2)}</p>
                 </div>
               </div>
             ))}
@@ -336,7 +336,7 @@ export default function POS() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-xs truncate uppercase">{item.product.name}</h4>
-                  <p className="text-primary text-[10px] font-black">${(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p>
+                  <p className="text-primary text-[10px] font-black">Rs. {(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
@@ -369,15 +369,15 @@ export default function POS() {
           <div className="space-y-3 mb-6">
             <div className="flex justify-between text-[#808080] text-[10px] font-bold uppercase tracking-[0.2em]">
               <span>Subtotal</span>
-              <span className="text-white">${subtotal.toFixed(2)}</span>
+              <span className="text-white">Rs. {subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-[#808080] text-[10px] font-bold uppercase tracking-[0.2em]">
-              <span>Tax (Dynamic)</span>
-              <span className="text-white">${totalTax.toFixed(2)}</span>
+            <div className="flex justify-between items-center mb-6">
+              <span className="text-[#B3B3B3]">Tax (16%)</span>
+              <span className="text-white">Rs. {totalTax.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-2xl font-black text-white pt-4 border-t border-[#2A2A2A]">
-              <span className="italic uppercase">Total</span>
-              <span className="text-primary">${total.toFixed(2)}</span>
+            <div className="flex justify-between items-center mb-8 pb-6 border-b border-[#2A2A2A]">
+              <span className="text-xl font-black text-white">Total</span>
+              <span className="text-primary">Rs. {total.toFixed(2)}</span>
             </div>
           </div>
           

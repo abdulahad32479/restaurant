@@ -96,7 +96,7 @@ export default function Reports() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <KPICard title="Total Revenue" value={`$${parseFloat(summary?.total_sales || '0').toFixed(2)}`} change="+0%" changeType="positive" icon={<DollarSign />} />
+        <KPICard title="Total Revenue" value={`Rs. ${parseFloat(summary?.total_sales || '0').toFixed(2)}`} change="+0%" changeType="positive" icon={<DollarSign />} />
         <KPICard title="Total Orders" value={`${summary?.total_orders || 0}`} change="+0%" changeType="positive" icon={<ShoppingBag />} />
         <KPICard title="Items Sold" value={`${summary?.total_items_sold || 0}`} change="0%" changeType="neutral" icon={<TrendingUp />} />
         <KPICard title="Payment Methods" value={`${paymentSummary.length || 0}`} change="+0%" changeType="positive" icon={<Users />} />
@@ -186,7 +186,7 @@ export default function Reports() {
                   </div>
                   <span className="text-sm font-bold capitalize">{p.method}</span>
                 </div>
-                <span className="font-black text-accent">${parseFloat(p.total || '0').toFixed(2)}</span>
+                <span className="font-black text-accent">Rs. {parseFloat(p.total || '0').toFixed(2)}</span>
               </div>
             ))}
             {!paymentSummary.length && <p className="text-tertiary text-sm py-4 text-center">No payment data available.</p>}
@@ -212,7 +212,7 @@ export default function Reports() {
                   <tr key={i} className="hover:bg-white/5">
                     <td className="py-3 text-sm font-bold text-white">{p.product__name}</td>
                     <td className="py-3 text-sm text-center text-tertiary">{p.quantity_sold}</td>
-                    <td className="py-3 text-sm text-right font-black text-accent">${parseFloat(p.revenue || '0').toFixed(2)}</td>
+                    <td className="py-3 text-sm text-right font-black text-accent">Rs. {parseFloat(p.revenue || '0').toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -235,7 +235,7 @@ export default function Reports() {
             onChange={(e) => setZForm({ ...zForm, date: e.target.value })}
           />
           <Input
-            label="Counted Cash ($)"
+            label="Counted Cash (Rs.)"
             type="number"
             placeholder="0.00"
             value={zForm.counted_cash}
@@ -265,12 +265,12 @@ export default function Reports() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { label: 'Total Orders', value: zReport.total_orders },
-                { label: 'Total Sales', value: `$${parseFloat(zReport.total_sales || '0').toFixed(2)}` },
-                { label: 'Cash Sales', value: `$${parseFloat(zReport.total_cash || '0').toFixed(2)}` },
-                { label: 'Card Sales', value: `$${parseFloat(zReport.total_card || '0').toFixed(2)}` },
-                { label: 'Counted Cash', value: `$${parseFloat(zReport.counted_cash || '0').toFixed(2)}` },
-                { label: 'Cash Difference', value: `$${parseFloat(zReport.cash_difference || '0').toFixed(2)}` },
-                { label: 'Other Payments', value: `$${parseFloat(zReport.total_other || '0').toFixed(2)}` },
+                { label: 'Total Sales', value: `Rs. ${parseFloat(zReport.total_sales || '0').toFixed(2)}` },
+                { label: 'Cash Sales', value: `Rs. ${parseFloat(zReport.total_cash || '0').toFixed(2)}` },
+                { label: 'Card Sales', value: `Rs. ${parseFloat(zReport.total_card || '0').toFixed(2)}` },
+                { label: 'Counted Cash', value: `Rs. ${parseFloat(zReport.counted_cash || '0').toFixed(2)}` },
+                { label: 'Cash Difference', value: `Rs. ${parseFloat(zReport.cash_difference || '0').toFixed(2)}` },
+                { label: 'Other Payments', value: `Rs. ${parseFloat(zReport.total_other || '0').toFixed(2)}` },
               ].map((item, i) => (
                 <div key={i} className="bg-white/5 rounded-xl p-3">
                   <p className="text-[10px] uppercase tracking-widest text-tertiary mb-1">{item.label}</p>

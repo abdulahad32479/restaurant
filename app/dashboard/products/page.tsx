@@ -119,8 +119,8 @@ export default function ProductManagement() {
       header: 'Price / Cost',
       render: (value: string, row: Product) => (
         <div>
-          <p className="font-bold text-success">${Number(value).toFixed(2)}</p>
-          <p className="text-xs text-tertiary">Cost: ${Number(row.cost).toFixed(2)}</p>
+          <p className="font-bold text-success">Rs. {Number(value).toFixed(2)}</p>
+          <p className="text-xs text-tertiary">Cost: Rs. {Number(row.cost).toFixed(2)}</p>
         </div>
       ),
     },

@@ -342,10 +342,10 @@ export default function MenuManagement() {
                       <Badge variant="secondary" className="bg-white/5 text-tertiary border-0">{categoryName}</Badge>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-black text-accent">${Number(item.price).toFixed(2)}</span>
+                      <span className="font-black text-accent">Rs. {Number(item.price).toFixed(2)}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-tertiary">${Number(item.cost).toFixed(2)}</span>
+                      <span className="text-tertiary">Rs. {Number(item.cost).toFixed(2)}</span>
                     </td>
                     <td className="px-6 py-4">
                       <button onClick={() => handleToggleActive(item)} className="cursor-pointer">

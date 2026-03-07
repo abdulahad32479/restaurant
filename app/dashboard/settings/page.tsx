@@ -264,7 +264,7 @@ export default function SettingsPage() {
                     <Select 
                       label="Base Currency"
                       options={[
-                        { value: 'usd', label: 'USD ($)' },
+                        { value: 'pkr', label: 'PKR (Rs.)' },
                         { value: 'eur', label: 'EUR (€)' },
                         { value: 'gbp', label: 'GBP (£)' },
                       ]}
@@ -657,7 +657,7 @@ export default function SettingsPage() {
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                     <div>
                       <Badge variant="accent" className="mb-2">Enterprise Plan</Badge>
-                      <h4 className="text-2xl font-black text-white">$299<span className="text-sm font-normal text-tertiary">/month</span></h4>
+                      <h4 className="text-2xl font-black text-white">Rs. 299<span className="text-sm font-normal text-tertiary">/month</span></h4>
                     </div>
                     <Button variant="accent" className="text-black font-bold">Manage Subscription</Button>
                   </div>
@@ -682,8 +682,8 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   <h4 className="text-sm font-bold text-white mb-4">Recent Invoices</h4>
                   {[
-                    { id: 'INV-001', date: 'Feb 12, 2026', amount: '$299.00', status: 'Paid' },
-                    { id: 'INV-002', date: 'Jan 12, 2026', amount: '$299.00', status: 'Paid' },
+                    { id: 'INV-001', date: 'Feb 12, 2026', amount: 'Rs. 299.00', status: 'Paid' },
+                    { id: 'INV-002', date: 'Jan 12, 2026', amount: 'Rs. 299.00', status: 'Paid' },
                   ].map((inv, i) => (
                     <div key={i} className="flex justify-between items-center p-3 rounded-xl bg-bg-main border border-base">
                       <div>

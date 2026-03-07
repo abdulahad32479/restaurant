@@ -161,7 +161,7 @@ export default function Orders() {
       key: 'total', 
       header: 'Total',
       render: (value: string) => (
-        <span className="font-black text-accent">${Number(value).toFixed(2)}</span>
+        <span className="font-black text-accent">Rs. {Number(value).toFixed(2)}</span>
       )
     },
     { 
@@ -367,9 +367,9 @@ export default function Orders() {
                       <tr key={idx} className="hover:bg-white/5">
                         <td className="px-4 py-3 text-sm text-white font-medium">{item.product_name || item.product}</td>
                         <td className="px-4 py-3 text-sm font-bold text-center">{item.quantity}</td>
-                        <td className="px-4 py-3 text-sm text-right text-tertiary">${Number(item.unit_price || 0).toFixed(2)}</td>
-                        <td className="px-4 py-3 text-sm text-right font-bold text-accent">
-                          ${Number(item.total_price || (Number(item.unit_price || 0) * Number(item.quantity || 0))).toFixed(2)}
+                        <td className="px-4 py-3 text-sm text-right text-tertiary">Rs. {Number(item.unit_price || 0).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-black text-accent whitespace-nowrap">
+                          Rs. {Number(item.total_price || (Number(item.unit_price || 0) * Number(item.quantity || 0))).toFixed(2)}
                         </td>
                       </tr>
                     ))}
@@ -380,7 +380,7 @@ export default function Orders() {
 
             <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-base">
               <span className="text-sm font-bold text-tertiary uppercase tracking-widest">Grand Total</span>
-              <span className="text-2xl font-black text-accent">${Number(selectedOrder.total).toFixed(2)}</span>
+              <span className="text-2xl font-black text-accent">Rs. {Number(selectedOrder.total).toFixed(2)}</span>
             </div>
 
             <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-base">

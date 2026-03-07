@@ -26,7 +26,7 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={cn("bg-[#1F1F1F] border-[#2A2A2A] text-white", getSizeClasses(size))}>
+      <DialogContent className={cn("bg-[#1F1F1F] glass border-[#2A2A2A] shadow-2xl text-white", getSizeClasses(size))}>
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">{title}</DialogTitle>
         </DialogHeader>

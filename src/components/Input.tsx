@@ -23,7 +23,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             className={cn( 
-              "flex h-12 w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2 text-sm text-white placeholder:text-[#808080] focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200",
+              "flex h-12 w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2 text-sm text-white placeholder:text-[#808080] focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37] disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200",
               icon && "pl-10",
               className
             )}
@@ -49,7 +49,7 @@ export const TextArea = React.forwardRef<HTMLTextAreaElement, TextAreaProps>(
         <textarea
           ref={ref}
           className={cn(
-            "flex w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2 text-sm text-white placeholder:text-[#808080] focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 min-h-[80px]",
+            "flex w-full rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2 text-sm text-white placeholder:text-[#808080] focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37] disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 min-h-[80px]",
             className
           )}
           {...props}
@@ -82,7 +82,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           <select
             ref={ref}
             className={cn(
-              "flex h-12 w-full appearance-none rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2 pr-10 text-sm text-white focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200",
+              "flex h-12 w-full appearance-none rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] px-3 py-2 pr-10 text-sm text-white focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37] disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200",
               icon && "pl-10",
               className
             )}

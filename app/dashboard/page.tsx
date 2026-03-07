@@ -80,7 +80,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard
           title="Gross Revenue"
-          value={`$${parseFloat(salesSummary?.total_sales || '0').toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          value={`Rs. ${parseFloat(salesSummary?.total_sales || '0').toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
           change="+12.5% vs yesterday"
           changeType="positive"
           icon={<DollarSign className="w-5 h-5" />}
@@ -104,7 +104,7 @@ export default function Dashboard() {
         />
         <KPICard
           title="Ticket Average"
-          value={`$${(parseFloat(salesSummary?.total_sales || '0') / (salesSummary?.total_orders || 1)).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          value={`Rs. ${(parseFloat(salesSummary?.total_sales || '0') / (salesSummary?.total_orders || 1)).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
           change="+5.4% vs yesterday"
           changeType="positive"
           icon={<TrendingUp className="w-5 h-5" />}
@@ -146,7 +146,7 @@ export default function Dashboard() {
                   `}>
                     {order.status}
                   </span>
-                  <p className="font-black text-primary text-sm tracking-tighter">${parseFloat(order.total).toFixed(2)}</p>
+                  <p className="font-black text-primary text-sm tracking-tighter">Rs. {parseFloat(order.total).toFixed(2)}</p>
                 </div>
               </div>
             ))}

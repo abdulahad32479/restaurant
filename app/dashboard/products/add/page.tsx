@@ -194,7 +194,7 @@ export default function AddProduct() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#B3B3B3] mb-2">Price ($) *</label>
+              <label className="block text-sm font-medium text-[#B3B3B3] mb-2">Price (Rs.) *</label>
               <input
                 type="text"
                 name="price"
@@ -207,7 +207,7 @@ export default function AddProduct() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#B3B3B3] mb-2">Cost ($) *</label>
+              <label className="block text-sm font-medium text-[#B3B3B3] mb-2">Cost (Rs.) *</label>
               <input
                 type="text"
                 name="cost"
