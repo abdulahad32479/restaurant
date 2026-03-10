@@ -6,7 +6,7 @@ import { Input, Select, TextArea } from '@/src/components/Input';
 import { Badge } from '@/src/components/Badge';
 import { 
   Search, Plus, Minus, CreditCard, Banknote, 
-  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User, Phone
+  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User, Phone, AlertTriangle
 } from 'lucide-react';
 import { productService } from '@/src/services/product.service';
 import { categoryService } from '@/src/services/category.service';
@@ -22,6 +22,7 @@ import { Receipt } from '@/src/components/Receipt';
 import { useRef } from 'react';
 import toast from 'react-hot-toast';
 import { getImageUrl } from '@/src/lib/utils';
+import { ConfirmModal } from '@/src/components/ConfirmModal';
 
 export default function POS() {
   const searchParams = useSearchParams();
@@ -45,8 +46,10 @@ export default function POS() {
   const [orderType, setOrderType] = useState<OrderType | 'delivery' | ''>('');
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [pendingOccupiedTable, setPendingOccupiedTable] = useState<Table | null>(null);
   const [pendingAction, setPendingAction] = useState<'checkout' | 'draft' | null>(null);
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
+  const [isClearCartModalOpen, setIsClearCartModalOpen] = useState(false);
   
   // Delivery Info state
   const [deliveryInfo, setDeliveryInfo] = useState({
@@ -290,9 +293,7 @@ export default function POS() {
   };
 
   const clearCart = () => {
-    if (window.confirm('Are you sure you want to clear the entire cart?')) {
-      setCart([]);
-    }
+    setIsClearCartModalOpen(true);
   };
 
   const handleSaveDraft = async () => {
@@ -489,7 +490,10 @@ const handleProcessPayment = async () => {
 
           <div className="grid grid-cols-3 bg-[#1A1A1A] rounded-xl p-1 border border-[#2A2A2A] gap-1">
             <button 
-              onClick={() => setOrderType('dine_in')}
+              onClick={() => {
+                setOrderType('dine_in');
+                if (!selectedTable) setIsTableModalOpen(true);
+              }}
               className={`flex items-center justify-center gap-1.5 py-1.5 px-0.5 text-[8px] md:text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all ${orderType === 'dine_in' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-[#666] hover:text-[#888]'}`}
             >
               <Store className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
@@ -1041,8 +1045,7 @@ const handleProcessPayment = async () => {
               onClick={() => {
                 setOrderType('dine_in');
                 setIsTypeModalOpen(false);
-                if (pendingAction === 'checkout') setIsPaymentModalOpen(true);
-                else if (pendingAction === 'draft') handleSaveDraft();
+                setIsTableModalOpen(true);
                 setPendingAction(null);
               }}
               className="flex flex-col items-center justify-center gap-4 p-6 rounded-2xl bg-[#1A1A1A] border border-[#2A2A2A] hover:border-primary/50 hover:bg-primary/5 transition-all group"
@@ -1095,6 +1098,214 @@ const handleProcessPayment = async () => {
           </div>
         </div>
       </Modal>
+
+      {/* Table Selection Modal */}
+      <Modal
+        isOpen={isTableModalOpen}
+        onClose={() => setIsTableModalOpen(false)}
+        title="Select Table"
+        size="lg"
+      >
+        <div className="space-y-5">
+          {/* Branch context info */}
+          <div className="flex items-center justify-between bg-[#0A0A0A] px-4 py-3 rounded-xl border border-[#2A2A2A]">
+            <div className="flex items-center gap-2">
+              <Store className="w-4 h-4 text-primary" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-tertiary">
+                {branches.find(b => b.id === selectedBranch)?.name || 'All Branches'}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-widest">
+              <span className="flex items-center gap-1.5 text-success">
+                <span className="w-2 h-2 rounded-full bg-success" />
+                Available
+              </span>
+              <span className="flex items-center gap-1.5 text-error">
+                <span className="w-2 h-2 rounded-full bg-error" />
+                Occupied
+              </span>
+            </div>
+          </div>
+
+          {/* Table Grid */}
+          {(() => {
+            const branchTables = tables.filter(t => !selectedBranch || t.branch === selectedBranch);
+            if (branchTables.length === 0) {
+              return (
+                <div className="text-center py-12">
+                  <LayoutGrid className="w-10 h-10 text-[#2A2A2A] mx-auto mb-3" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#505050]">
+                    No tables found for this branch
+                  </p>
+                  <p className="text-[9px] text-[#404040] mt-1">Create tables from the Tables page first</p>
+                </div>
+              );
+            }
+            return (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
+                {branchTables.map(table => {
+                  const isSelected = selectedTable === table.id;
+                  const isOccupied = table.is_occupied;
+                  return (
+                    <button
+                      key={table.id}
+                      onClick={() => {
+                        if (isOccupied) {
+                          setPendingOccupiedTable(table);
+                          return;
+                        }
+                        setSelectedTable(table.id);
+                        setIsTableModalOpen(false);
+                      }}
+                      className={`relative flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 group
+                        ${isSelected
+                          ? 'bg-primary/10 border-primary shadow-[0_0_20px_rgba(212,175,55,0.15)] scale-[1.02]'
+                          : isOccupied
+                            ? 'bg-error/5 border-error/30 hover:border-error/50'
+                            : 'bg-[#1A1A1A] border-[#2A2A2A] hover:border-primary/30 hover:bg-primary/5'
+                        }
+                      `}
+                    >
+                      {/* Status dot */}
+                      <span className={`absolute top-2 right-2 w-2.5 h-2.5 rounded-full ${isOccupied ? 'bg-error animate-pulse' : 'bg-success'} ${!isOccupied && !isSelected ? 'animate-pulse' : ''}`} />
+
+                      {/* Table icon/number */}
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black transition-all
+                        ${isSelected 
+                          ? 'bg-primary/20 text-primary' 
+                          : isOccupied 
+                            ? 'bg-error/10 text-error' 
+                            : 'bg-white/5 text-white group-hover:bg-primary/10 group-hover:text-primary'
+                        }
+                      `}>
+                        <Store className="w-6 h-6" />
+                      </div>
+
+                      {/* Table name */}
+                      <span className={`text-[11px] font-black uppercase tracking-wider truncate w-full text-center
+                        ${isSelected ? 'text-primary' : isOccupied ? 'text-error' : 'text-white'}
+                      `}>
+                        {table.name}
+                      </span>
+
+                      {/* Occupied badge or Capacity */}
+                      {isOccupied ? (
+                        <span className="text-[8px] font-black uppercase tracking-widest bg-error/15 text-error px-2.5 py-0.5 rounded-full border border-error/20">
+                          ● Occupied
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-bold text-[#505050] uppercase tracking-widest">
+                          {table.capacity} Seats
+                        </span>
+                      )}
+
+                      {/* Selected check */}
+                      {isSelected && (
+                        <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {/* Footer */}
+          <div className="pt-4 border-t border-[#2A2A2A] flex items-center justify-between">
+            {selectedTable && (
+              <button
+                onClick={() => { setSelectedTable(''); }}
+                className="text-[10px] font-black uppercase tracking-widest text-error/60 hover:text-error transition-colors"
+              >
+                Clear Selection
+              </button>
+            )}
+            <div className="ml-auto">
+              <Button variant="outline" onClick={() => setIsTableModalOpen(false)} className="h-10 uppercase tracking-widest text-[10px] font-black rounded-xl">
+                {selectedTable ? 'Done' : 'Cancel'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Occupied Table Confirmation Modal */}
+      <Modal
+        isOpen={!!pendingOccupiedTable}
+        onClose={() => setPendingOccupiedTable(null)}
+        title="Table Occupied"
+      >
+        {pendingOccupiedTable && (
+          <div className="space-y-6">
+            {/* Warning Icon */}
+            <div className="flex flex-col items-center text-center py-2">
+              <div className="w-20 h-20 bg-error/10 rounded-full flex items-center justify-center mb-5 border border-error/20 shadow-[0_0_30px_rgba(239,68,68,0.15)]">
+                <AlertTriangle className="w-10 h-10 text-error" />
+              </div>
+              <h3 className="text-lg font-black text-white uppercase tracking-tight mb-2">
+                This Table is Occupied
+              </h3>
+              <p className="text-sm text-[#808080] max-w-xs">
+                <span className="text-error font-black">{pendingOccupiedTable.name}</span> currently has an active order. Assigning it to this order may cause conflicts.
+              </p>
+            </div>
+
+            {/* Table Info Card */}
+            <div className="bg-error/5 border border-error/20 rounded-2xl p-4 flex items-center gap-4">
+              <div className="w-14 h-14 bg-error/10 rounded-xl flex items-center justify-center shrink-0">
+                <Store className="w-7 h-7 text-error" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-white text-sm uppercase tracking-wider">{pendingOccupiedTable.name}</p>
+                <p className="text-[10px] text-[#808080] font-bold uppercase tracking-widest mt-0.5">
+                  {pendingOccupiedTable.capacity} Seats · <span className="text-error">Currently Occupied</span>
+                </p>
+              </div>
+              <span className="w-3 h-3 rounded-full bg-error animate-pulse shrink-0" />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2 border-t border-[#2A2A2A]">
+              <Button 
+                variant="outline" 
+                fullWidth
+                onClick={() => setPendingOccupiedTable(null)}
+                className="font-black text-[10px] uppercase tracking-widest h-12 rounded-xl"
+              >
+                Go Back
+              </Button>
+              <Button 
+                variant="primary" 
+                fullWidth
+                onClick={() => {
+                  setSelectedTable(pendingOccupiedTable.id);
+                  setPendingOccupiedTable(null);
+                  setIsTableModalOpen(false);
+                }}
+                className="font-black text-[10px] uppercase tracking-widest h-12 rounded-xl bg-error hover:bg-error/90 shadow-xl shadow-error/20"
+              >
+                Assign Anyway
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Clear Cart Confirmation */}
+      <ConfirmModal
+        isOpen={isClearCartModalOpen}
+        onClose={() => setIsClearCartModalOpen(false)}
+        onConfirm={() => setCart([])}
+        title="Clear Cart"
+        message="Are you sure you want to clear the entire cart?"
+        description="All items will be removed and this action cannot be undone."
+        confirmText="Clear All"
+        cancelText="Keep Items"
+        variant="danger"
+        icon={Trash2}
+      />
 
       {/* Hidden Receipt for Printing */}
       <div className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none">

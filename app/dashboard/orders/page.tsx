@@ -14,6 +14,7 @@ import { tableService } from '@/src/services/table.service';
 import { Order, Branch, OrderStatus } from '@/src/types';
 import toast from 'react-hot-toast';
 import { Modal } from '@/src/components/Modal';
+import { ConfirmModal } from '@/src/components/ConfirmModal';
 import { useRouter } from 'next/navigation';
 import { useReactToPrint } from 'react-to-print';
 import { Receipt } from '@/src/components/Receipt';
@@ -45,6 +46,10 @@ export default function Orders() {
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('');
   const [isProcessingRefund, setIsProcessingRefund] = useState(false);
+  
+  // Confirm dialog states
+  const [cancelConfirmOrder, setCancelConfirmOrder] = useState<Order | null>(null);
+  const [isRefundConfirmOpen, setIsRefundConfirmOpen] = useState(false);
   
   // Printing state
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -85,10 +90,14 @@ export default function Orders() {
   }, [fetchData]);
 
   const handleUpdateStatus = async (order: Order, action: 'confirm' | 'cancel' | 'complete' | 'ready' | 'prepare' | 'serve') => {
-    if (action === 'cancel' && !window.confirm('Are you sure you want to cancel this order?')) {
+    if (action === 'cancel') {
+      setCancelConfirmOrder(order);
       return;
     }
+    await executeStatusUpdate(order, action);
+  };
 
+  const executeStatusUpdate = async (order: Order, action: 'confirm' | 'cancel' | 'complete' | 'ready' | 'prepare' | 'serve') => {
     setIsUpdatingStatus(order.id);
     try {
       const payload = { ...order };
@@ -131,7 +140,11 @@ export default function Orders() {
 
   const handleRefund = async () => {
     if (!selectedOrder || !refundAmount) return;
-    if (!window.confirm(`Issue refund of Rs. ${refundAmount}? This cannot be undone.`)) return;
+    setIsRefundConfirmOpen(true);
+  };
+
+  const executeRefund = async () => {
+    if (!selectedOrder) return;
     
     try {
       setIsProcessingRefund(true);
@@ -746,6 +759,40 @@ export default function Orders() {
           </div>
         </div>
       </Modal>
+
+      {/* Cancel Order Confirmation */}
+      <ConfirmModal
+        isOpen={!!cancelConfirmOrder}
+        onClose={() => setCancelConfirmOrder(null)}
+        onConfirm={() => {
+          if (cancelConfirmOrder) {
+            executeStatusUpdate(cancelConfirmOrder, 'cancel');
+            setCancelConfirmOrder(null);
+          }
+        }}
+        title="Cancel Order"
+        message="Are you sure you want to cancel this order?"
+        description={`Order ${cancelConfirmOrder?.id?.substring(0, 8).toUpperCase() || ''} will be cancelled. This may affect inventory and payments.`}
+        confirmText="Cancel Order"
+        cancelText="Go Back"
+        variant="danger"
+      />
+
+      {/* Refund Confirmation */}
+      <ConfirmModal
+        isOpen={isRefundConfirmOpen}
+        onClose={() => setIsRefundConfirmOpen(false)}
+        onConfirm={() => {
+          setIsRefundConfirmOpen(false);
+          executeRefund();
+        }}
+        title="Confirm Refund"
+        message={`Issue refund of Rs. ${refundAmount}?`}
+        description="This action cannot be undone. The refund will be processed immediately."
+        confirmText="Process Refund"
+        cancelText="Go Back"
+        variant="warning"
+      />
     </div>
   );
 }
