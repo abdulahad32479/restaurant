@@ -272,6 +272,18 @@ export default function Orders() {
               </button>
             )}
 
+            {/* Receipt Button — available for all orders */}
+            <button 
+              className="p-2 hover:bg-primary/10 rounded-xl transition-all text-tertiary hover:text-primary" 
+              title="Print Receipt"
+              onClick={() => {
+                setOrderToPrint(row);
+                setTimeout(() => handlePrint(), 150);
+              }}
+            >
+              <Printer className="w-4 h-4" />
+            </button>
+
             {['draft', 'confirmed', 'preparing', 'ready', 'served'].includes(row.status) && (
               <button 
                 className="p-2 hover:bg-error/10 rounded-xl transition-all text-error/60 hover:text-error" 
@@ -341,19 +353,6 @@ export default function Orders() {
               disabled={isUpdatingStatus === row.id}
             >
               Finalize
-            </button>
-          )}
-          
-          {row.status === 'completed' && (
-            <button 
-              className="px-4 py-2 bg-white/5 text-tertiary hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2" 
-              onClick={() => {
-                setOrderToPrint(row);
-                setTimeout(() => handlePrint(), 150);
-              }}
-            >
-              <Printer className="w-3.5 h-3.5" />
-              Receipt
             </button>
           )}
 
@@ -584,18 +583,16 @@ export default function Orders() {
                    Finalize Order
                 </Button>
               )}
-              {selectedOrder.status === 'completed' && (
-                <Button 
-                  variant="primary" 
-                  icon={<Printer className="w-4 h-4" />}
-                  onClick={() => {
-                    setOrderToPrint(selectedOrder);
-                    setTimeout(() => handlePrint(), 150);
-                  }}
-                >
-                  Print Receipt
-                </Button>
-              )}
+              <Button 
+                variant="outline" 
+                icon={<Printer className="w-4 h-4" />}
+                onClick={() => {
+                  setOrderToPrint(selectedOrder);
+                  setTimeout(() => handlePrint(), 150);
+                }}
+              >
+                Print Receipt
+              </Button>
               <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>Close</Button>
             </div>
           </div>
