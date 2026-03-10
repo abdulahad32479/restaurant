@@ -17,6 +17,11 @@ export const tableService = {
     return response.data;
   },
 
+  getById: async (id: string) => {
+    const response = await apiClient.get<Table>(`v1/tables/${id}/`);
+    return response.data;
+  },
+
   update: async (id: string, data: Partial<Table>) => {
     const response = await apiClient.put<Table>(`v1/tables/${id}/`, data);
     return response.data;

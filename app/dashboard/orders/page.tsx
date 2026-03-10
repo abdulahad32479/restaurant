@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -5,7 +6,7 @@ import { Table, Pagination } from '@/src/components/Table';
 import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
-import { Search, Calendar, Download, Eye, Store, Printer, MoreVertical, PlayCircle, CheckCircle2, PackageCheck, CheckCheck, Edit, CreditCard, X, Banknote } from 'lucide-react';
+import { Search, Calendar, Download, Eye, Store, Printer, MoreVertical, PlayCircle, CheckCircle2, PackageCheck, CheckCheck, Edit, CreditCard, X, Banknote, RotateCcw } from 'lucide-react';
 import { Card } from '@/src/components/Card';
 import { orderService } from '@/src/services/order.service';
 import { branchService } from '@/src/services/branch.service';
@@ -38,6 +39,12 @@ export default function Orders() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('cash');
   const [amountTendered, setAmountTendered] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  
+  // Refund states
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+  const [isProcessingRefund, setIsProcessingRefund] = useState(false);
   
   // Printing state
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -119,6 +126,31 @@ export default function Orders() {
       toast.error('Failed to add payment');
     } finally {
       setIsProcessingPayment(false);
+    }
+  };
+
+  const handleRefund = async () => {
+    if (!selectedOrder || !refundAmount) return;
+    if (!window.confirm(`Issue refund of Rs. ${refundAmount}? This cannot be undone.`)) return;
+    
+    try {
+      setIsProcessingRefund(true);
+      await orderService.refund(selectedOrder.id, {
+        amount: refundAmount,
+        method: 'cash',
+        notes: refundReason,
+      });
+      toast.success('Refund processed successfully');
+      fetchData();
+      setIsRefundModalOpen(false);
+      setRefundAmount('');
+      setRefundReason('');
+      setSelectedOrder(null);
+    } catch (error: any) {
+      const msg = error.response?.data ? JSON.stringify(error.response.data) : 'Failed to process refund';
+      toast.error(msg);
+    } finally {
+      setIsProcessingRefund(false);
     }
   };
   
@@ -248,6 +280,19 @@ export default function Orders() {
                 disabled={isUpdatingStatus === row.id}
               >
                 <X className="w-4 h-4" />
+              </button>
+            )}
+            {row.status === 'completed' && (
+              <button 
+                className="p-2 hover:bg-orange-500/10 rounded-xl transition-all text-orange-400/60 hover:text-orange-400" 
+                title="Issue Refund"
+                onClick={() => {
+                  setSelectedOrder(row);
+                  setRefundAmount(row.paid_amount || row.total);
+                  setIsRefundModalOpen(true);
+                }}
+              >
+                <RotateCcw className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -651,6 +696,59 @@ export default function Orders() {
       <div className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none">
         {orderToPrint && <Receipt ref={receiptRef} order={orderToPrint} />}
       </div>
+
+      {/* Refund Modal */}
+      <Modal
+        isOpen={isRefundModalOpen}
+        onClose={() => { setIsRefundModalOpen(false); setRefundAmount(''); setRefundReason(''); }}
+        title="Issue Refund"
+      >
+        <div className="space-y-6">
+          <div className="bg-orange-500/5 border border-orange-500/20 rounded-2xl p-5 text-center">
+            <RotateCcw className="w-8 h-8 text-orange-400 mx-auto mb-3" />
+            <p className="text-[10px] font-black text-orange-400/70 uppercase tracking-[0.2em] mb-1">Order Total</p>
+            <p className="text-3xl font-black text-white">Rs. {Number(selectedOrder?.total || 0).toFixed(2)}</p>
+            <p className="text-[10px] text-tertiary mt-1">Paid: Rs. {Number(selectedOrder?.paid_amount || 0).toFixed(2)}</p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <p className="text-[10px] font-black text-tertiary mb-2 uppercase tracking-[0.2em]">Refund Amount</p>
+              <Input
+                type="number"
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+                className="bg-[#0A0A0A] border-base h-14 text-xl font-black"
+                icon={<span className="text-tertiary font-bold">Rs.</span>}
+              />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-tertiary mb-2 uppercase tracking-[0.2em]">Reason (Optional)</p>
+              <Input
+                type="text"
+                placeholder="Reason for refund..."
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                className="bg-[#0A0A0A] border-base"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-4 pt-4 border-t border-base">
+            <Button variant="outline" fullWidth onClick={() => setIsRefundModalOpen(false)} className="font-black text-[10px] uppercase">Cancel</Button>
+            <Button 
+              variant="primary" 
+              fullWidth 
+              onClick={handleRefund}
+              isLoading={isProcessingRefund}
+              disabled={!refundAmount || Number(refundAmount) <= 0}
+              className="font-black text-[10px] uppercase bg-orange-500 hover:bg-orange-600 shadow-xl shadow-orange-500/20"
+            >
+              Process Refund
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

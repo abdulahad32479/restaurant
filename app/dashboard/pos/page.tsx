@@ -13,7 +13,8 @@ import { categoryService } from '@/src/services/category.service';
 import { branchService } from '@/src/services/branch.service';
 import { tableService } from '@/src/services/table.service';
 import { orderService } from '@/src/services/order.service';
-import { Product, Category, Branch, Table, OrderType, Order } from '@/src/types';
+import { customerService } from '@/src/services/customer.service';
+import { Product, Category, Branch, Table, OrderType, Order, Customer } from '@/src/types';
 import { Modal } from '@/src/components/Modal';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useReactToPrint } from 'react-to-print';
@@ -43,6 +44,7 @@ export default function POS() {
   const [selectedTable, setSelectedTable] = useState('');
   const [orderType, setOrderType] = useState<OrderType | 'delivery' | ''>('');
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<'checkout' | 'draft' | null>(null);
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   
@@ -52,6 +54,11 @@ export default function POS() {
     phone: '',
     address: ''
   });
+
+  // Notes & Customer state  
+  const [orderNotes, setOrderNotes] = useState('');
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState('');
 
   // Cart & Mobile Drawer State
   const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
@@ -96,6 +103,12 @@ export default function POS() {
         
         if (bData.length > 0) setSelectedBranch(bData[0].id);
 
+        // Load customers for association
+        try {
+          const custData = await customerService.getAll();
+          setCustomers(custData);
+        } catch (e) { /* non-critical */ }
+
         // Load Edit Order if present
         if (editOrderId) {
           try {
@@ -113,6 +126,8 @@ export default function POS() {
                if (orderEdit.order_type === 'delivery' && orderEdit.delivery_info) {
                  setDeliveryInfo(orderEdit.delivery_info);
                }
+               if (orderEdit.notes) setOrderNotes(orderEdit.notes);
+               if (orderEdit.customer) setSelectedCustomer(orderEdit.customer);
                
                // Populate cart
                const mappedCart = orderEdit.items.map(item => {
@@ -212,6 +227,8 @@ export default function POS() {
       })),
     };
 
+    if (orderNotes.trim()) orderData.notes = orderNotes.trim();
+    if (selectedCustomer) orderData.customer = selectedCustomer;
     if (orderType === 'dine_in' && selectedTable) {
       orderData.table_id = selectedTable;
     }
@@ -290,12 +307,12 @@ export default function POS() {
   setIsProcessing(true);
   try {
     if (editingOrder) {
-      // Sync diff to backend
+      // Sync item changes via action endpoints, then update metadata via PATCH
       await syncEditedOrderCart(editingOrder.id);
-      
-      // Update general top-level metadata
       const updateData = getOrderData();
-      await orderService.update(editingOrder.id, updateData);
+      try { await orderService.update(editingOrder.id, updateData); } catch (e) {
+        console.warn('Metadata update failed (order may be locked), items still synced', e);
+      }
     } else {
       const orderData = getOrderData();
       await orderService.create(orderData);
@@ -310,6 +327,8 @@ export default function POS() {
       setOrderType('');
       setSelectedTable('');
       setDeliveryInfo({ name: '', phone: '', address: '' });
+      setOrderNotes('');
+      setSelectedCustomer('');
     }
   } catch (error: any) {
     handleError(error);
@@ -337,9 +356,12 @@ const handleProcessPayment = async () => {
       let orderId = editingOrder?.id;
 
       if (editingOrder) {
+         // Sync items via action endpoints + update metadata via PATCH
          await syncEditedOrderCart(editingOrder.id);
          const updateData = getOrderData();
-         await orderService.update(editingOrder.id, updateData);
+         try { await orderService.update(editingOrder.id, updateData); } catch (e) {
+           console.warn('Metadata update failed, continuing with payment', e);
+         }
       } else {
          const orderData = getOrderData();
          const newOrder = await orderService.create(orderData);
@@ -394,6 +416,8 @@ const handleProcessPayment = async () => {
          setOrderType('');
          setSelectedTable('');
          setDeliveryInfo({ name: '', phone: '', address: '' });
+         setOrderNotes('');
+         setSelectedCustomer('');
          setIsPaymentModalOpen(false);
          setAmountTendered('');
          
@@ -495,21 +519,29 @@ const handleProcessPayment = async () => {
           </div>
 
           {orderType === 'dine_in' && (
-            <Select 
-              value={selectedTable}
-              onChange={(e) => setSelectedTable(e.target.value)}
-              options={[
-                { value: '', label: 'Select Table' },
-                ...tables
-                  .filter(t => !selectedBranch || t.branch === selectedBranch)
-                  .map(t => ({
-                    value: t.id,
-                    label: `Table ${t.name} (Cap: ${t.capacity})`
-                  }))
-              ]}
-              icon={<LayoutGrid className="w-4 h-4" />}
-              className="bg-[#1A1A1A] border-[#2A2A2A]"
-            />
+            <button
+              onClick={() => setIsTableModalOpen(true)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left w-full ${
+                selectedTable 
+                  ? 'bg-primary/10 border-primary/40 text-white' 
+                  : 'bg-[#1A1A1A] border-[#2A2A2A] text-[#808080] hover:border-[#404040]'
+              }`}
+            >
+              <LayoutGrid className="w-4 h-4 shrink-0" />
+              <span className="text-[11px] font-black uppercase tracking-wider flex-1 truncate">
+                {selectedTable 
+                  ? `Table ${tables.find(t => t.id === selectedTable)?.name || '?'} · Cap. ${tables.find(t => t.id === selectedTable)?.capacity || '?'}` 
+                  : 'Choose Table'}
+              </span>
+              {selectedTable && (
+                <span
+                  onClick={e => { e.stopPropagation(); setSelectedTable(''); }}
+                  className="text-[#606060] hover:text-white text-[9px] font-black uppercase tracking-widest shrink-0 cursor-pointer"
+                >
+                  ✕
+                </span>
+              )}
+            </button>
           )}
 
           {orderType === 'delivery' && deliveryInfo.name && (
@@ -600,114 +632,175 @@ const handleProcessPayment = async () => {
           transition-transform duration-500
           ${isCartOpen ? 'translate-y-0' : 'translate-y-[20%] lg:translate-y-0'}
         `}>
-          <div className="p-6 border-b border-[#2A2A2A] bg-[#0A0A0A]/30 flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-black uppercase tracking-tighter text-white leading-none mb-0.5">Live Bill</h2>
-              <p className="text-[8px] text-primary font-black uppercase tracking-[0.3em] flex items-center gap-1.5">
-                <span className="relative flex h-1 w-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-1 w-1 bg-primary"></span>
-                </span>
-                {orderType.replace('_', ' ')} 
-                {orderType === 'dine_in' && selectedTable && ` • Table ${tables.find(t => t.id === selectedTable)?.name || selectedTable}`}
-              </p>
+          {/* Header */}
+          <div className="p-5 border-b border-[#2A2A2A] bg-[#0A0A0A]/40 flex items-center justify-between shrink-0">
+            <div className="min-w-0">
+              <h2 className="text-lg font-black uppercase tracking-tighter text-white leading-none mb-1">Live Bill</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-[8px] text-primary font-black uppercase tracking-[0.3em] flex items-center gap-1.5">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
+                  </span>
+                  {orderType ? orderType.replace('_', ' ') : 'No Type'}
+                </p>
+                {orderType === 'dine_in' && selectedTable && (
+                  <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">
+                    • Table {tables.find(t => t.id === selectedTable)?.name || selectedTable}
+                  </span>
+                )}
+                {selectedCustomer && customers.length > 0 && (
+                  <span className="text-[8px] font-black text-accent/70 uppercase tracking-widest truncate max-w-[120px]">
+                    • {customers.find(c => c.id === selectedCustomer)?.name || 'Customer'}
+                  </span>
+                )}
+                {editingOrder && (
+                  <span className="text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full text-primary">
+                    EDITING
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <button 
                 onClick={clearCart}
-                className="p-3 bg-white/5 rounded-xl border border-white/5 hover:bg-error/10 hover:border-error/20 transition-all text-[#808080] hover:text-error lg:flex hidden"
+                className="p-2.5 bg-white/5 rounded-xl border border-white/5 hover:bg-error/10 hover:border-error/20 transition-all text-[#808080] hover:text-error lg:flex hidden"
                 title="Clear Cart"
               >
-                <Trash2 className="w-5 h-5" />
+                <Trash2 className="w-4 h-4" />
               </button>
               <button 
                 onClick={() => setIsCartOpen(false)}
-                className="p-3 bg-white/5 rounded-xl border border-white/5 lg:hidden"
+                className="p-2.5 bg-white/5 rounded-xl border border-white/5 lg:hidden"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
           </div>
           
-          {/* Cart Items */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-            {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-[#2A2A2A]">
-                <div className="w-24 h-24 bg-white/5 rounded-[2rem] flex items-center justify-center mb-6 animate-pulse">
-                  <ShoppingCart className="w-10 h-10" />
+          {/* Scrollable: Order Details + Cart Items */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            {/* Customer + Notes -- compact inline section */}
+            <div className="px-4 pt-4 pb-3 space-y-2.5 border-b border-[#2A2A2A]/70">
+              {/* Customer Selector */}
+              {customers.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <User className="w-3.5 h-3.5 text-[#505050] shrink-0" />
+                  <select
+                    value={selectedCustomer}
+                    onChange={e => setSelectedCustomer(e.target.value)}
+                    className="flex-1 bg-transparent border-0 text-white text-[11px] font-bold focus:outline-none cursor-pointer appearance-none"
+                  >
+                    <option value="" className="bg-[#1A1A1A]">Walk-in (no customer)</option>
+                    {customers.map(c => (
+                      <option key={c.id} value={c.id} className="bg-[#1A1A1A]">
+                        {c.name}{c.phone || c.phone_number ? ` · ${c.phone || c.phone_number}` : ''}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <p className="font-black uppercase tracking-[0.4em] text-[10px]">Empty Basket</p>
+              )}
+              {/* Notes inline */}
+              <div className="flex items-start gap-2">
+                <span className="text-[#505050] mt-1.5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Notes:</span>
+                <textarea
+                  value={orderNotes}
+                  onChange={e => setOrderNotes(e.target.value)}
+                  placeholder="Special instructions..."
+                  rows={1}
+                  className="flex-1 bg-transparent border-0 text-white text-[11px] placeholder:text-[#404040] resize-none focus:outline-none custom-scrollbar leading-relaxed"
+                  onInput={e => {
+                    const t = e.target as HTMLTextAreaElement;
+                    t.style.height = 'auto';
+                    t.style.height = t.scrollHeight + 'px';
+                  }}
+                />
               </div>
-            ) : (
-              cart.map(item => (
-                <div key={item.product.id} className="flex items-center gap-2 p-2 bg-white/[0.03] rounded-xl border border-white/[0.05] transition-all hover:bg-white/[0.08] group/item shadow-inner">
-                  <div className="w-10 h-10 bg-black rounded-lg shrink-0 border border-white/10 overflow-hidden shadow-xl">
-                    {item.product.image ? (
-                      <img src={getImageUrl(item.product.image)} alt="" className="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-500" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center opacity-10">
-                        <ShoppingCart className="w-4 h-4" />
-                      </div>
-                    )}
+            </div>
+
+            {/* Cart Items */}
+            <div className="p-4 space-y-2.5">
+              {cart.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-[#2A2A2A]">
+                  <div className="w-20 h-20 bg-white/5 rounded-[2rem] flex items-center justify-center mb-4 animate-pulse">
+                    <ShoppingCart className="w-9 h-9" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-[9px] md:text-[10px] truncate uppercase tracking-tight text-white leading-none mb-0.5">{item.product.name}</h4>
-                    <p className="text-primary text-[8px] md:text-[9px] font-black font-mono">Rs. {(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button 
-                      onClick={() => updateQuantity(item.product.id, -1)}
-                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5"
-                    >
-                      <Minus className="w-2.5 h-2.5" />
-                    </button>
-                    <span className="w-2 text-center text-[10px] font-black tabular-nums">{item.quantity}</span>
-                    <button 
-                      onClick={() => updateQuantity(item.product.id, 1)}
-                      className="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-primary/20 border border-white/10"
-                    >
-                      <Plus className="w-2.5 h-2.5" />
-                    </button>
-                  </div>
+                  <p className="font-black uppercase tracking-[0.4em] text-[10px]">Empty Basket</p>
                 </div>
-              ))
-            )}
+              ) : (
+                cart.map((item, idx) => (
+                  <div key={item.product.id} className="flex items-center gap-2.5 p-2.5 bg-white/[0.03] rounded-2xl border border-white/[0.05] hover:bg-white/[0.06] group/item transition-all">
+                    {/* Index */}
+                    <span className="text-[10px] font-black text-[#404040] w-4 text-center shrink-0">{idx + 1}</span>
+                    {/* Image */}
+                    <div className="w-9 h-9 bg-black rounded-lg shrink-0 border border-white/10 overflow-hidden">
+                      {item.product.image ? (
+                        <img src={getImageUrl(item.product.image)} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center opacity-10">
+                          <ShoppingCart className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+                    </div>
+                    {/* Name + Price */}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-[10px] truncate uppercase tracking-tight text-white leading-none mb-0.5">{item.product.name}</h4>
+                      <p className="text-primary text-[9px] font-black font-mono">Rs. {(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p>
+                    </div>
+                    {/* Qty Controls */}
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => updateQuantity(item.product.id, -1)}
+                        className="w-6 h-6 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5"
+                      >
+                        <Minus className="w-2.5 h-2.5" />
+                      </button>
+                      <span className="w-5 text-center text-[11px] font-black tabular-nums">{item.quantity}</span>
+                      <button 
+                        onClick={() => updateQuantity(item.product.id, 1)}
+                        className="w-6 h-6 rounded-lg bg-primary text-white flex items-center justify-center transition-all active:scale-95 shadow-sm shadow-primary/20"
+                      >
+                        <Plus className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
           
-          {/* Totals & Actions */}
-          <div className="p-6 bg-[#0A0A0A]/40 border-t border-[#2A2A2A] rounded-b-3xl">
-            <div className="space-y-4 mb-6">
-              <div className="flex justify-between items-center text-[#808080] text-[10px] font-black uppercase tracking-[0.2em] px-2">
-                <span>SUBTOTAL</span>
-                <span className="text-white font-mono">RS. {subtotal.toFixed(2)}</span>
+          {/* Fixed Footer: Totals + Actions */}
+          <div className="shrink-0 border-t border-[#2A2A2A] bg-[#0F0F0F] rounded-b-3xl">
+            <div className="px-5 pt-4 pb-2 space-y-2">
+              <div className="flex justify-between items-center text-[#606060] text-[10px] font-black uppercase tracking-[0.15em]">
+                <span>Subtotal</span>
+                <span className="text-white font-mono">Rs. {subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center text-[#808080] text-[10px] font-black uppercase tracking-[0.2em] px-2">
-                <span className="flex items-center gap-2">TAX <span className="text-[9px] bg-white/5 px-1.5 py-0.5 rounded border border-white/5">16%</span></span>
-                <span className="text-white font-mono">RS. {totalTax.toFixed(2)}</span>
+              <div className="flex justify-between items-center text-[#606060] text-[10px] font-black uppercase tracking-[0.15em]">
+                <span className="flex items-center gap-1.5">Tax <span className="bg-white/5 px-1.5 py-0.5 rounded text-[9px] border border-white/5">16%</span></span>
+                <span className="text-white font-mono">Rs. {totalTax.toFixed(2)}</span>
               </div>
               
-              <div className="mt-4 pt-4 border-t border-[#2A2A2A]">
-                <div className="flex justify-between items-center px-1">
-                  <span className="text-2xl font-black text-white  tracking-tighter uppercase underline decoration-primary/30 decoration-2 underline-offset-4">TOTAL</span>
-                  <span className="text-3xl font-black text-primary tabular-nums drop-shadow-[0_0_10px_rgba(139,0,0,0.2)]">Rs. {total.toFixed(2)}</span>
-                </div>
+              <div className="flex justify-between items-center pt-2 border-t border-[#2A2A2A]">
+                <span className="text-xl font-black text-white tracking-tight uppercase">TOTAL</span>
+                <span className="text-2xl font-black text-primary tabular-nums">Rs. {total.toFixed(2)}</span>
               </div>
 
               {editingOrder && (
-                <div className="space-y-3 mt-4 p-4 bg-white/5 rounded-2xl border border-dashed border-white/10">
-                  <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-[#808080]">
-                    <span>Paid Amount</span>
-                    <span className="text-success underline underline-offset-4 decoration-success/30">Rs. {parseFloat(editingOrder.paid_amount || '0').toFixed(2)}</span>
+                <div className="flex gap-4 pt-1">
+                  <div className="flex-1 text-center bg-success/5 rounded-xl py-1.5 border border-success/10">
+                    <p className="text-[8px] font-black text-success/60 uppercase tracking-widest">Paid</p>
+                    <p className="text-sm font-black text-success">Rs. {parseFloat(editingOrder.paid_amount || '0').toFixed(2)}</p>
                   </div>
-                  <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-primary">
-                    <span>Balance Due</span>
-                    <span className="animate-pulse">Rs. {(total - parseFloat(editingOrder.paid_amount || '0')).toFixed(2)}</span>
+                  <div className="flex-1 text-center bg-primary/5 rounded-xl py-1.5 border border-primary/10">
+                    <p className="text-[8px] font-black text-primary/60 uppercase tracking-widest">Balance</p>
+                    <p className="text-sm font-black text-primary animate-pulse">Rs. {(total - parseFloat(editingOrder.paid_amount || '0')).toFixed(2)}</p>
                   </div>
                 </div>
               )}
             </div>
             
-            <div className="grid grid-cols-2 gap-3">
+            <div className="p-4 grid grid-cols-2 gap-3">
               <Button 
                 variant="outline" 
                 className="text-[#808080] border-[#2A2A2A] hover:bg-[#2A2A2A] hover:text-white font-black h-12 uppercase tracking-widest text-[10px] rounded-xl"
@@ -715,9 +808,8 @@ const handleProcessPayment = async () => {
                 onClick={handleSaveDraft}
                 isLoading={isProcessing}
               >
-                {editingOrder ? 'Update' : 'Draft'}
+                {editingOrder ? 'Save Changes' : 'Save Draft'}
               </Button>
-              
               <Button 
                 variant="primary" 
                 className="text-white font-black h-12 uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20 rounded-xl"
@@ -726,11 +818,6 @@ const handleProcessPayment = async () => {
               >
                 Checkout
               </Button>
-            </div>
-            
-            <div className="mt-8 flex items-center justify-center gap-3 opacity-20">
-              <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-[0.4em]">Secure Ledger Live</span>
             </div>
           </div>
         </div>

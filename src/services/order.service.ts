@@ -33,8 +33,9 @@ export const orderService = {
   },
 
   update: async (id: string, data: any) => {
+    // Only send writable fields as per PatchedOrderRequest schema
     const payload = orderService.sanitizeOrderForUpdate(data);
-    const response = await apiClient.put<Order>(`v1/orders/${id}/`, payload);
+    const response = await apiClient.patch<Order>(`v1/orders/${id}/`, payload);
     return response.data;
   },
 
@@ -63,32 +64,34 @@ export const orderService = {
     return response.data;
   },
 
-  // Helper to sanitize order data for status transitions
-  // Backend expects specific fields and may fail if read-only or nested fields are present
+  // Sanitizes order data to only include writable fields per PatchedOrderRequest schema.
+  // IMPORTANT: items, status, subtotal, taxamount, total, paid_amount, is_paid are all read-only.
   sanitizeOrderForUpdate: (order: any) => {
     const getID = (val: any) => {
       if (!val) return null;
       if (typeof val === 'object' && val.id) return val.id;
-      if (typeof val === 'string') return val;
+      if (typeof val === 'string' && val.length > 0) return val;
       return null;
     };
     
+    // Use `table` (the UUID FK field), not `table_id` which is only for order creation
     const payload: any = {
       order_type: order.order_type || 'dine_in',
       notes: order.notes || '',
       branch: getID(order.branch),
-      table_id: getID(order.table) || getID(order.table_id) || getID(order.table_no),
+      table: getID(order.table) || getID(order.table_id) || getID(order.table_no) || null,
     };
 
-    if (order.delivery_info) {
-      payload.delivery_info = order.delivery_info;
-    }
     if (order.customer) {
       payload.customer = getID(order.customer);
     }
 
-    console.log('Sanitized order payload:', payload);
     return payload;
+  },
+
+  getCurrentUser: async () => {
+    const response = await apiClient.get('v1/me/');
+    return response.data;
   },
 
   confirm: async (id: string, data: any) => {
@@ -127,7 +130,7 @@ export const orderService = {
     return response.data;
   },
 
-  refund: async (id: string, paymentData: { method: string; amount: string; idempotency_key?: string }) => {
+  refund: async (id: string, paymentData: { method: string; amount: string; notes?: string; idempotency_key?: string }) => {
     const response = await apiClient.post<Order>(`v1/orders/${id}/refund/`, paymentData);
     return response.data;
   },
