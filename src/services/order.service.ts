@@ -32,8 +32,9 @@ export const orderService = {
     return response.data;
   },
 
-  update: async (id: string, data: Partial<Order>) => {
-    const response = await apiClient.put<Order>(`v1/orders/${id}/`, data);
+  update: async (id: string, data: any) => {
+    const payload = orderService.sanitizeOrderForUpdate(data);
+    const response = await apiClient.put<Order>(`v1/orders/${id}/`, payload);
     return response.data;
   },
 
@@ -72,18 +73,21 @@ export const orderService = {
       return null;
     };
     
-    const payload = {
-      order_number: order.order_number || '',
+    const payload: any = {
       order_type: order.order_type || 'dine_in',
       notes: order.notes || '',
-      paid_at: order.paid_at || null,
       branch: getID(order.branch),
-      created_by: getID(order.created_by),
-      table: getID(order.table) || getID(order.table_id),
-      customer: getID(order.customer)
+      table_id: getID(order.table) || getID(order.table_id) || getID(order.table_no),
     };
 
-    console.log('Sanitized fulfillment payload:', payload);
+    if (order.delivery_info) {
+      payload.delivery_info = order.delivery_info;
+    }
+    if (order.customer) {
+      payload.customer = getID(order.customer);
+    }
+
+    console.log('Sanitized order payload:', payload);
     return payload;
   },
 

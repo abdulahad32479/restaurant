@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://pos-backend-production-b659.up.railway.app/api/';
+export const BASE_CONTENT_URL = baseURL.replace('/api/', '');
 
 const apiClient = axios.create({
   baseURL,

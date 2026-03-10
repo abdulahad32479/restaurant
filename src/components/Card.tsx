@@ -14,8 +14,8 @@ export function Card({ children, hover, className, ...props }: CardProps) {
   return (
     <div 
       className={cn(
-        "bg-[#1F1F1F] border border-[#2A2A2A] rounded-xl p-6 shadow-md transition-all duration-300", 
-        hover && "hover:border-[#333333] hover:shadow-lg hover:-translate-y-1",
+        "bg-white/[0.03] border border-white/5 rounded-2xl p-6 shadow-2xl transition-all duration-500 overflow-hidden relative group", 
+        hover && "hover:border-white/10 hover:bg-white/[0.05] hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)]",
         className
       )}
       {...props}
@@ -32,15 +32,16 @@ interface KPICardProps {
   changeType: 'positive' | 'negative' | 'neutral'
   icon: React.ReactNode
   iconBg?: string
+  className?: string
 }
 
-export function KPICard({ title, value, change, changeType, icon, iconBg }: KPICardProps) {
+export function KPICard({ title, value, change, changeType, icon, iconBg, className }: KPICardProps) {
   return (
-    <Card hover className="animate-slide-up">
+    <Card hover className={cn("animate-slide-up", className)}>
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <p className="text-sm text-[#B3B3B3] mb-1">{title}</p>
-          <h3 className="text-3xl font-bold text-white mb-2">{value}</h3>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#808080] mb-2">{title}</p>
+          <h3 className="text-2xl font-black text-white  uppercase tracking-tighter mb-2 drop-shadow-md">{value}</h3>
           <div className={cn(
             "flex items-center gap-1 text-sm font-medium",
             changeType === 'positive' && "text-[#10B981]",

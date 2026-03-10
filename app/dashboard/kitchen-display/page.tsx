@@ -25,6 +25,7 @@ export default function KitchenDisplay() {
   const [tables, setTables] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [activeStatus, setActiveStatus] = useState('all');
   const [processingOrders, setProcessingOrders] = useState<Record<string, boolean>>({});
   
@@ -109,11 +110,10 @@ export default function KitchenDisplay() {
       setProcessingOrders(prev => ({ ...prev, [order.id]: false }));
     }
   };
-  
+
   const getFilteredOrders = () => {
     if (activeStatus === 'all') {
-      // Active view typically excludes things that are already served for kitchen staff
-      return orders.filter(o => o.status !== 'served');
+      return orders.filter(o => o.status !== 'served' && o.status !== 'completed');
     }
     return orders.filter(o => o.status === activeStatus);
   };
@@ -122,22 +122,29 @@ export default function KitchenDisplay() {
   
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft': return 'border-[#80808050]';
-      case 'confirmed': return 'border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.05)]';
-      case 'preparing': return 'border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.05)]';
-      case 'ready': return 'border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.05)]';
-      case 'served': return 'border-indigo-500/50 shadow-[0_0_20px_rgba(99,102,241,0.05)]';
-      default: return 'border-[#2A2A2A]';
+      case 'draft': return 'border-[#80808020] bg-white/5';
+      case 'confirmed': return 'border-amber-500/30 bg-amber-500/[0.02] shadow-[0_0_40px_rgba(245,158,11,0.05)]';
+      case 'preparing': return 'border-blue-500/30 bg-blue-500/[0.02] shadow-[0_0_40px_rgba(59,130,246,0.05)]';
+      case 'ready': return 'border-emerald-500/30 bg-emerald-500/[0.02] shadow-[0_0_40px_rgba(16,185,129,0.05)]';
+      case 'served': return 'border-indigo-500/30 bg-indigo-500/[0.02] shadow-[0_0_40px_rgba(99,102,241,0.05)]';
+      default: return 'border-[#2A2A2A] bg-white/5';
     }
+  }
+
+  const getWaitTimeColor = (createdAt: string) => {
+    const minutes = (new Date().getTime() - new Date(createdAt).getTime()) / 60000;
+    if (minutes > 20) return 'text-red-500';
+    if (minutes > 10) return 'text-amber-500';
+    return 'text-primary';
   };
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, JSX.Element> = {
-      draft: <span className="text-[#808080] bg-[#80808015] px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest">New</span>,
-      confirmed: <span className="text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest">Queue</span>,
-      preparing: <span className="text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest">Cooking</span>,
-      ready: <span className="text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest">Ready</span>,
-      served: <span className="text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest">Served</span>,
+      draft: <span className="text-[#808080] bg-[#80808010] px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border border-white/5">New</span>,
+      confirmed: <span className="text-amber-500 bg-amber-500/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border border-amber-500/20">Queue</span>,
+      preparing: <span className="text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border border-blue-500/20">Cooking</span>,
+      ready: <span className="text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border border-emerald-500/20">Ready</span>,
+      served: <span className="text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border border-indigo-500/20">Served</span>,
     };
     return labels[status] || null;
   };
@@ -151,9 +158,9 @@ export default function KitchenDisplay() {
           <button 
             onClick={() => handleStatusUpdate(order, 'confirm')}
             disabled={isProcessing}
-            className="w-full px-4 py-4 bg-[#404040] text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-[#505050] transition-all active:scale-95 disabled:opacity-50"
+            className="w-full px-4 py-4 bg-[#2A2A2A] text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-[#333] transition-all active:scale-95 disabled:opacity-50 border border-white/5 shadow-xl"
           >
-            {isProcessing ? 'Processing...' : 'Confirm Order'}
+            {isProcessing ? 'Processing' : 'Confirm Order'}
           </button>
         );
       case 'confirmed':
@@ -161,10 +168,10 @@ export default function KitchenDisplay() {
           <button 
             onClick={() => handleStatusUpdate(order, 'prepare')}
             disabled={isProcessing}
-            className="w-full px-4 py-4 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full px-4 py-4 bg-blue-600 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-blue-500 transition-all active:scale-95 shadow-2xl shadow-blue-600/20 disabled:opacity-50 flex items-center justify-center gap-2 border border-blue-400/20"
           >
             <PlayCircle className="w-4 h-4" />
-            {isProcessing ? 'Starting...' : 'Start Cooking'}
+            {isProcessing ? 'Starting' : 'Start Cooking'}
           </button>
         );
       case 'preparing':
@@ -172,10 +179,10 @@ export default function KitchenDisplay() {
           <button 
             onClick={() => handleStatusUpdate(order, 'ready')}
             disabled={isProcessing}
-            className="w-full px-4 py-4 bg-emerald-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-emerald-500 transition-all active:scale-95 shadow-lg shadow-emerald-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full px-4 py-4 bg-emerald-600 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-emerald-500 transition-all active:scale-95 shadow-2xl shadow-emerald-600/20 disabled:opacity-50 flex items-center justify-center gap-2 border border-emerald-400/20"
           >
             <CheckCircle2 className="w-4 h-4" />
-            {isProcessing ? 'Finishing...' : 'Mark as Ready'}
+            {isProcessing ? 'Finishing' : 'Mark as Ready'}
           </button>
         );
       case 'ready':
@@ -183,10 +190,10 @@ export default function KitchenDisplay() {
           <button 
             onClick={() => handleStatusUpdate(order, 'serve')}
             disabled={isProcessing}
-            className="w-full px-4 py-4 bg-indigo-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-indigo-500 transition-all active:scale-95 shadow-lg shadow-indigo-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full px-4 py-4 bg-indigo-600 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-indigo-500 transition-all active:scale-95 shadow-2xl shadow-indigo-600/20 disabled:opacity-50 flex items-center justify-center gap-2 border border-indigo-400/20"
           >
             <PackageCheck className="w-4 h-4" />
-            {isProcessing ? 'Serving...' : 'Mark as Served'}
+            {isProcessing ? 'Serving' : 'Mark as Served'}
           </button>
         );
       case 'served':
@@ -194,10 +201,10 @@ export default function KitchenDisplay() {
           <button 
             onClick={() => handleStatusUpdate(order, 'complete')}
             disabled={isProcessing}
-            className="w-full px-4 py-4 bg-white text-black font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-gray-200 transition-all active:scale-95 shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full px-4 py-4 bg-white text-black font-black text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-gray-100 transition-all active:scale-95 shadow-2xl disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <CheckCheck className="w-4 h-4" />
-            {isProcessing ? 'Completing...' : 'Finalize & Close'}
+            {isProcessing ? 'Completing' : 'Finalize & Close'}
           </button>
         );
       default:
@@ -214,23 +221,25 @@ export default function KitchenDisplay() {
   }
   
   return (
-    <div className="flex flex-col min-h-full animate-fade-in pb-10">
-      <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div className="flex flex-col min-h-full animate-fade-in pb-4">
+      <div className="mb-6 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl md:text-4xl font-black text-white italic uppercase tracking-tighter">Kitchen Display</h1>
-            <ChefHat className="text-primary w-8 h-8" />
+            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
+              <ChefHat className="text-primary w-6 h-6" />
+            </div>
+            <h1 className="text-lg font-black text-white uppercase tracking-tighter">Kitchen Registry</h1>
           </div>
-          <p className="text-sm text-[#808080] font-bold uppercase tracking-widest">Real-time Order Workflow</p>
+          <p className="text-[10px] text-[#808080] font-black uppercase tracking-[0.3em] ml-1">Precision Cooking Management</p>
         </div>
         
-        <div className="flex flex-col md:flex-row items-center gap-6">
+        <div className="flex flex-col md:flex-row items-center gap-8">
           <div className="flex flex-col items-end">
-             <div className="flex items-center gap-2 mb-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-[#B3B3B3]">Live Kitchen Feed</span>
+             <div className="flex items-center gap-3 mb-2">
+                <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
+                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#B3B3B3]">Live Stream</span>
              </div>
-             <p className="text-[9px] text-[#808080] font-bold">Last update: {new Date().toLocaleTimeString()}</p>
+             <p className="text-[10px] text-[#808080] font-bold uppercase tracking-widest">Update: {new Date().toLocaleTimeString()}</p>
           </div>
           <Tabs 
             tabs={statusTabs} 
@@ -239,61 +248,71 @@ export default function KitchenDisplay() {
           />
           <button 
             onClick={() => fetchOrdersAndProducts()}
-            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#808080] hover:text-white transition-colors"
+            className="flex items-center gap-2 group"
           >
-            <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            <div className="p-2 bg-white/5 rounded-xl border border-white/5 group-hover:bg-white/10 group-hover:border-white/10 transition-all">
+              <RefreshCw className={`w-4 h-4 text-[#808080] group-hover:text-white ${isRefreshing ? 'animate-spin' : ''}`} />
+            </div>
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#808080] group-hover:text-white transition-colors">Sync</span>
           </button>
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1">
         {filteredOrders.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
             {filteredOrders.map(order => (
               <div 
                 key={order.id}
                 className={`
-                  bg-[#1A1A1A] border-2 ${getStatusColor(order.status)}
-                  rounded-[2rem] p-6 shadow-2xl flex flex-col
-                  animate-scale-in relative group transition-all hover:scale-[1.01]
+                  flex flex-col h-[460px] rounded-[2rem] p-5 border-2 ${getStatusColor(order.status)}
+                  backdrop-blur-xl shadow-2xl relative animate-scale-in transition-all overflow-hidden
                 `}
               >
-                <div className="flex items-start justify-between mb-5">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-3xl font-black text-white italic tracking-tighter">#{order.id.slice(-4)}</h3>
+                {/* Header Section */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      <h3 className="text-xl font-black text-white tracking-tighter">#{order.id.slice(-4).toUpperCase()}</h3>
                       {getStatusLabel(order.status)}
                     </div>
-                    <p className="text-xs text-[#808080] flex items-center gap-1.5 font-bold uppercase tracking-wider">
-                      <User className="w-3.5 h-3.5" />
-                      {order.order_type === 'dine_in' 
-                        ? (order.table ? `Table ${tables[order.table] || order.table}` : (order.table_no ? `Table ${order.table_no}` : 'Dine In')) 
-                        : order.order_type.toUpperCase()
-                      }
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center gap-2 text-primary mb-1">
-                      <Clock className="w-4 h-4" />
-                      <span className="text-lg font-black">{formatDistanceToNow(new Date(order.created_at), { addSuffix: false })}</span>
+                    <div className="flex items-center gap-2 text-[10px] text-[#808080] font-black uppercase tracking-widest">
+                       <User className="w-3.5 h-3.5 text-primary" />
+                       <span className="truncate">
+                        {order.order_type === 'dine_in' 
+                          ? (order.table ? `TABLE ${tables[order.table] || order.table}` : (order.table_no ? `TABLE ${order.table_no}` : 'DINE IN')) 
+                          : order.order_type.toUpperCase()
+                        }
+                       </span>
                     </div>
-                    <p className="text-[10px] text-[#808080] font-black uppercase tracking-widest">Wait Time</p>
+                  </div>
+                  
+                  <div className="flex flex-col items-end shrink-0">
+                    <div className="text-right">
+                      <div className={`flex items-center justify-end gap-1.5 mb-0.5 ${getWaitTimeColor(order.created_at)}`}>
+                        <Clock className="w-4 h-4" />
+                        <span className="text-xl font-black tabular-nums">
+                          {Math.floor((new Date().getTime() - new Date(order.created_at).getTime()) / 60000)}m
+                        </span>
+                      </div>
+                      <p className="text-[9px] text-[#808080] font-black uppercase tracking-[0.2em]">Idle Time</p>
+                    </div>
                   </div>
                 </div>
                 
-                <div className="flex-1 mb-6">
+                {/* Items Section - Scrollable */}
+                <div className="flex-1 overflow-y-auto mb-3 pr-1 custom-scrollbar">
                   <div className="space-y-2">
                     {order.items.map((item, index) => (
                       <div 
                         key={index}
-                        className="px-4 py-3 bg-black/40 rounded-2xl border border-[#2A2A2A] flex items-center justify-between group-hover:border-[#404040] transition-colors"
+                        className="p-3 bg-white/[0.03] rounded-[1.5rem] border border-white/5 flex items-center justify-between transition-colors shadow-inner group/item hover:bg-white/[0.05]"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-xs font-black">
+                          <div className="w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center text-[11px] font-black shadow-lg shadow-primary/20">
                             {item.quantity}
                           </div>
-                          <p className="text-sm text-white font-bold uppercase tracking-tight">
+                          <p className="text-xs text-white font-black uppercase tracking-tight leading-tight group-hover:text-primary transition-colors">
                             {item.product_name || products[item.product] || 'Product'}
                           </p>
                         </div>
@@ -302,27 +321,60 @@ export default function KitchenDisplay() {
                   </div>
                 </div>
 
+                {/* Notes Section */}
                 {order.notes && (
-                  <div className="mb-6 p-3 bg-primary/5 border border-primary/20 rounded-xl">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-[#808080] mb-1">Notes</p>
-                    <p className="text-xs text-white italic">"{order.notes}"</p>
+                  <div className="mb-4 p-3 bg-primary/5 border border-primary/10 rounded-2xl relative overflow-hidden group/note">
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#808080] mb-1">Notes</p>
+                    <p className="text-[11px] text-white  font-medium leading-normal">"{order.notes}"</p>
                   </div>
                 )}
                 
-                <div className="space-y-3 pt-6 border-t border-[#2A2A2A]">
+                {/* Action Section */}
+                <div className="mt-auto space-y-4">
+                  <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-1000 ${
+                        order.status === 'confirmed' ? 'w-1/4 bg-amber-500' : 
+                        order.status === 'preparing' ? 'w-2/4 bg-blue-500' : 
+                        order.status === 'ready' ? 'w-3/4 bg-emerald-500' : 
+                        order.status === 'served' ? 'w-full bg-indigo-500' : 'w-0'
+                      }`}
+                    />
+                  </div>
                   {renderActionButtons(order)}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-[500px] text-center bg-[#1A1A1A]/30 rounded-[3rem] border-2 border-dashed border-[#2A2A2A] animate-pulse">
-            <div className="w-24 h-24 bg-[#1A1A1A] rounded-full flex items-center justify-center mb-8 text-5xl shadow-2xl border border-[#2A2A2A]">👨‍🍳</div>
-            <h3 className="text-2xl font-black text-white italic uppercase tracking-tight mb-2">No active orders</h3>
-            <p className="text-[#808080] font-bold uppercase tracking-widest text-xs">Orders in this category will appear here.</p>
+          <div className="flex flex-col items-center justify-center h-[600px] text-center bg-white/[0.02] rounded-[4rem] border-2 border-dashed border-[#2A2A2A]">
+            <div className="w-32 h-32 bg-[#1a1a1a] rounded-[2.5rem] shadow-2xl border border-white/5 flex items-center justify-center mb-10 text-6xl shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+              👨‍🍳
+            </div>
+            <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-4">The Grill is Silent</h3>
+            <p className="text-[#808080] font-black uppercase tracking-[0.3em] text-xs">Awaiting fresh orders to ignite</p>
           </div>
         )}
       </div>
+
+      {/* Modal removed as per user request */}
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
+      `}</style>
+
     </div>
   );
 }

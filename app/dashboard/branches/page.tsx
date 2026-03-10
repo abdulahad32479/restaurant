@@ -138,12 +138,14 @@ export default function BranchManagement() {
               });
               setIsModalOpen(true);
             }}
+            title="Edit branch"
           >
             <Edit className="w-4 h-4 text-tertiary group-hover:text-accent" />
           </button>
           <button 
             className="p-2.5 text-error/60 hover:text-error hover:bg-error/5 rounded-xl transition-all" 
             onClick={() => handleDelete(row.id, row.name)}
+            title="Delete branch"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -154,10 +156,16 @@ export default function BranchManagement() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-white italic uppercase tracking-tighter mb-1">Branch Network</h1>
-          <p className="text-sm text-tertiary">Manage restaurant locations and contact profiles</p>
+          <h1 className="text-xl md:text-2xl font-black text-white  uppercase tracking-tighter mb-2 drop-shadow-2xl leading-none">Branch Network</h1>
+          <p className="text-[10px] md:text-xs text-[#808080] font-black uppercase tracking-[0.3em] flex items-center gap-3">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent shadow-[0_0_10px_#D4AF37]"></span>
+            </span>
+            Restaurant locations and logistics hub
+          </p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" size="sm" onClick={fetchData} icon={<RefreshCw className="w-4 h-4" />}>

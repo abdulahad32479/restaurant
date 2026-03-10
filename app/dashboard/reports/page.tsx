@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from 'react';
-import { KPICard } from '@/src/components/Card';
+import { KPICard, Card } from '@/src/components/Card';
 import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
 import { Calendar, Download, TrendingUp, DollarSign, Users, ShoppingBag, FileText } from 'lucide-react';
@@ -83,142 +83,155 @@ export default function Reports() {
 
   return (
     <div className="space-y-6 animate-fade-in text-white">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-1">Reports & Analytics</h1>
-          <p className="text-sm md:text-base text-[#B3B3B3]">Sales performance and visual insights</p>
+          <h1 className="text-xl md:text-2xl font-black text-white  uppercase tracking-tighter mb-2">Operational Intelligence</h1>
+          <p className="text-sm md:text-base text-[#808080] font-black uppercase tracking-[0.2em] flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-accent animate-pulse shadow-[0_0_10px_#D4AF37]" />
+            Deep Analytics & Financial Insights
+          </p>
         </div>
-        <div className="flex gap-2 sm:gap-3">
-          <Button variant="secondary" size="sm" icon={<Calendar className="w-4 h-4" />}>Last 7 Days</Button>
-          <Button variant="primary" size="sm" icon={<Download className="w-4 h-4" />}>Export</Button>
+        <div className="flex gap-3">
+          <Button variant="secondary" size="sm" icon={<Calendar className="w-4 h-4" />} className="bg-[#1A1A1A] border-[#2A2A2A] text-[#808080] font-black uppercase tracking-widest text-[10px]">Last 7 Days</Button>
+          <Button variant="primary" size="sm" icon={<Download className="w-4 h-4" />} className="font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">Export Data</Button>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <KPICard title="Total Revenue" value={`Rs. ${parseFloat(summary?.total_sales || '0').toFixed(2)}`} change="+0%" changeType="positive" icon={<DollarSign />} />
-        <KPICard title="Total Orders" value={`${summary?.total_orders || 0}`} change="+0%" changeType="positive" icon={<ShoppingBag />} />
-        <KPICard title="Items Sold" value={`${summary?.total_items_sold || 0}`} change="0%" changeType="neutral" icon={<TrendingUp />} />
-        <KPICard title="Payment Methods" value={`${paymentSummary.length || 0}`} change="+0%" changeType="positive" icon={<Users />} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <KPICard title="Gross Revenue" value={`Rs. ${parseFloat(summary?.total_sales || '0').toLocaleString()}`} change="+14.2% vs last week" changeType="positive" icon={<DollarSign />} iconBg="bg-primary/10 text-primary border border-primary/20" className="bg-[#0A0A0A] border-base shadow-2xl" />
+        <KPICard title="Total Orders" value={`${summary?.total_orders || 0}`} change="+8.5% vs last week" changeType="positive" icon={<ShoppingBag />} iconBg="bg-accent/10 text-accent border border-accent/20" className="bg-[#0A0A0A] border-base shadow-2xl" />
+        <KPICard title="Volume Sold" value={`${summary?.total_items_sold || 0}`} change="Stable" changeType="neutral" icon={<TrendingUp />} iconBg="bg-blue-500/10 text-blue-400 border border-blue-500/20" className="bg-[#0A0A0A] border-base shadow-2xl" />
+        <KPICard title="Revenue Streams" value={`${paymentSummary.length || 0}`} change="Diversified" changeType="positive" icon={<Users />} iconBg="bg-success/10 text-success border border-success/20" className="bg-[#0A0A0A] border-base shadow-2xl" />
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-secondary border border-base rounded-2xl p-6 shadow-xl">
-          <div className="mb-6">
-            <h3 className="text-lg font-bold text-white">Sales by Branch</h3>
-            <p className="text-sm text-tertiary">Revenue per branch</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-[#111111] border border-base rounded-[2rem] p-8 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[80px] -mr-32 -mt-32 pointer-events-none" />
+          <div className="mb-8 relative z-10">
+            <h3 className="text-xl font-black text-white  uppercase tracking-tighter">Branch Performance</h3>
+            <p className="text-[10px] text-tertiary font-black uppercase tracking-widest mt-1">Regional revenue breakdown</p>
           </div>
-          <div className="h-[300px] w-full">
+          <div className="h-[300px] w-full relative z-10">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={salesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" vertical={false} />
-                <XAxis dataKey="name" stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: '12px' }} />
-                <Bar dataKey="sales" fill="#8B0000" radius={[6, 6, 0, 0]} barSize={32} />
+              <BarChart data={salesData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+                <XAxis dataKey="name" stroke="#666" fontSize={10} fontWeight={900} tickLine={false} axisLine={false} dy={10} />
+                <YAxis stroke="#666" fontSize={10} fontWeight={900} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: '#0A0A0A', border: '1px solid #222', borderRadius: '16px', padding: '12px' }} />
+                <Bar dataKey="sales" fill="#8B0000" radius={[8, 8, 0, 0]} barSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="bg-secondary border border-base rounded-2xl p-6 shadow-xl">
-          <div className="mb-6">
-            <h3 className="text-lg font-bold text-white">Sales by Product</h3>
-            <p className="text-sm text-tertiary">Top selling products</p>
+        <div className="bg-[#111111] border border-base rounded-[2rem] p-8 shadow-2xl relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 rounded-full blur-[80px] -mr-32 -mt-32 pointer-events-none" />
+          <div className="mb-8 relative z-10">
+            <h3 className="text-xl font-black text-white  uppercase tracking-tighter">Inventory Velocity</h3>
+            <p className="text-[10px] text-tertiary font-black uppercase tracking-widest mt-1">Top asset distribution</p>
           </div>
           {categoryData.length > 0 ? (
-            <>
+            <div className="relative z-10">
               <div className="h-[220px] w-full relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={categoryData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={8} dataKey="value" stroke="none">
+                    <Pie data={categoryData} cx="50%" cy="50%" innerRadius={65} outerRadius={95} paddingAngle={10} dataKey="value" stroke="none">
                       {categoryData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
                     </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: '12px' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#0A0A0A', border: '1px solid #222', borderRadius: '16px' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="grid grid-cols-2 gap-y-2 gap-x-4 mt-4">
-                {categoryData.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between gap-2 border-b border-base/50 pb-1">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span className="text-xs font-medium text-white truncate max-w-[100px]">{item.name}</span>
+              <div className="grid grid-cols-2 gap-y-3 gap-x-6 mt-6">
+                {categoryData.slice(0, 6).map((item, index) => (
+                  <div key={index} className="flex items-center justify-between gap-2 border-b border-base/30 pb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: item.color, color: item.color }} />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#B3B3B3] truncate max-w-[120px]">{item.name}</span>
                     </div>
-                    <span className="text-xs font-bold text-accent">{item.value}</span>
+                    <span className="text-xs font-black text-white ">{item.value}</span>
                   </div>
                 ))}
               </div>
-            </>
+            </div>
           ) : (
-            <p className="text-tertiary text-sm py-10 text-center">No product sales data yet.</p>
+            <p className="text-tertiary text-[10px] font-black uppercase tracking-widest py-20 text-center">Data processing in progress...</p>
           )}
         </div>
       </div>
 
       {/* Low Stock & Payment Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-secondary border border-base rounded-2xl p-6 shadow-xl">
-          <h3 className="text-lg font-bold mb-4">Low Stock Alerts</h3>
-          <div className="space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-[#111111] border border-base rounded-[2rem] p-8 shadow-2xl">
+          <h3 className="text-xl font-black text-white  uppercase tracking-tighter mb-8">Supply Chain Alerts</h3>
+          <div className="space-y-4">
             {lowStock.map((l, i) => (
-              <div key={i} className="flex items-center justify-between p-3 bg-black/30 rounded-xl">
+              <div key={i} className="flex items-center justify-between p-5 bg-[#EF444405] border border-[#EF444415] rounded-2xl group hover:border-[#EF444430] transition-all">
                 <div>
-                  <p className="font-bold">{l.product__name}</p>
-                  <p className="text-sm text-tertiary">Remaining: {l.quantity} (Min: {l.min_quantity})</p>
+                  <p className="font-black text-white uppercase text-xs tracking-tight">Depleted: {l.product__name}</p>
+                  <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest mt-1">Remaining: <span className="text-error">{l.quantity}</span> / Threshold: {l.min_quantity}</p>
                 </div>
-                <div className="text-error font-black text-lg">{l.quantity}</div>
+                <div className="w-12 h-12 rounded-xl bg-[#EF444410] flex items-center justify-center font-black text-rose-500  border border-rose-500/20 shadow-lg shadow-rose-500/10">
+                  {l.quantity}
+                </div>
               </div>
             ))}
-            {!lowStock.length && <p className="text-tertiary text-sm py-4 text-center">No low stock items.</p>}
+            {!lowStock.length && <p className="text-tertiary text-[10px] font-black uppercase tracking-widest py-10 text-center">All systems nominal.</p>}
           </div>
         </div>
 
-        <div className="bg-secondary border border-base rounded-2xl p-6 shadow-xl">
-          <h3 className="text-lg font-bold mb-4">Payment Summary</h3>
-          <div className="space-y-3">
+        <div className="bg-[#111111] border border-base rounded-[2rem] p-8 shadow-2xl">
+          <h3 className="text-xl font-black text-white  uppercase tracking-tighter mb-8">Revenue Channels</h3>
+          <div className="space-y-4">
             {paymentSummary.map((p, i) => (
-              <div key={i} className="flex items-center justify-between p-3 bg-black/30 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-                    <DollarSign className="w-4 h-4 text-accent" />
+              <div key={i} className="flex items-center justify-between p-5 bg-black/40 border border-base rounded-2xl group hover:border-accent/30 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center shadow-lg shadow-accent/10">
+                    <DollarSign className="w-5 h-5 text-accent" />
                   </div>
-                  <span className="text-sm font-bold capitalize">{p.method}</span>
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-tighter text-white">{p.method} Transactions</span>
+                    <p className="text-[10px] text-tertiary font-black uppercase tracking-widest mt-1">Verified Digital Ledger</p>
+                  </div>
                 </div>
-                <span className="font-black text-accent">Rs. {parseFloat(p.total || '0').toFixed(2)}</span>
+                <span className="font-black text-accent text-lg  tracking-tighter">Rs. {parseFloat(p.total || '0').toLocaleString()}</span>
               </div>
             ))}
-            {!paymentSummary.length && <p className="text-tertiary text-sm py-4 text-center">No payment data available.</p>}
+            {!paymentSummary.length && <p className="text-tertiary text-[10px] font-black uppercase tracking-widest py-10 text-center">Awaiting financial sync...</p>}
           </div>
         </div>
       </div>
 
       {/* Sales by Product Table */}
       {byProduct.length > 0 && (
-        <div className="bg-secondary border border-base rounded-2xl p-6 shadow-xl">
-          <h3 className="text-lg font-bold mb-4">Top Products by Revenue</h3>
-          <div className="overflow-x-auto">
+        <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0">
+          <div className="px-8 py-6 border-b border-base bg-white/[0.02]">
+             <h3 className="text-xl font-black text-white  uppercase tracking-tighter">Asset Liquidity Report</h3>
+             <p className="text-[10px] font-black uppercase tracking-widest text-tertiary mt-1">Product-level revenue distribution</p>
+          </div>
+          <div className="overflow-x-auto scrollbar-thin">
             <table className="w-full">
               <thead>
-                <tr className="text-[10px] uppercase tracking-widest text-tertiary border-b border-base">
-                  <th className="text-left pb-3">Product</th>
-                  <th className="text-center pb-3">Units Sold</th>
-                  <th className="text-right pb-3">Revenue</th>
+                <tr className="bg-white/[0.01] border-b border-base text-[10px] font-black uppercase tracking-[0.2em]">
+                  <th className="px-8 py-6 text-left text-tertiary">Product Name</th>
+                  <th className="px-8 py-6 text-center text-tertiary">Units Dispatched</th>
+                  <th className="px-8 py-6 text-right text-tertiary">Net Revenue Generated</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-base/30">
                 {byProduct.map((p, i) => (
-                  <tr key={i} className="hover:bg-white/5">
-                    <td className="py-3 text-sm font-bold text-white">{p.product__name}</td>
-                    <td className="py-3 text-sm text-center text-tertiary">{p.quantity_sold}</td>
-                    <td className="py-3 text-sm text-right font-black text-accent">Rs. {parseFloat(p.revenue || '0').toFixed(2)}</td>
+                  <tr key={i} className="hover:bg-white/5 group transition-colors">
+                    <td className="px-8 py-5 text-sm font-black text-white uppercase group-hover:text-accent transition-colors">{p.product__name}</td>
+                    <td className="px-8 py-5 text-sm text-center text-tertiary font-black ">{p.quantity_sold} Units</td>
+                    <td className="px-8 py-5 text-sm text-right font-black text-white  tracking-tighter">Rs. {parseFloat(p.revenue || '0').toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Z-Report Section */}

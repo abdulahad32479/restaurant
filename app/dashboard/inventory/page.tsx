@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useEffect, useState } from 'react';
@@ -111,10 +112,16 @@ export default function Inventory() {
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Inventory Management</h1>
-          <p className="text-sm md:text-base text-tertiary">Track and manage restaurant inventory</p>
+          <h1 className="text-lg font-black text-white uppercase tracking-tighter mb-2 drop-shadow-2xl leading-none">Inventory Vault</h1>
+          <p className="text-[10px] md:text-xs text-[#808080] font-black uppercase tracking-[0.3em] flex items-center gap-3">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent shadow-[0_0_10px_#D4AF37]"></span>
+            </span>
+            Real-time supply chain monitoring
+          </p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" size="sm" onClick={fetchData}>
@@ -129,9 +136,10 @@ export default function Inventory() {
               setStockForm({ product: '', branch: '', quantity: 0, note: '' });
               setIsStockModalOpen(true);
             }}
+            className="font-black uppercase tracking-tighter shadow-lg shadow-primary/20"
           >
             <Plus className="w-5 h-5 mr-2" />
-            Stock Action
+            Stock Deployment
           </Button>
         </div>
       </div>
@@ -139,22 +147,23 @@ export default function Inventory() {
       {/* Stock Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {[
-          { label: 'Total Items', value: stats.totalItems, color: '#8B0000' },
-          { label: 'Low Stock', value: stats.lowStock, color: '#F59E0B' },
-          { label: 'Out of Stock', value: stats.outOfStock, color: '#EF4444' },
-          { label: 'Total Units', value: stats.totalQuantity.toFixed(0), color: '#10B981' },
+          { label: 'Total Assets', value: stats.totalItems, color: '#8B0000' },
+          { label: 'Low Reserves', value: stats.lowStock, color: '#F59E0B' },
+          { label: 'Depleted', value: stats.outOfStock, color: '#EF4444' },
+          { label: 'Net Volume', value: stats.totalQuantity.toFixed(0), color: '#10B981' },
         ].map((item, index) => (
-          <Card key={index} hover className="animate-slide-up bg-secondary border-base">
-            <div className="flex items-center justify-between">
+          <Card key={index} hover className="animate-slide-up bg-[#0A0A0A] border-base p-6 shadow-2xl relative group overflow-hidden border-l-4" style={{ borderLeftColor: item.color }}>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/5 to-transparent -mr-12 -mt-12 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-sm text-tertiary mb-1">{item.label}</p>
-                <h3 className="text-2xl font-black text-white">{item.value}</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-tertiary mb-1">{item.label}</p>
+                <h3 className="text-xl md:text-2xl font-black text-white  tracking-tighter">{item.value}</h3>
               </div>
               <div 
                 className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
-                style={{ backgroundColor: `${item.color}20`, border: `1px solid ${item.color}30` }}
+                style={{ backgroundColor: `${item.color}15`, border: `1px solid ${item.color}30` }}
               >
-                <Package className="w-6 h-6" style={{ color: item.color }} />
+                <Package className="w-6 h-6 shadow-[0_0_10px_rgba(0,0,0,0.5)]" style={{ color: item.color }} />
               </div>
             </div>
           </Card>
@@ -183,20 +192,20 @@ export default function Inventory() {
         </div>
       </div>
       
-      {/* Inventory Table */}
-      <div className="bg-secondary border border-base rounded-2xl overflow-x-auto shadow-2xl scrollbar-thin">
-        <table className="w-full min-w-[800px]">
-          <thead>
-            <tr className="bg-white/5 border-b border-base text-[10px] uppercase tracking-widest">
-              <th className="px-6 py-5 text-left font-black text-tertiary">Product</th>
-              <th className="px-6 py-5 text-left font-black text-tertiary">Branch</th>
-              <th className="px-6 py-5 text-left font-black text-tertiary text-center">Current</th>
-              <th className="px-6 py-5 text-left font-black text-tertiary text-center">Min</th>
-              <th className="px-6 py-5 text-left font-black text-tertiary text-center">Max</th>
-              <th className="px-6 py-5 text-left font-black text-tertiary">Status</th>
-              <th className="px-6 py-5 text-right font-black text-tertiary">Actions</th>
-            </tr>
-          </thead>
+      <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0">
+        <div className="overflow-x-auto scrollbar-thin">
+          <table className="w-full min-w-[800px]">
+            <thead>
+              <tr className="bg-white/[0.02] border-b border-white/5 text-[10px] font-black uppercase tracking-[0.25em]">
+                <th className="px-6 py-6 text-left text-tertiary">Product Analysis</th>
+                <th className="px-6 py-6 text-left text-tertiary">Logistics Center</th>
+                <th className="px-6 py-6 text-center text-tertiary">Inventory</th>
+                <th className="px-6 py-6 text-center text-tertiary">Threshold</th>
+                <th className="px-6 py-6 text-center text-tertiary">Capacity</th>
+                <th className="px-6 py-6 text-left text-tertiary">Risk Status</th>
+                <th className="px-6 py-6 text-right text-tertiary">Operations</th>
+              </tr>
+            </thead>
           <tbody className="divide-y divide-base/30">
             {filteredItems.map(item => {
               const qty = toNum(item.quantity);
@@ -274,43 +283,56 @@ export default function Inventory() {
             )}
           </tbody>
         </table>
-      </div>
+        </div>
+      </Card>
 
       {/* Stock Movements */}
       {movements.length > 0 && (
-        <div className="bg-secondary border border-base rounded-2xl overflow-x-auto shadow-2xl">
-          <div className="px-6 py-4 border-b border-base">
-            <h3 className="text-lg font-bold text-white">Recent Stock Movements</h3>
+        <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0">
+          <div className="px-6 py-5 border-b border-base bg-white/[0.02]">
+            <h3 className="text-lg font-black text-white  uppercase tracking-tighter">Movement Ledger</h3>
+            <p className="text-[10px] font-black uppercase tracking-widest text-tertiary mt-1">Audit trail for stock adjustments</p>
           </div>
-          <table className="w-full min-w-[700px]">
-            <thead>
-              <tr className="bg-white/5 border-b border-base text-[10px] uppercase tracking-widest">
-                <th className="px-6 py-4 text-left font-black text-tertiary">Product</th>
-                <th className="px-6 py-4 text-left font-black text-tertiary">Branch</th>
-                <th className="px-6 py-4 text-left font-black text-tertiary">Type</th>
-                <th className="px-6 py-4 text-center font-black text-tertiary">Qty</th>
-                <th className="px-6 py-4 text-left font-black text-tertiary">Note</th>
-                <th className="px-6 py-4 text-left font-black text-tertiary">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-base/30">
-              {movements.slice(0, 20).map(m => (
-                <tr key={m.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-6 py-3 text-sm text-white font-bold">{m.product_name}</td>
-                  <td className="px-6 py-3 text-sm text-tertiary">{m.branch_name}</td>
-                  <td className="px-6 py-3">
-                    <Badge variant={m.movement_types === 'incoming' ? 'success' : 'error'} size="sm">
-                      {m.movement_types}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-3 text-center font-black text-white">{m.quantity}</td>
-                  <td className="px-6 py-3 text-sm text-tertiary">{m.notes || '-'}</td>
-                  <td className="px-6 py-3 text-xs text-tertiary">{new Date(m.created_at).toLocaleString()}</td>
+          <div className="overflow-x-auto scrollbar-thin">
+            <table className="w-full min-w-[700px]">
+              <thead>
+                <tr className="bg-white/[0.01] border-b border-base text-[10px] font-black uppercase tracking-[0.2em]">
+                  <th className="px-6 py-4 text-left text-tertiary">Product</th>
+                  <th className="px-6 py-4 text-left text-tertiary">Branch</th>
+                  <th className="px-6 py-4 text-left text-tertiary">Type</th>
+                  <th className="px-6 py-4 text-center text-tertiary">Qty</th>
+                  <th className="px-6 py-4 text-left text-tertiary">Note</th>
+                  <th className="px-6 py-4 text-left text-tertiary">Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-base/30">
+                {movements.slice(0, 20).map(m => (
+                  <tr key={m.id} className="hover:bg-white/5 transition-colors group">
+                    <td className="px-6 py-4 text-sm text-white font-bold group-hover:text-accent transition-all">{m.product_name}</td>
+                    <td className="px-6 py-4 text-sm text-tertiary uppercase tracking-wider text-[10px] font-bold">{m.branch_name}</td>
+                    <td className="px-6 py-4">
+                      <Badge 
+                        variant={m.movement_types === 'incoming' ? 'success' : 'error'} 
+                        size="sm"
+                        className="font-black uppercase tracking-widest text-[9px]"
+                      >
+                        {m.movement_types}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-center font-black text-white ">
+                      {m.movement_types === 'incoming' ? '+' : '-'}{m.quantity}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-tertiary font-medium">{m.notes || '-'}</td>
+                    <td className="px-6 py-4 text-[10px] text-tertiary font-black uppercase tracking-widest">
+                      {new Date(m.created_at).toLocaleDateString()}
+                      <span className="block opacity-50">{new Date(m.created_at).toLocaleTimeString()}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
 
       {/* Stock Action Modal */}

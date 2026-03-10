@@ -28,20 +28,19 @@ export function Table<T extends { id: string | number }>({ columns, data }: Tabl
   return (
     <div className="bg-[#1F1F1F] border border-[#2A2A2A] rounded-xl overflow-x-auto shadow-md scrollbar-thin">
       <ShadcnTable>
-        <TableHeader className="bg-[#1A1A1A]">
-          <TableRow className="border-[#2A2A2A] hover:bg-[#1A1A1A]">
+        <TableHeader className="bg-white/[0.02] border-b border-[#2A2A2A]">
+          <TableRow className="border-[#2A2A2A] hover:bg-transparent transition-none">
             {columns.map((col) => (
-              <TableHead 
-                key={col.key} 
-                className={cn(
-                  "text-[#B3B3B3] font-semibold",
-                  col.width,
-                  col.align === 'center' && "text-center",
-                  col.align === 'right' && "text-right"
-                )}
-              >
-                {col.header}
-              </TableHead>
+                <th
+                  key={col.key}
+                  className={cn(
+                    "px-6 py-5 text-left text-[10px] font-black text-tertiary uppercase tracking-[0.25em] whitespace-nowrap border-b border-white/[0.05]",
+                    col.align === 'center' && "text-center",
+                    col.align === 'right' && "text-right"
+                  )}
+                >
+                  {col.header}
+                </th>
             ))}
           </TableRow>
         </TableHeader>

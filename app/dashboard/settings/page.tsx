@@ -209,7 +209,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-1">Settings</h1>
+          <h1 className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter mb-1">Settings</h1>
           <p className="text-sm md:text-base text-tertiary">Manage system configuration and preferences</p>
         </div>
         <Button variant="primary" size="sm">Save All Changes</Button>
@@ -342,7 +342,7 @@ export default function SettingsPage() {
                       </div>
                     ))
                   )}
-                  {!isLoading && branches.length === 0 && <p className="text-center text-tertiary py-10 italic">No branches found.</p>}
+                  {!isLoading && branches.length === 0 && <p className="text-center text-tertiary py-10 ">No branches found.</p>}
                 </div>
               </div>
             )}
@@ -424,7 +424,7 @@ export default function SettingsPage() {
                       );
                     })
                   )}
-                  {!isLoading && tables.length === 0 && <p className="text-center text-tertiary py-10 italic">No tables found.</p>}
+                  {!isLoading && tables.length === 0 && <p className="text-center text-tertiary py-10 ">No tables found.</p>}
                 </div>
               </div>
             )}
@@ -491,7 +491,7 @@ export default function SettingsPage() {
                       </div>
                     ))
                   )}
-                  {!isLoading && customers.length === 0 && <p className="text-center text-tertiary py-10 italic">No customers found.</p>}
+                  {!isLoading && customers.length === 0 && <p className="text-center text-tertiary py-10 ">No customers found.</p>}
                 </div>
               </div>
             )}

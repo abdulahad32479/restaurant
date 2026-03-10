@@ -18,12 +18,12 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     // Map custom variants to styles
     const getVariantClasses = (v: string) => {
       switch (v) {
-        case 'primary': return "bg-[#8B0000] hover:bg-[#A00000] text-white border-transparent"
-        case 'secondary': return "bg-[#2A2A2A] hover:bg-[#333333] text-white border-transparent" 
-        case 'accent': return "bg-[#D4AF37] hover:bg-[#E5C04A] text-black border-transparent font-semibold"
-        case 'ghost': return "bg-transparent hover:bg-[#2A2A2A] text-[#B3B3B3] hover:text-white border-transparent"
-        case 'outline': return "bg-transparent border-[#2A2A2A] text-white hover:border-[#D4AF37] hover:text-[#D4AF37]"
-        case 'danger': return "bg-[#EF444415] text-[#EF4444] hover:bg-[#EF444430] border-[#EF444430]"
+        case 'primary': return "bg-[#8B0000] hover:bg-[#A00000] text-white border-white/10 shadow-[0_8px_20px_rgba(139,0,0,0.3)]"
+        case 'secondary': return "bg-white/[0.05] hover:bg-white/[0.1] text-white border-white/10" 
+        case 'accent': return "bg-[#D4AF37] hover:bg-[#E5C04A] text-black border-white/10 shadow-[0_8px_20px_rgba(212,175,55,0.2)] font-black uppercase tracking-widest text-[10px]"
+        case 'ghost': return "bg-transparent hover:bg-white/5 text-[#808080] hover:text-white border-transparent"
+        case 'outline': return "bg-transparent border-white/10 text-white hover:border-accent hover:text-accent hover:bg-accent/5 shadow-sm"
+        case 'danger': return "bg-[#EF444415] text-[#EF4444] hover:bg-[#EF444430] border-[#EF444430] shadow-[0_8px_20px_rgba(239,68,68,0.15)]"
         default: return "bg-[#8B0000] text-white"
       }
     }
@@ -43,7 +43,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || isLoading}
         className={cn(
-          "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 hover:-translate-y-1 hover:shadow-lg active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex items-center justify-center rounded-xl font-black uppercase tracking-widest text-[11px] transition-all duration-300 hover:-translate-y-1 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/5 disabled:pointer-events-none disabled:opacity-50 border",
           getVariantClasses(variant),
           getSizeClasses(size),
           fullWidth && "w-full",

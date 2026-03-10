@@ -12,6 +12,7 @@ import { productService } from '@/src/services/product.service';
 import { categoryService } from '@/src/services/category.service';
 import { Product, Category } from '@/src/types';
 import toast from 'react-hot-toast';
+import { getImageUrl } from '@/src/lib/utils';
 
 export default function ProductManagement() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -97,8 +98,12 @@ export default function ProductManagement() {
       header: 'Product',
       render: (value: string, row: Product) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center text-accent">
-            <Package className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center text-accent overflow-hidden">
+            {row.image ? (
+              <img src={getImageUrl(row.image)} alt={value} className="w-full h-full object-cover" />
+            ) : (
+              <Package className="w-5 h-5" />
+            )}
           </div>
           <div>
             <p className="font-bold text-white">{value}</p>

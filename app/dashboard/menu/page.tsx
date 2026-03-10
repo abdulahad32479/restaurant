@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/src/components/Button';
 import { Input, TextArea, Select } from '@/src/components/Input';
 import { Modal } from '@/src/components/Modal';
@@ -11,6 +12,7 @@ import { productService } from '@/src/services/product.service';
 import { categoryService } from '@/src/services/category.service';
 import { Product, Category } from '@/src/types';
 import toast from 'react-hot-toast';
+import { getImageUrl } from '@/src/lib/utils';
 
 type ProductForm = {
   name: string;
@@ -29,6 +31,7 @@ const EMPTY_FORM: ProductForm = {
 };
 
 export default function MenuManagement() {
+  const router = useRouter();
   const [items, setItems] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -205,17 +208,32 @@ export default function MenuManagement() {
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Menu Management</h1>
-          <p className="text-sm md:text-base text-tertiary">Manage your restaurant menu items and categories</p>
+          <h1 className="text-xl md:text-2xl font-black text-white  uppercase tracking-tighter mb-2 drop-shadow-2xl leading-none">Culinary Catalog</h1>
+          <p className="text-[10px] md:text-xs text-[#808080] font-black uppercase tracking-[0.3em] flex items-center gap-3">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent shadow-[0_0_10px_#D4AF37]"></span>
+            </span>
+            Menu items and asset management
+          </p>
         </div>
-        <div className="flex gap-3">
+          <Button 
+            variant="primary" 
+            size="sm"
+            icon={<Plus className="w-5 h-5" />}
+            onClick={() => router.push('/dashboard/pos')}
+            className="hidden md:flex font-black uppercase tracking-tighter"
+          >
+            New Order
+          </Button>
           <Button 
             variant="secondary" 
             size="sm"
             icon={<Tags className="w-5 h-5" />}
             onClick={() => setIsCategoryModalOpen(true)}
+            className="font-black uppercase tracking-tighter"
           >
             Categories
           </Button>
@@ -223,11 +241,11 @@ export default function MenuManagement() {
             variant="primary" 
             size="sm"
             icon={<Plus className="w-5 h-5" />}
-            onClick={() => window.location.href = '/dashboard/products/add'}
+            onClick={() => router.push('/dashboard/products/add')}
+            className="font-black uppercase tracking-tighter shadow-lg shadow-primary/20"
           >
             Add Item
           </Button>
-        </div>
       </div>
       
       {/* Category Overview */}
@@ -241,9 +259,10 @@ export default function MenuManagement() {
             <Card 
               key={category.id}
               hover
-              className="bg-secondary border-base p-6 shadow-xl relative group overflow-hidden"
+              className="bg-[#0A0A0A] border-base p-6 shadow-2xl relative group overflow-hidden border-l-4"
+              style={{ borderLeftColor: color }}
             >
-              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-white/5 to-transparent -mr-8 -mt-8 rounded-full blur-2xl" />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/5 to-transparent -mr-12 -mt-12 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity" />
               <div className="flex items-center justify-between mb-4 relative z-10">
                 <div 
                   className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
@@ -265,8 +284,8 @@ export default function MenuManagement() {
                   <Edit className="w-4 h-4" />
                 </button>
               </div>
-              <h3 className="text-xl font-black text-white mb-1">{category.name}</h3>
-              <p className="text-[10px] uppercase tracking-widest text-tertiary">{itemCount} items listed</p>
+              <h3 className="text-xl font-black text-white mb-1 group-hover:text-accent transition-colors">{category.name}</h3>
+              <p className="text-[10px] uppercase font-black tracking-[0.2em] text-tertiary">{itemCount} items listed</p>
             </Card>
           );
         })}
@@ -305,14 +324,14 @@ export default function MenuManagement() {
         <div className="overflow-x-auto scrollbar-thin">
           <table className="w-full min-w-[900px]">
             <thead>
-              <tr className="bg-white/5 border-b border-base text-[10px] uppercase tracking-widest">
-                <th className="px-6 py-5 text-left font-black text-tertiary">Item</th>
-                <th className="px-6 py-5 text-left font-black text-tertiary">SKU</th>
-                <th className="px-6 py-5 text-left font-black text-tertiary">Category</th>
-                <th className="px-6 py-5 text-left font-black text-tertiary">Price</th>
-                <th className="px-6 py-5 text-left font-black text-tertiary">Cost</th>
-                <th className="px-6 py-5 text-left font-black text-tertiary">Status</th>
-                <th className="px-6 py-5 text-right font-black text-tertiary">Actions</th>
+              <tr className="bg-white/[0.02] border-b border-white/5 text-[10px] font-black uppercase tracking-[0.25em]">
+                <th className="px-6 py-6 text-left text-tertiary">Cuisine Identity</th>
+                <th className="px-6 py-6 text-left text-tertiary">Inventory SKU</th>
+                <th className="px-6 py-6 text-left text-tertiary">Classification</th>
+                <th className="px-6 py-6 text-left text-tertiary">Retail Price</th>
+                <th className="px-6 py-6 text-left text-tertiary">Net Cost</th>
+                <th className="px-6 py-6 text-left text-tertiary">Availability</th>
+                <th className="px-6 py-6 text-right text-tertiary">Management</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-base/30">
@@ -326,7 +345,7 @@ export default function MenuManagement() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {item.image ? (
-                          <img src={item.image} alt={item.name} className="w-10 h-10 rounded-lg object-cover border border-base" />
+                          <img src={getImageUrl(item.image)} alt={item.name} className="w-10 h-10 rounded-lg object-cover border border-base" />
                         ) : (
                           <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-tertiary">
                             <ImageIcon className="w-5 h-5" />
@@ -411,7 +430,7 @@ export default function MenuManagement() {
                 onClick={() => fileInputRef.current?.click()}
               >
                 {imagePreview ? (
-                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  <img src={imagePreview.startsWith('blob:') ? imagePreview : getImageUrl(imagePreview)} alt="Preview" className="w-full h-full object-cover" />
                 ) : (
                   <CloudUpload className="w-6 h-6 text-tertiary" />
                 )}

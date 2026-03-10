@@ -5,7 +5,7 @@ import { Table, Pagination } from '@/src/components/Table';
 import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
-import { Search, Calendar, Download, Eye, Store, Printer, MoreVertical, PlayCircle, CheckCircle2, PackageCheck, CheckCheck, Edit } from 'lucide-react';
+import { Search, Calendar, Download, Eye, Store, Printer, MoreVertical, PlayCircle, CheckCircle2, PackageCheck, CheckCheck, Edit, CreditCard, X, Banknote } from 'lucide-react';
 import { Card } from '@/src/components/Card';
 import { orderService } from '@/src/services/order.service';
 import { branchService } from '@/src/services/branch.service';
@@ -31,6 +31,13 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
+  
+  // Payment states
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('cash');
+  const [amountTendered, setAmountTendered] = useState('');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   
   // Printing state
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -71,6 +78,10 @@ export default function Orders() {
   }, [fetchData]);
 
   const handleUpdateStatus = async (order: Order, action: 'confirm' | 'cancel' | 'complete' | 'ready' | 'prepare' | 'serve') => {
+    if (action === 'cancel' && !window.confirm('Are you sure you want to cancel this order?')) {
+      return;
+    }
+
     setIsUpdatingStatus(order.id);
     try {
       const payload = { ...order };
@@ -81,25 +92,33 @@ export default function Orders() {
       else if (action === 'complete') await orderService.complete(order.id, payload);
       else if (action === 'cancel') await orderService.cancel(order.id, { ...payload, notes: 'Cancelled from dashboard' });
       
-      toast.success(`Order updated successfully`);
+      toast.success(`Order ${action}ed successfully`);
       fetchData();
     } catch (e: any) {
       console.error('Update status failed', e);
-      const errorData = e.response?.data;
-      let errorMessage = `Failed to update order`;
-      
-      if (typeof errorData === 'object' && errorData !== null) {
-        if (errorData.detail) errorMessage = errorData.detail;
-        else errorMessage = Object.entries(errorData)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : JSON.stringify(v)}`)
-          .join(' | ');
-      } else if (typeof errorData === 'string') {
-        errorMessage = errorData;
-      }
-      
-      toast.error(errorMessage);
+      toast.error('Failed to update order');
     } finally {
       setIsUpdatingStatus(null);
+    }
+  };
+
+  const handleAddPayment = async () => {
+    if (!selectedOrder || !paymentAmount) return;
+    
+    try {
+      setIsProcessingPayment(true);
+      await orderService.addPayment(selectedOrder.id, {
+        amount: paymentAmount,
+        method: paymentMethod
+      });
+      toast.success('Payment added successfully');
+      fetchData();
+      setIsPaymentModalOpen(false);
+      setPaymentAmount('');
+    } catch (error) {
+      toast.error('Failed to add payment');
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
   
@@ -175,16 +194,16 @@ export default function Orders() {
     },
     { 
       key: 'total', 
-      header: 'Total',
+      header: 'Gross Total',
       render: (value: string) => (
-        <span className="font-black text-accent">Rs. {Number(value).toFixed(2)}</span>
+        <span className="font-black text-accent drop-shadow-glow-accent">Rs. {Number(value).toFixed(2)}</span>
       )
     },
     { 
       key: 'status', 
-      header: 'Status',
+      header: 'Fulfillment Status',
       render: (value: OrderStatus) => (
-        <Badge variant={getStatusBadgeVariant(value)} size="sm" className="uppercase tracking-widest text-[10px] font-black">
+        <Badge variant={getStatusBadgeVariant(value)} size="sm" className="uppercase tracking-[0.2em] text-[9px] font-black  px-3 border border-white/5 shadow-sm">
           {value.replace('_', ' ')}
         </Badge>
       )
@@ -195,27 +214,57 @@ export default function Orders() {
       align: 'right' as const,
       render: (value: any, row: Order) => (
         <div className="flex items-center justify-end gap-2">
-          {row.status === 'draft' && (
-            <>
+          {/* Quick Actions */}
+          <div className="flex items-center gap-1 mr-2 px-2 border-r border-base/50">
+            {['draft', 'confirmed', 'preparing', 'ready', 'served'].includes(row.status) && (
               <button 
-                className="p-1.5 hover:bg-white/10 rounded-lg transition-all text-tertiary hover:text-white" 
+                className="p-2 hover:bg-white/10 rounded-xl transition-all text-tertiary hover:text-white" 
                 onClick={() => router.push(`/dashboard/pos?edit=${row.id}`)}
                 title="Edit Order"
               >
                 <Edit className="w-4 h-4" />
               </button>
+            )}
+
+            {['confirmed', 'preparing', 'ready', 'served', 'completed'].includes(row.status) && (Number(row.total) - Number(row.paid_amount || 0)) > 0 && (
               <button 
-                className="p-1.5 hover:bg-white/10 rounded-lg transition-all text-tertiary hover:text-white" 
-                onClick={() => handleUpdateStatus(row, 'confirm')}
+                className="p-2 hover:bg-success/10 rounded-xl transition-all text-success" 
+                title="Quick Pay"
+                onClick={() => {
+                  setSelectedOrder(row);
+                  setPaymentAmount((Number(row.total) - Number(row.paid_amount || 0)).toFixed(2));
+                  setIsPaymentModalOpen(true);
+                }}
+              >
+                <CreditCard className="w-4 h-4" />
+              </button>
+            )}
+
+            {['draft', 'confirmed', 'preparing', 'ready', 'served'].includes(row.status) && (
+              <button 
+                className="p-2 hover:bg-error/10 rounded-xl transition-all text-error/60 hover:text-error" 
+                title="Cancel Order"
+                onClick={() => handleUpdateStatus(row, 'cancel')}
                 disabled={isUpdatingStatus === row.id}
               >
-                Confirm
+                <X className="w-4 h-4" />
               </button>
-            </>
+            )}
+          </div>
+
+          {/* Status Progression Matrix */}
+          {row.status === 'draft' && (
+            <button 
+              className="px-4 py-2 bg-primary/10 text-primary hover:bg-primary/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all" 
+              onClick={() => handleUpdateStatus(row, 'confirm')}
+              disabled={isUpdatingStatus === row.id}
+            >
+              Confirm
+            </button>
           )}
           {row.status === 'confirmed' && (
             <button 
-              className="p-1.5 hover:bg-blue-500/10 rounded-lg transition-all text-blue-400" 
+              className="px-4 py-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all" 
               onClick={() => handleUpdateStatus(row, 'prepare')}
               disabled={isUpdatingStatus === row.id}
             >
@@ -224,7 +273,7 @@ export default function Orders() {
           )}
           {row.status === 'preparing' && (
             <button 
-              className="p-1.5 hover:bg-accent/10 rounded-lg transition-all text-accent" 
+              className="px-4 py-2 bg-accent/10 text-accent hover:bg-accent/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all" 
               onClick={() => handleUpdateStatus(row, 'ready')}
               disabled={isUpdatingStatus === row.id}
             >
@@ -233,7 +282,7 @@ export default function Orders() {
           )}
           {row.status === 'ready' && (
             <button 
-              className="p-1.5 hover:bg-indigo-500/10 rounded-lg transition-all text-indigo-400" 
+              className="px-4 py-2 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all" 
               onClick={() => handleUpdateStatus(row, 'serve')}
               disabled={isUpdatingStatus === row.id}
             >
@@ -242,27 +291,28 @@ export default function Orders() {
           )}
           {row.status === 'served' && (
             <button 
-              className="p-1.5 hover:bg-success/10 rounded-lg transition-all text-success font-bold" 
+              className="px-4 py-2 bg-success/10 text-success hover:bg-success/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all" 
               onClick={() => handleUpdateStatus(row, 'complete')}
               disabled={isUpdatingStatus === row.id}
             >
-              Complete
+              Finalize
             </button>
           )}
-
+          
           {row.status === 'completed' && (
             <button 
-              className="p-1.5 hover:bg-white/10 rounded-lg transition-all text-tertiary hover:text-white" 
-              title="Print Receipt"
+              className="px-4 py-2 bg-white/5 text-tertiary hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2" 
               onClick={() => {
                 setOrderToPrint(row);
                 setTimeout(() => handlePrint(), 150);
               }}
             >
-              <Printer className="w-4 h-4" />
+              <Printer className="w-3.5 h-3.5" />
+              Receipt
             </button>
           )}
-          
+
+          {/* Detailed View */}
           <button 
             className="p-2.5 hover:bg-white/5 rounded-xl transition-all group" 
             title="View Details"
@@ -289,10 +339,16 @@ export default function Orders() {
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white mb-1 italic uppercase tracking-tighter">Orders Management</h1>
-          <p className="text-sm md:text-base text-tertiary">Monitor and process restaurant transactions</p>
+          <h1 className="text-lg font-black text-white uppercase tracking-tighter mb-2 drop-shadow-2xl leading-none">Order Registry</h1>
+          <p className="text-[10px] md:text-xs text-[#808080] font-black uppercase tracking-[0.3em] flex items-center gap-3">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+            </span>
+            Real-time transaction processing
+          </p>
         </div>
         <div className="flex gap-2">
           <Button 
@@ -425,7 +481,7 @@ export default function Orders() {
               {['draft', 'confirmed', 'preparing', 'ready', 'served'].includes(selectedOrder.status) && (
                 <Button 
                   variant="outline" 
-                  className="bg-error/10 text-error hover:bg-error/20 border-error/20"
+                  className="bg-error/10 text-error hover:bg-error/20 border-error/50 font-black uppercase tracking-widest text-[10px]"
                   onClick={() => {
                     handleUpdateStatus(selectedOrder, 'cancel');
                     setIsDetailsModalOpen(false);
@@ -433,6 +489,28 @@ export default function Orders() {
                   disabled={isUpdatingStatus === selectedOrder.id}
                 >
                   Cancel Order
+                </Button>
+              )}
+
+              {selectedOrder.status !== 'completed' && selectedOrder.status !== 'cancelled' && (
+                <Button 
+                  variant="primary" 
+                  className="bg-success hover:bg-success/90 text-white font-black uppercase tracking-widest text-[10px]"
+                  onClick={() => {
+                    setPaymentAmount((Number(selectedOrder.total) - Number(selectedOrder.paid_amount || 0)).toFixed(2));
+                    setIsPaymentModalOpen(true);
+                  }}
+                >
+                  Add Payment
+                </Button>
+              )}
+              
+              {['draft', 'confirmed', 'preparing', 'ready', 'served'].includes(selectedOrder.status) && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => router.push(`/dashboard/pos?edit=${selectedOrder.id}`)}
+                >
+                  Edit Order
                 </Button>
               )}
               
@@ -477,6 +555,96 @@ export default function Orders() {
             </div>
           </div>
         )}
+      </Modal>
+      
+      {/* Payment Modal */}
+      <Modal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        title="Register Payment"
+      >
+        <div className="space-y-6">
+          <div className="bg-[#0A0A0A] p-6 rounded-2xl border border-base text-center">
+             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-tertiary mb-4 px-2">
+                <span>Total: Rs. {Number(selectedOrder?.total || 0).toFixed(2)}</span>
+                <span>Paid: Rs. {Number(selectedOrder?.paid_amount || 0).toFixed(2)}</span>
+             </div>
+             <p className="text-tertiary text-xs uppercase tracking-widest font-black mb-1">Balance Due</p>
+             <p className="text-4xl font-black text-accent drop-shadow-[0_0_15px_rgba(212,175,55,0.2)]">
+                Rs. {(Number(selectedOrder?.total || 0) - Number(selectedOrder?.paid_amount || 0)).toFixed(2)}
+             </p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <p className="text-[10px] font-black text-tertiary mb-2 uppercase tracking-[0.2em]">Payment Amount</p>
+              <Input
+                type="number"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                className="bg-[#0A0A0A] border-base h-14 text-xl font-black"
+                icon={<span className="text-tertiary font-bold">Rs.</span>}
+              />
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-tertiary mb-2 uppercase tracking-[0.2em]">Method</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => setPaymentMethod('cash')}
+                  className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                    paymentMethod === 'cash' ? 'bg-accent/10 border-accent text-accent shadow-lg shadow-accent/10' : 'bg-black/40 border-base text-tertiary hover:border-tertiary/30'
+                  }`}
+                >
+                  <Banknote className="w-5 h-5" />
+                  <span className="font-black text-[10px] uppercase tracking-widest">Cash</span>
+                </button>
+                <button 
+                  onClick={() => setPaymentMethod('card')}
+                  className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                    paymentMethod === 'card' ? 'bg-accent/10 border-accent text-accent shadow-lg shadow-accent/10' : 'bg-black/40 border-base text-tertiary hover:border-tertiary/30'
+                  }`}
+                >
+                  <CreditCard className="w-5 h-5" />
+                  <span className="font-black text-[10px] uppercase tracking-widest">Card</span>
+                </button>
+              </div>
+            </div>
+
+            {paymentMethod === 'cash' && (
+              <div className="animate-slide-up space-y-3">
+                <p className="text-[10px] font-black text-tertiary mb-2 uppercase tracking-[0.2em]">Tendered</p>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={amountTendered}
+                  onChange={(e) => setAmountTendered(e.target.value)}
+                  className="bg-[#0A0A0A] border-base h-12 font-black"
+                />
+                {Number(amountTendered) >= Number(paymentAmount) && (
+                  <div className="p-4 bg-success/5 rounded-xl border border-success/20 flex justify-between items-center animate-fade-in">
+                    <span className="text-[10px] font-black text-success uppercase tracking-[0.2em]">Change</span>
+                    <span className="text-xl font-black text-white">Rs. {(Number(amountTendered) - Number(paymentAmount)).toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-4 pt-4 border-t border-base">
+            <Button variant="outline" fullWidth onClick={() => setIsPaymentModalOpen(false)} className="font-black text-[10px] uppercase">Discard</Button>
+            <Button 
+              variant="primary" 
+              fullWidth 
+              onClick={handleAddPayment}
+              isLoading={isProcessingPayment}
+              disabled={!paymentAmount || Number(paymentAmount) <= 0}
+              className="font-black text-[10px] uppercase shadow-xl shadow-accent/20"
+            >
+              Complete Payment
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Hidden Receipt for Printing */}

@@ -265,9 +265,18 @@
      GLASS MORPHISM UTILITY
      ========================================== */
   .glass {
-    background: rgba(31, 31, 31, 0.8);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: rgba(31, 31, 31, 0.6);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .glow-text-success {
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+  }
+
+  .glow-text-primary {
+    text-shadow: 0 0 15px rgba(139, 0, 0, 0.4);
   }
 
   /* ==========================================

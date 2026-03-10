@@ -141,7 +141,7 @@ export default function StaffManagement() {
       key: 'role', 
       header: 'Role',
       render: (value: string) => (
-        <Badge variant="secondary" className="bg-white/5 text-tertiary border-0 font-bold uppercase tracking-widest text-[10px]">
+        <Badge variant="secondary" className="bg-black/40 text-accent border border-accent/20 font-black uppercase tracking-[0.2em] text-[10px]">
           {value}
         </Badge>
       )
@@ -157,8 +157,8 @@ export default function StaffManagement() {
       key: 'is_active', 
       header: 'Status',
       render: (value: boolean) => (
-        <Badge variant={value ? 'success' : 'error'} size="sm">
-          {value ? 'ACTIVE' : 'INACTIVE'}
+        <Badge variant={value ? 'success' : 'error'} size="sm" className="font-black uppercase tracking-widest text-[9px]">
+          {value ? 'AUTHORIZED' : 'REVOKED'}
         </Badge>
       )
     },
@@ -210,16 +210,17 @@ export default function StaffManagement() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Staff Management</h1>
-          <p className="text-sm md:text-base text-tertiary">Manage employee roles and branch assignments</p>
+          <h1 className="text-xl md:text-2xl font-black text-white mb-1  uppercase tracking-tighter">Staff Intelligence</h1>
+          <p className="text-sm md:text-base text-tertiary font-bold uppercase tracking-widest">Manage security clearances and branch deployments</p>
         </div>
         <Button 
           variant="primary" 
           size="sm"
           icon={<UserPlus className="w-5 h-5" />}
           onClick={() => setIsAddModalOpen(true)}
+          className="font-black uppercase tracking-tighter shadow-lg shadow-primary/20"
         >
-          Add Staff
+          Enlist Staff
         </Button>
       </div>
       

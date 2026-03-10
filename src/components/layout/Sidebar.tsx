@@ -103,8 +103,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   className={cn(
                     "flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-medium transition-all duration-200 group relative overflow-hidden",
                     isActive
-                      ? "bg-primary text-white shadow-soft"
-                      : "text-secondary hover:bg-white/5 hover:text-white"
+                      ? "bg-gradient-to-r from-primary to-primary/80 text-white shadow-[0_8px_20px_rgba(139,0,0,0.3)] border border-white/10"
+                      : "text-secondary hover:bg-white/[0.03] hover:text-white"
                   )}
                 >
                   <item.icon
@@ -161,17 +161,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </button>
 
           {(!collapsed || isOpen) ? (
-            <div className="flex items-center gap-3 px-1 pt-2 animate-in fade-in slide-in-from-left-2 duration-300">
-              <div className="w-8 h-8 shrink-0 rounded-full bg-accent text-bg-main flex items-center justify-center font-bold text-xs ring-2 ring-accent/20">
+            <div className="flex items-center gap-3 p-3 bg-white/[0.03] rounded-2xl border border-white/5 animate-in fade-in slide-in-from-left-2 duration-300">
+              <div className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br from-accent to-accent-active text-bg-main flex items-center justify-center font-black text-xs shadow-glow-accent">
                 {user?.username?.charAt(0).toUpperCase() || 'A'}
               </div>
               <div className="flex flex-col overflow-hidden">
-                <span className="text-xs font-bold text-white truncate">{user?.username || 'Admin User'}</span>
-                <span className="text-[10px] text-tertiary">{user?.role || 'Manager'}</span>
+                <span className="text-xs font-black text-white truncate uppercase tracking-tight">{user?.username || 'Admin User'}</span>
+                <span className="text-[9px] font-black text-accent uppercase tracking-widest">{user?.role || 'Manager'}</span>
               </div>
             </div>
           ) : (
-            <div className="w-8 h-8 rounded-full bg-accent text-bg-main flex items-center justify-center font-bold text-xs mx-auto shrink-0 mt-2">
+            <div className="w-10 h-10 rounded-xl bg-accent text-bg-main flex items-center justify-center font-black text-xs mx-auto shrink-0 mt-2 shadow-glow-accent">
               {user?.username?.charAt(0).toUpperCase() || 'A'}
             </div>
           )}
