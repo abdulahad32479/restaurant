@@ -6,10 +6,23 @@ interface ReceiptProps {
   businessName?: string;
   businessAddress?: string;
   businessPhone?: string;
+  products?: Record<string, string>;
+  tables?: Record<string, string>;
+  customers?: Record<string, string>;
+  users?: Record<string, string>;
 }
 
 export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
-  ({ order, businessName = "Duke's POS", businessAddress = "123 Main St, City", businessPhone = "+92 300 1234567" }, ref) => {
+  ({ 
+    order, 
+    businessName = "Duke's POS", 
+    businessAddress = "123 Main St, City", 
+    businessPhone = "+92 300 1234567",
+    products = {},
+    tables = {},
+    customers = {},
+    users = {}
+  }, ref) => {
     
     const formatDate = (dateString?: string) => {
       if (!dateString) return '';
@@ -43,25 +56,43 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             <span>Type</span>
             <span className="uppercase">{order.order_type.replace('_', ' ')}</span>
           </div>
-          {order.order_type === 'dine_in' && order.table_no && (
+          {order.order_type === 'dine_in' && (order.table_no || order.table) && (
             <div className="flex justify-between">
               <span>Table</span>
-              <span>{order.table_no}</span>
+              <span className="font-bold">{order.table_no || tables[order.table || ''] || order.table}</span>
             </div>
           )}
-          {order.order_type === 'delivery' && order.delivery_info && (
+          {order.created_by && (
+            <div className="flex justify-between">
+              <span>Staff</span>
+              <span className="truncate max-w-[150px]">{users[order.created_by] || order.created_by}</span>
+            </div>
+          )}
+          {order.branch_name && (
+            <div className="flex justify-between">
+              <span>Branch</span>
+              <span className="truncate max-w-[150px]">{order.branch_name}</span>
+            </div>
+          )}
+          {(order.order_type === 'delivery' || order.customer) && (
             <>
               <div className="flex justify-between">
                 <span>Customer</span>
-                <span>{order.delivery_info.name}</span>
+                <span className="font-bold">
+                  {order.delivery_info?.name || customers[order.customer || ''] || order.customer}
+                </span>
               </div>
-              <div className="flex justify-between">
-                <span>Contact</span>
-                <span>{order.delivery_info.phone}</span>
-              </div>
-              <div className="text-xs mt-1">
-                {order.delivery_info.address}
-              </div>
+              {order.delivery_info?.phone && (
+                <div className="flex justify-between">
+                  <span>Contact</span>
+                  <span>{order.delivery_info.phone}</span>
+                </div>
+              )}
+              {order.delivery_info?.address && (
+                <div className="text-xs mt-1">
+                  {order.delivery_info.address}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -76,7 +107,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             {order.items.map((item, idx) => (
               <div key={idx} className="flex justify-between text-xs">
                 <div className="flex-1 pr-2">
-                  <p>{item.quantity}x {item.product_name || item.product}</p>
+                  <p>{item.quantity}x {item.product_name || products[item.product] || item.product}</p>
                 </div>
                 <div>Rs. {Number(item.total_price || (Number(item.unit_price) * item.quantity)).toFixed(2)}</div>
               </div>

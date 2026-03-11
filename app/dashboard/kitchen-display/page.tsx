@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tabs } from '@/src/components/DukesTabs';
-import { Clock, User, RefreshCw, ChefHat, CheckCheck, PlayCircle, CheckCircle2, PackageCheck } from 'lucide-react';
+import { Clock, User, RefreshCw, ChefHat, CheckCheck, PlayCircle, CheckCircle2, PackageCheck, Printer } from 'lucide-react';
 import { orderService } from '@/src/services/order.service';
 import { productService } from '@/src/services/product.service';
 import { tableService } from '@/src/services/table.service';
 import { Order } from '@/src/types';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
+import { useReactToPrint } from 'react-to-print';
+import { KitchenReceipt } from '@/src/components/KitchenReceipt';
+import { useRef } from 'react';
 
 const statusTabs = [
   { id: 'all', label: 'Active' },
@@ -23,21 +26,38 @@ export default function KitchenDisplay() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Record<string, string>>({});
   const [tables, setTables] = useState<Record<string, string>>({});
+  const [customers, setCustomers] = useState<Record<string, string>>({});
+  const [users, setUsers] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [activeStatus, setActiveStatus] = useState('all');
   const [processingOrders, setProcessingOrders] = useState<Record<string, boolean>>({});
   
+  // Kitchen Receipt Print State
+  const kitchenReceiptRef = useRef<HTMLDivElement>(null);
+  const [kitchenPrintOrder, setKitchenPrintOrder] = useState<Order | null>(null);
+  const handleKitchenPrint = useReactToPrint({
+    contentRef: kitchenReceiptRef,
+    pageStyle: `
+      @page { size: auto; margin: 0mm; }
+      @media print { body { -webkit-print-color-adjust: exact; } }
+    `
+  } as any);
+
   const fetchOrdersAndProducts = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     else setIsRefreshing(true);
     
     try {
-      const [orderData, productData, tableData] = await Promise.all([
+      const { customerService } = await import('@/src/services/customer.service');
+      const { userService } = await import('@/src/services/user.service');
+      const [orderData, productData, tableData, customerData, userData] = await Promise.all([
         orderService.getAll(), // Fetch all to be safe and filter on frontend
         productService.getAll(),
-        tableService.getAll()
+        tableService.getAll(),
+        customerService.getAll().catch(() => []),
+        userService.getAll().catch(() => [])
       ]);
 
       // Create maps for efficient lookup
@@ -49,12 +69,23 @@ export default function KitchenDisplay() {
       tableData.forEach((t: any) => { tMap[t.id] = t.name; });
       setTables(tMap);
 
+      const cMap: Record<string, string> = {};
+      customerData.forEach((c: any) => { cMap[c.id || c.username] = c.name; });
+      setCustomers(cMap);
+
+      const uMap: Record<string, string> = {};
+      userData.forEach((u: any) => { uMap[u.id] = u.name || u.username; });
+      setUsers(uMap);
+
       // Filter for kitchen-relevant statuses in the frontend
       const kitchenStatuses = ['draft', 'confirmed', 'preparing', 'ready', 'served'];
       const relevantOrders = orderData.filter((o: any) => kitchenStatuses.includes(o.status));
 
+      // ONLY SHOW CONFIRMED ORDERS ON INITIAL VIEW (User request)
+      const confirmedOrdersOnly = relevantOrders.filter((o: any) => o.status === 'confirmed');
+
       // FIFO Sorting: Oldest First
-      const sortedOrders = relevantOrders.sort((a: any, b: any) => 
+      const sortedOrders = confirmedOrdersOnly.sort((a: any, b: any) => 
         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
 
@@ -212,6 +243,21 @@ export default function KitchenDisplay() {
     }
   };
 
+  const renderPrintButton = (order: Order) => {
+    return (
+      <button 
+        onClick={() => {
+          setKitchenPrintOrder(order);
+          setTimeout(() => handleKitchenPrint(), 200);
+        }}
+        className="w-full mt-2 px-4 py-3 bg-transparent text-[#808080] hover:text-white font-black text-[9px] uppercase tracking-[0.2em] rounded-xl hover:bg-white/5 transition-all border border-transparent hover:border-white/10 flex items-center justify-center gap-2"
+      >
+        <Printer className="w-3.5 h-3.5" />
+        Print Ticket
+      </button>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -342,6 +388,7 @@ export default function KitchenDisplay() {
                     />
                   </div>
                   {renderActionButtons(order)}
+                  {renderPrintButton(order)}
                 </div>
               </div>
             ))}
@@ -357,7 +404,19 @@ export default function KitchenDisplay() {
         )}
       </div>
 
-      {/* Modal removed as per user request */}
+      {/* Hidden Receipt for Printing */}
+      <div className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none">
+        {kitchenPrintOrder && (
+          <KitchenReceipt 
+            ref={kitchenReceiptRef} 
+            order={kitchenPrintOrder} 
+            products={products}
+            tables={tables}
+            customers={customers}
+            users={users}
+          />
+        )}
+      </div>
 
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {

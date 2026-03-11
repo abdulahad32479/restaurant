@@ -6,7 +6,7 @@ import { Input, Select, TextArea } from '@/src/components/Input';
 import { Badge } from '@/src/components/Badge';
 import { 
   Search, Plus, Minus, CreditCard, Banknote, 
-  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User, Phone, AlertTriangle
+  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User, Phone, AlertTriangle, ListOrdered, Clock
 } from 'lucide-react';
 import { productService } from '@/src/services/product.service';
 import { categoryService } from '@/src/services/category.service';
@@ -14,11 +14,13 @@ import { branchService } from '@/src/services/branch.service';
 import { tableService } from '@/src/services/table.service';
 import { orderService } from '@/src/services/order.service';
 import { customerService } from '@/src/services/customer.service';
+import { userService } from '@/src/services/user.service';
 import { Product, Category, Branch, Table, OrderType, Order, Customer } from '@/src/types';
 import { Modal } from '@/src/components/Modal';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useReactToPrint } from 'react-to-print';
 import { Receipt } from '@/src/components/Receipt';
+import { KitchenReceipt } from '@/src/components/KitchenReceipt';
 import { useRef } from 'react';
 import toast from 'react-hot-toast';
 import { getImageUrl } from '@/src/lib/utils';
@@ -32,11 +34,17 @@ export default function POS() {
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   
+  // Active Orders State
+  const [activeOrders, setActiveOrders] = useState<Order[]>([]);
+  const [isActiveOrdersModalOpen, setIsActiveOrdersModalOpen] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
+
   // Data state
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
+  const [users, setUsers] = useState<Record<string, string>>({});
   
   // Selection state
   const [activeCategory, setActiveCategory] = useState('all');
@@ -57,6 +65,7 @@ export default function POS() {
     phone: '',
     address: ''
   });
+  const [deliveryDict, setDeliveryDict] = useState<Record<string, {phone: string, address: string}>>({});
 
   // Notes & Customer state  
   const [orderNotes, setOrderNotes] = useState('');
@@ -84,6 +93,17 @@ export default function POS() {
     `
   } as any);
 
+  // Kitchen Print State
+  const kitchenReceiptRef = useRef<HTMLDivElement>(null);
+  const [kitchenPrintOrder, setKitchenPrintOrder] = useState<Order | null>(null);
+  const handleKitchenPrint = useReactToPrint({
+    contentRef: kitchenReceiptRef,
+    pageStyle: `
+      @page { size: auto; margin: 0mm; }
+      @media print { body { -webkit-print-color-adjust: exact; } }
+    `
+  } as any);
+
   // Edit Order State
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [initialCartItems, setInitialCartItems] = useState<{ id?: string, product: string, quantity: number }[]>([]);
@@ -91,11 +111,13 @@ export default function POS() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [pData, cData, bData, tData] = await Promise.all([
+        const [pData, cData, bData, tData, oData, userData] = await Promise.all([
           productService.getAll(),
           categoryService.getAll(),
           branchService.getAll(),
-          tableService.getAll()
+          tableService.getAll(),
+          orderService.getAll(),
+          userService.getAll().catch(() => [])
         ]);
         
         const activeProducts = pData.filter((p: Product) => p.is_active);
@@ -103,8 +125,28 @@ export default function POS() {
         setCategories(cData);
         setBranches(bData);
         setTables(tData.filter((t: Table) => t.is_active));
+        setActiveOrders(oData.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
         
+        const uMap: Record<string, string> = {};
+        userData.forEach((u: any) => { uMap[u.id] = u.name || u.username; });
+        setUsers(uMap);
+
         if (bData.length > 0) setSelectedBranch(bData[0].id);
+
+        // Build Delivery Dictionary from past orders
+        const dict: Record<string, {phone: string, address: string}> = {};
+        oData.forEach((order: Order) => {
+          if (order.order_type === 'delivery' && order.delivery_info?.name) {
+            const nameKey = order.delivery_info.name.trim().toLowerCase();
+            if (!dict[nameKey]) {
+              dict[nameKey] = {
+                phone: order.delivery_info.phone || '',
+                address: order.delivery_info.address || ''
+              };
+            }
+          }
+        });
+        setDeliveryDict(dict);
 
         // Load customers for association
         try {
@@ -135,13 +177,13 @@ export default function POS() {
                // Populate cart
                const mappedCart = orderEdit.items.map(item => {
                  const product = activeProducts.find((p: Product) => p.id === item.product);
-                 return product ? { product, quantity: item.quantity } : null;
+                 return product ? { product, quantity: Number(item.quantity) } : null;
                }).filter(Boolean) as {product: Product, quantity: number}[];
                setCart(mappedCart);
                
                // Keep track of initial items to calc diffs later
                setInitialCartItems(orderEdit.items.map(i => ({ 
-                  id: i.id, product: i.product, quantity: i.quantity 
+                  id: i.id, product: i.product, quantity: Number(i.quantity) 
                })));
             }
           } catch (e) {
@@ -160,6 +202,58 @@ export default function POS() {
     };
     fetchData();
   }, [editOrderId, router]);
+
+  const loadOrderForEditing = (orderEdit: Order) => {
+    if (['completed', 'cancelled', 'refunded'].includes(orderEdit.status)) {
+       toast.error(`Order in ${orderEdit.status} status cannot be edited`);
+       return;
+    }
+    setEditingOrder(orderEdit);
+    setSelectedBranch(orderEdit.branch || (orderEdit as any).branch_id || '');
+    setOrderType(orderEdit.order_type as any);
+    if (orderEdit.order_type === 'dine_in') {
+      setSelectedTable(orderEdit.table || orderEdit.table_id || '');
+    }
+    if (orderEdit.order_type === 'delivery' && orderEdit.delivery_info) {
+      setDeliveryInfo(orderEdit.delivery_info);
+    }
+    if (orderEdit.notes) setOrderNotes(orderEdit.notes);
+    if (orderEdit.customer) setSelectedCustomer(orderEdit.customer);
+    
+    const mappedCart = orderEdit.items.map(item => {
+      const product = products.find((p: Product) => p.id === item.product);
+      return product ? { product, quantity: Number(item.quantity) } : null;
+    }).filter(Boolean) as {product: Product, quantity: number}[];
+    setCart(mappedCart);
+    
+    setInitialCartItems(orderEdit.items.map((i: any) => ({ 
+       id: i.id, product: i.product, quantity: Number(i.quantity) 
+    })));
+    setIsActiveOrdersModalOpen(false);
+    toast.success(`Loaded Order ${orderEdit.id.substring(0,8)}`);
+  };
+
+  const executeStatusUpdate = async (order: Order, action: string) => {
+    setIsUpdatingStatus(order.id);
+    try {
+      const payload = { ...order };
+      if (action === 'confirm') await orderService.confirm(order.id, payload);
+      else if (action === 'prepare') await orderService.markPreparing(order.id, payload);
+      else if (action === 'ready') await orderService.markReady(order.id, payload);
+      else if (action === 'serve') await orderService.markServed(order.id, payload);
+      else if (action === 'complete') await orderService.complete(order.id, payload);
+      else if (action === 'cancel') await orderService.cancel(order.id, { ...payload, notes: 'Cancelled from POS' });
+      
+      toast.success(`Order ${action}ed successfully`);
+      const oData = await orderService.getAll();
+      setActiveOrders(oData.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
+    } catch (e: any) {
+      console.error('Update status failed', e);
+      toast.error('Failed to update order status');
+    } finally {
+      setIsUpdatingStatus(null);
+    }
+  };
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -321,16 +415,69 @@ export default function POS() {
     
     toast.success(editingOrder ? 'Order updated successfully!' : 'Order saved as draft!');
     
+    const refreshedOrders = await orderService.getAll();
+    setActiveOrders(refreshedOrders.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
+
+    setEditingOrder(null);
+    setCart([]);
+    setOrderType('');
+    setSelectedTable('');
+    setDeliveryInfo({ name: '', phone: '', address: '' });
+    setOrderNotes('');
+    setSelectedCustomer('');
+  } catch (error: any) {
+    handleError(error);
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
+const handleConfirmOrder = async () => {
+  if (cart.length > 0 && !orderType) {
+    setPendingAction('draft'); 
+    setIsTypeModalOpen(true);
+    return;
+  }
+  
+  if (!validateOrder()) return;
+
+  setIsProcessing(true);
+  try {
+    let orderId = editingOrder?.id;
+
     if (editingOrder) {
-      router.push('/dashboard/orders');
+      await syncEditedOrderCart(editingOrder.id);
+      const updateData = getOrderData();
+      try { await orderService.update(editingOrder.id, updateData); } catch (e) {
+        console.warn('Metadata update failed (order may be locked), items still synced', e);
+      }
     } else {
-      setCart([]);
-      setOrderType('');
-      setSelectedTable('');
-      setDeliveryInfo({ name: '', phone: '', address: '' });
-      setOrderNotes('');
-      setSelectedCustomer('');
+      const orderData = getOrderData();
+      const newOrder = await orderService.create(orderData);
+      orderId = newOrder.id;
     }
+    
+    try {
+      const orderUpdatePayload = getOrderData();
+      await orderService.confirm(orderId!, { ...orderUpdatePayload, id: orderId });
+    } catch (confirmError) {
+      console.error('Order confirmation failed', confirmError);
+      toast.error('Failed to confirm order.');
+      throw confirmError;
+    }
+    
+    toast.success('Order confirmed successfully!');
+    
+    const refreshedOrders = await orderService.getAll();
+    setActiveOrders(refreshedOrders.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
+
+    setEditingOrder(null);
+    setCart([]);
+    setOrderType('');
+    setSelectedTable('');
+    setDeliveryInfo({ name: '', phone: '', address: '' });
+    setOrderNotes('');
+    setSelectedCustomer('');
   } catch (error: any) {
     handleError(error);
   } finally {
@@ -400,31 +547,31 @@ const handleProcessPayment = async () => {
 
       toast.success(editingOrder ? 'Edited order paid successfully!' : 'Order paid and confirmed successfully!');
       
-      if (editingOrder) {
-         router.push('/dashboard/orders');
-      } else {
-         // Determine final order to show on receipt
-         let finalOrderForReceipt: Order | null = null;
-         try {
-           finalOrderForReceipt = await orderService.getById(orderId!);
-         } catch (e) {
-           console.error('Failed to get final order for receipt');
-         }
-         
-         if (finalOrderForReceipt) setCompletedOrder(finalOrderForReceipt);
-         
-         setCart([]);
-         setOrderType('');
-         setSelectedTable('');
-         setDeliveryInfo({ name: '', phone: '', address: '' });
-         setOrderNotes('');
-         setSelectedCustomer('');
-         setIsPaymentModalOpen(false);
-         setAmountTendered('');
-         
-         if (finalOrderForReceipt) {
-           setIsReceiptModalOpen(true);
-         }
+      const refreshedOrders = await orderService.getAll();
+      setActiveOrders(refreshedOrders.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
+
+      // Determine final order to show on receipt
+      let finalOrderForReceipt: Order | null = null;
+      try {
+        finalOrderForReceipt = await orderService.getById(orderId!);
+      } catch (e) {
+        console.error('Failed to get final order for receipt');
+      }
+      
+      if (finalOrderForReceipt) setCompletedOrder(finalOrderForReceipt);
+      
+      setEditingOrder(null);
+      setCart([]);
+      setOrderType('');
+      setSelectedTable('');
+      setDeliveryInfo({ name: '', phone: '', address: '' });
+      setOrderNotes('');
+      setSelectedCustomer('');
+      setIsPaymentModalOpen(false);
+      setAmountTendered('');
+      
+      if (finalOrderForReceipt) {
+        setIsReceiptModalOpen(true);
       }
     } catch (error: any) {
       handleError(error);
@@ -463,14 +610,26 @@ const handleProcessPayment = async () => {
 
       {/* Product Section (Left) */}
       <div className="flex-1 flex flex-col gap-4 min-w-0">
-        <div className="mb-0">
-          <h1 className="text-lg font-black uppercase tracking-tighter text-white drop-shadow-xl">
-            POS <span className="text-primary text-[0.8em] opacity-80 underline decoration-primary/20 decoration-2 underline-offset-4">Terminal</span>
-          </h1>
-          <p className="text-[7px] font-black uppercase tracking-[0.2em] text-[#666] flex items-center gap-1.5">
-            <span className="w-3 h-[1px] bg-primary/20"></span>
-            Executive Sales Registry
-          </p>
+        <div className="flex items-center justify-between mb-0">
+          <div>
+            <h1 className="text-lg font-black uppercase tracking-tighter text-white drop-shadow-xl">
+              POS <span className="text-primary text-[0.8em] opacity-80 underline decoration-primary/20 decoration-2 underline-offset-4">Terminal</span>
+            </h1>
+            <p className="text-[7px] font-black uppercase tracking-[0.2em] text-[#666] flex items-center gap-1.5">
+              <span className="w-3 h-[1px] bg-primary/20"></span>
+              Executive Sales Registry
+            </p>
+          </div>
+          <button 
+            onClick={() => setIsActiveOrdersModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-lg hover:bg-primary/20 transition-all active:scale-95"
+          >
+            <ListOrdered className="w-4 h-4 text-primary" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary hidden md:inline">Active Orders</span>
+            <Badge variant="default" size="sm" className="bg-primary text-white text-[9px] px-1.5 py-0 min-w-[1.25rem] flex items-center justify-center">
+              {activeOrders.length}
+            </Badge>
+          </button>
         </div>
         {/* Header Controls */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -804,19 +963,28 @@ const handleProcessPayment = async () => {
               )}
             </div>
             
-            <div className="p-4 grid grid-cols-2 gap-3">
+            <div className="p-4 grid grid-cols-3 gap-2">
               <Button 
                 variant="outline" 
-                className="text-[#808080] border-[#2A2A2A] hover:bg-[#2A2A2A] hover:text-white font-black h-12 uppercase tracking-widest text-[10px] rounded-xl"
+                className="text-[#808080] border-[#2A2A2A] hover:bg-[#2A2A2A] hover:text-white font-black h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2"
                 disabled={cart.length === 0 || isProcessing}
                 onClick={handleSaveDraft}
                 isLoading={isProcessing}
               >
-                {editingOrder ? 'Save Changes' : 'Save Draft'}
+                {editingOrder ? 'Update' : 'Draft'}
+              </Button>
+              <Button 
+                variant="outline" 
+                className="text-primary border-primary/20 hover:bg-primary/10 font-black h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2"
+                disabled={cart.length === 0 || isProcessing}
+                onClick={handleConfirmOrder}
+                isLoading={isProcessing}
+              >
+                Confirm
               </Button>
               <Button 
                 variant="primary" 
-                className="text-white font-black h-12 uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20 rounded-xl"
+                className="text-white font-black h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] shadow-xl shadow-primary/20 rounded-xl px-2"
                 disabled={cart.length === 0 || isProcessing}
                 onClick={handleCheckoutClick}
               >
@@ -990,7 +1158,15 @@ const handleProcessPayment = async () => {
               label="Customer Name"
               placeholder="e.g. John Doe"
               value={deliveryInfo.name}
-              onChange={(e) => setDeliveryInfo({ ...deliveryInfo, name: e.target.value })}
+              onChange={(e) => {
+                const newName = e.target.value;
+                const match = deliveryDict[newName.trim().toLowerCase()];
+                if (match) {
+                  setDeliveryInfo({ name: newName, phone: match.phone, address: match.address });
+                } else {
+                  setDeliveryInfo({ ...deliveryInfo, name: newName });
+                }
+              }}
               className="bg-[#0A0A0A] border-[#2A2A2A]"
               icon={<User className="w-4 h-4" />}
             />
@@ -1306,10 +1482,115 @@ const handleProcessPayment = async () => {
         variant="danger"
         icon={Trash2}
       />
+      {/* Active Orders Modal */}
+      <Modal
+        isOpen={isActiveOrdersModalOpen}
+        onClose={() => setIsActiveOrdersModalOpen(false)}
+        title={`Active Orders (${activeOrders.length})`}
+        size="xl"
+      >
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar pr-2">
+          {activeOrders.length === 0 ? (
+            <div className="text-center py-12">
+              <ListOrdered className="w-12 h-12 text-[#2A2A2A] mx-auto mb-4" />
+              <p className="font-black uppercase tracking-widest text-[#505050]">No active orders found</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {activeOrders.map(order => (
+                <div key={order.id} className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl p-4 flex flex-col gap-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wider text-white">Order {order.id.substring(0,6)}</p>
+                      <p className="text-[10px] text-tertiary mt-0.5">{order.order_type.replace('_', ' ').toUpperCase()} • {
+                        order.order_type === 'dine_in' ? `Table ${order.table_no || order.table}` : (order.delivery_info?.name || 'Walk-in')
+                      }</p>
+                    </div>
+                    <Badge variant={
+                      order.status === 'draft' ? 'secondary' :
+                      order.status === 'ready' ? 'accent' as any : 'warning'
+                    } className="text-[9px] px-2 py-0.5 uppercase tracking-widest border border-white/5">{order.status.replace('_', ' ')}</Badge>
+                  </div>
+                  
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-tertiary">{order.items?.length || 0} Items</span>
+                    <span className="font-black text-primary text-sm">Rs. {Number(order.total).toFixed(2)}</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-3 border-t border-[#2A2A2A]">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => loadOrderForEditing(order)}
+                      className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest bg-white/5 border-white/10"
+                    >
+                      Edit 
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setCompletedOrder(order);
+                        setIsReceiptModalOpen(true);
+                      }}
+                      className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest hover:text-primary border-white/10"
+                    >
+                      Receipt
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setKitchenPrintOrder(order);
+                        setTimeout(() => handleKitchenPrint(), 200);
+                      }}
+                      className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest hover:text-orange-400 border-white/10"
+                    >
+                      Kitchen
+                    </Button>
+                    
+                    {order.status === 'draft' && (
+                      <Button variant="primary" className="w-full text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'confirm')} disabled={isUpdatingStatus===order.id}>Confirm</Button>
+                    )}
+                    {order.status === 'confirmed' && (
+                      <Button variant="primary" className="w-full text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'prepare')} disabled={isUpdatingStatus===order.id}>Start Cooking</Button>
+                    )}
+                    {order.status === 'preparing' && (
+                      <Button variant="primary" className="w-full text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'ready')} disabled={isUpdatingStatus===order.id}>Mark Ready</Button>
+                    )}
+                    {order.status === 'ready' && (
+                      <Button variant="primary" className="w-full text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'serve')} disabled={isUpdatingStatus===order.id}>Mark Served</Button>
+                    )}
+                    {order.status === 'served' && (
+                      <Button variant="primary" className="w-full text-[10px] h-8 font-black uppercase tracking-widest hover:bg-success hover:border-success/50 bg-success border-success text-white shadow-lg shadow-success/20" onClick={() => executeStatusUpdate(order, 'complete')} disabled={isUpdatingStatus===order.id}>Finalize Order</Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* Hidden Receipt for Printing */}
       <div className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none">
-        {completedOrder && <Receipt ref={receiptRef} order={completedOrder} />}
+        {completedOrder && (
+          <Receipt 
+            ref={receiptRef} 
+            order={completedOrder} 
+            products={Object.fromEntries(products.map(p => [p.id, p.name]))}
+            tables={Object.fromEntries(tables.map(t => [t.id, t.name]))}
+            customers={Object.fromEntries(customers.map(c => [c.id, c.name]))}
+            users={users}
+          />
+        )}
+        {kitchenPrintOrder && (
+          <KitchenReceipt 
+            ref={kitchenReceiptRef} 
+            order={kitchenPrintOrder} 
+            products={Object.fromEntries(products.map(p => [p.id, p.name]))}
+            tables={Object.fromEntries(tables.map(t => [t.id, t.name]))}
+            customers={Object.fromEntries(customers.map(c => [c.id, c.name]))}
+            users={users}
+          />
+        )}
       </div>
     </div>
   );

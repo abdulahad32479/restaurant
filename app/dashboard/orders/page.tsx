@@ -6,7 +6,7 @@ import { Table, Pagination } from '@/src/components/Table';
 import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
-import { Search, Calendar, Download, Eye, Store, Printer, MoreVertical, PlayCircle, CheckCircle2, PackageCheck, CheckCheck, Edit, CreditCard, X, Banknote, RotateCcw } from 'lucide-react';
+import { Search, Calendar, Download, Eye, Store, Printer, MoreVertical, PlayCircle, CheckCircle2, PackageCheck, CheckCheck, Edit, CreditCard, X, Banknote, RotateCcw, ChefHat } from 'lucide-react';
 import { Card } from '@/src/components/Card';
 import { orderService } from '@/src/services/order.service';
 import { branchService } from '@/src/services/branch.service';
@@ -18,6 +18,7 @@ import { ConfirmModal } from '@/src/components/ConfirmModal';
 import { useRouter } from 'next/navigation';
 import { useReactToPrint } from 'react-to-print';
 import { Receipt } from '@/src/components/Receipt';
+import { KitchenReceipt } from '@/src/components/KitchenReceipt';
 import { useRef } from 'react';
 
 export default function Orders() {
@@ -29,6 +30,8 @@ export default function Orders() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [branchFilter, setBranchFilter] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -61,6 +64,17 @@ export default function Orders() {
     `
   } as any);
   const [orderToPrint, setOrderToPrint] = useState<Order | null>(null);
+
+  // Kitchen Print State
+  const kitchenReceiptRef = useRef<HTMLDivElement>(null);
+  const [kitchenPrintOrder, setKitchenPrintOrder] = useState<Order | null>(null);
+  const handleKitchenPrint = useReactToPrint({
+    contentRef: kitchenReceiptRef,
+    pageStyle: `
+      @page { size: auto; margin: 0mm; }
+      @media print { body { -webkit-print-color-adjust: exact; } }
+    `
+  } as any);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -168,12 +182,31 @@ export default function Orders() {
   };
   
   const filteredOrders = orders.filter(order => {
+    const historyStatuses = ['completed', 'cancelled', 'refunded'];
+    if (!historyStatuses.includes(order.status)) return false;
+
     const tableIdentifier = order.table ? (tables[order.table] || order.table) : (order.table_no || '');
     const matchesSearch = (order.id || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
                           tableIdentifier.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     const matchesBranch = branchFilter === 'all' || order.branch === branchFilter;
-    return matchesSearch && matchesStatus && matchesBranch;
+    
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const orderDate = new Date(order.created_at);
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        if (orderDate < start) matchesDate = false;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (orderDate > end) matchesDate = false;
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesBranch && matchesDate;
   });
 
   const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -297,6 +330,18 @@ export default function Orders() {
               <Printer className="w-4 h-4" />
             </button>
 
+            {/* Kitchen Receipt Button */}
+            <button 
+              className="p-2 hover:bg-orange-500/10 rounded-xl transition-all text-tertiary hover:text-orange-400" 
+              title="Print Kitchen Ticket"
+              onClick={() => {
+                setKitchenPrintOrder(row);
+                setTimeout(() => handleKitchenPrint(), 150);
+              }}
+            >
+              <ChefHat className="w-4 h-4" />
+            </button>
+
             {['draft', 'confirmed', 'preparing', 'ready', 'served'].includes(row.status) && (
               <button 
                 className="p-2 hover:bg-error/10 rounded-xl transition-all text-error/60 hover:text-error" 
@@ -398,7 +443,7 @@ export default function Orders() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h1 className="text-lg font-black text-white uppercase tracking-tighter mb-2 drop-shadow-2xl leading-none">Order Registry</h1>
+          <h1 className="text-lg font-black text-white uppercase tracking-tighter mb-2 drop-shadow-2xl leading-none">Order History</h1>
           <p className="text-[10px] md:text-xs text-[#808080] font-black uppercase tracking-[0.3em] flex items-center gap-3">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
@@ -421,16 +466,14 @@ export default function Orders() {
       </div>
       
       {/* Filters */}
-      <div className="bg-secondary border border-base rounded-2xl p-5 md:p-6 shadow-xl">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="md:col-span-1">
-            <Input
-              placeholder="Search ID or Table..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              icon={<Search className="w-5 h-5 text-tertiary" />}
-            />
-          </div>
+      <div className="bg-secondary border border-base rounded-2xl p-5 md:p-6 shadow-xl space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Input
+            placeholder="Search ID or Table..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            icon={<Search className="w-5 h-5 text-tertiary" />}
+          />
           <Select
             value={branchFilter}
             onChange={(e) => setBranchFilter(e.target.value)}
@@ -444,18 +487,47 @@ export default function Orders() {
             onChange={(e) => setStatusFilter(e.target.value)}
             options={[
               { value: 'all', label: 'All Status' },
-              { value: 'draft', label: 'New' },
-              { value: 'confirmed', label: 'Confirmed' },
-              { value: 'preparing', label: 'Preparing' },
-              { value: 'ready', label: 'Ready' },
-              { value: 'served', label: 'Served' },
               { value: 'completed', label: 'Completed' },
+              { value: 'refunded', label: 'Refunded' },
               { value: 'cancelled', label: 'Cancelled' },
             ]}
           />
-          <Button variant="outline" size="sm" icon={<Calendar className="w-5 h-5" />} fullWidth className="border-base">
-            Today
-          </Button>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <p className="text-[10px] text-tertiary font-black uppercase tracking-widest mb-1.5 ml-1">Start Date</p>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              icon={<Calendar className="w-5 h-5 text-tertiary" />}
+              className="bg-[#0A0A0A] border-base text-tertiary"
+            />
+          </div>
+          <div className="flex-1">
+            <p className="text-[10px] text-tertiary font-black uppercase tracking-widest mb-1.5 ml-1">End Date</p>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              icon={<Calendar className="w-5 h-5 text-tertiary" />}
+              className="bg-[#0A0A0A] border-base text-tertiary"
+            />
+          </div>
+          <div className="items-end hidden sm:flex pb-1">
+             {(startDate || endDate) && (
+               <Button variant="outline" onClick={() => { setStartDate(''); setEndDate(''); }} className="h-[46px] border-base text-tertiary">
+                 Clear Dates
+               </Button>
+             )}
+          </div>
+        </div>
+        <div className="sm:hidden block">
+           {(startDate || endDate) && (
+             <Button variant="outline" fullWidth onClick={() => { setStartDate(''); setEndDate(''); }} className="border-base text-tertiary">
+               Clear Dates
+             </Button>
+           )}
         </div>
       </div>
       
@@ -705,6 +777,7 @@ export default function Orders() {
       {/* Hidden Receipt for Printing */}
       <div className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none">
         {orderToPrint && <Receipt ref={receiptRef} order={orderToPrint} />}
+        {kitchenPrintOrder && <KitchenReceipt ref={kitchenReceiptRef} order={kitchenPrintOrder} />}
       </div>
 
       {/* Refund Modal */}
