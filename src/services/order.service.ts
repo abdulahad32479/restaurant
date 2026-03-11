@@ -8,7 +8,7 @@ export const orderService = {
     
     if (status) {
       if (Array.isArray(status)) {
-        status.forEach(s => params.push(`status=${s}`));
+        params.push(`status=${status.join(',')}`);
       } else {
         params.push(`status=${status}`);
       }
