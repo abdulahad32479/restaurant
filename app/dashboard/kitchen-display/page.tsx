@@ -54,7 +54,7 @@ export default function KitchenDisplay() {
       const { userService } = await import('@/src/services/user.service');
       const [orderData, productData, tableData, customerData, userData] = await Promise.all([
         orderService.getAll(), // Fetch all to be safe and filter on frontend
-        productService.getAll(),
+        productService.getAll(1000),
         tableService.getAll(),
         customerService.getAll().catch(() => []),
         userService.getAll().catch(() => [])
@@ -359,7 +359,10 @@ export default function KitchenDisplay() {
                             {item.quantity}
                           </div>
                           <p className="text-xs text-white font-black uppercase tracking-tight leading-tight group-hover:text-primary transition-colors">
-                            {item.product_name || products[item.product] || 'Product'}
+                            {products[String(item.product || '').trim()] || 
+                             (item.product_name && item.product_name.toLowerCase().trim() !== 'string' ? item.product_name : null) || 
+                             (typeof item.product === 'object' ? (item.product as any)?.name || (item.product as any)?.product_name : null) || 
+                             'Product'}
                           </p>
                         </div>
                       </div>

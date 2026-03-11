@@ -103,15 +103,35 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             <span>Item</span>
             <span>Total</span>
           </div>
-          <div className="space-y-2">
-            {order.items.map((item, idx) => (
-              <div key={idx} className="flex justify-between text-xs">
-                <div className="flex-1 pr-2">
-                  <p>{item.quantity}x {item.product_name || products[item.product] || item.product}</p>
+          <div className="space-y-4">
+            {order.items.map((item, idx) => {
+              // ULTIMATE PRODUCT NAME RESOLUTION
+              const productId = String(item.product || '').trim();
+              const mapName = products?.[productId];
+              
+              // Reject "string" or empty placeholders
+              const cleanSnapshot = (item.product_name && item.product_name.toLowerCase().trim() !== 'string') ? item.product_name : null;
+              
+              // If product is an object, try to extract name
+              const objectInfo = typeof item.product === 'object' ? (item.product as any) : null;
+              const objectName = objectInfo?.name || objectInfo?.product_name || objectInfo?.title;
+
+              const productName = mapName || cleanSnapshot || objectName || productId || 'Item';
+              
+              const unitPrice = Number(item.unit_price || 0);
+              const qty = Number(item.quantity || 0);
+              const itemTotal = Number(item.total_price || (unitPrice * qty));
+
+              return (
+                <div key={idx} className="border-b border-gray-100 pb-3 last:border-0">
+                  <p className="font-bold uppercase text-sm mb-1 text-black">{item.quantity}x {productName}</p>
+                  <div className="flex justify-between items-baseline pl-4">
+                    <span className="text-xs text-gray-500 italic">@ Rs. {unitPrice.toFixed(2)}</span>
+                    <span className="font-bold text-black text-sm">Rs. {itemTotal.toFixed(2)}</span>
+                  </div>
                 </div>
-                <div>Rs. {Number(item.total_price || (Number(item.unit_price) * item.quantity)).toFixed(2)}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

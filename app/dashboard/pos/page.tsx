@@ -41,10 +41,12 @@ export default function POS() {
 
   // Data state
   const [products, setProducts] = useState<Product[]>([]);
+  const [allProductsList, setAllProductsList] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
   const [users, setUsers] = useState<Record<string, string>>({});
+  const [allProductsMap, setAllProductsMap] = useState<Record<string, string>>({});
   
   // Selection state
   const [activeCategory, setActiveCategory] = useState('all');
@@ -65,7 +67,7 @@ export default function POS() {
     phone: '',
     address: ''
   });
-  const [deliveryDict, setDeliveryDict] = useState<Record<string, {phone: string, address: string}>>({});
+  const [deliveryDict, setDeliveryDict] = useState<Record<string, {phone: string, address: string, id?: string}>>({});
 
   // Notes & Customer state  
   const [orderNotes, setOrderNotes] = useState('');
@@ -109,32 +111,82 @@ export default function POS() {
   const [initialCartItems, setInitialCartItems] = useState<{ id?: string, product: string, quantity: number }[]>([]);
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Focus Search (S or /)
+      if (e.key && (e.key.toLowerCase() === 's' || e.key === '/') && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        document.getElementById('pos-search-input')?.focus();
+      }
+      // F2 Checkout
+      if (e.key === 'F2') {
+        e.preventDefault();
+        handleCheckoutClick();
+      }
+      // F4 Kitchen Print
+      if (e.key === 'F4' && completedOrder) {
+        e.preventDefault();
+        setKitchenPrintOrder(completedOrder);
+        setTimeout(() => handleKitchenPrint(), 200);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [completedOrder, cart.length, orderType]);
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
-        const [pData, cData, bData, tData, oData, userData] = await Promise.all([
-          productService.getAll(),
+        const [pData, cData, bData, tData, oData, custData, userData] = await Promise.all([
+          productService.getAll(1000),
           categoryService.getAll(),
           branchService.getAll(),
           tableService.getAll(),
           orderService.getAll(),
+          customerService.getAll().catch(() => []),
           userService.getAll().catch(() => [])
         ]);
         
         const activeProducts = pData.filter((p: Product) => p.is_active);
         setProducts(activeProducts);
+        setAllProductsList(pData);
         setCategories(cData);
         setBranches(bData);
         setTables(tData.filter((t: Table) => t.is_active));
         setActiveOrders(oData.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
+        setCustomers(custData);
         
         const uMap: Record<string, string> = {};
         userData.forEach((u: any) => { uMap[u.id] = u.name || u.username; });
         setUsers(uMap);
 
+        const pMap: Record<string, string> = {};
+        pData.forEach((p: Product) => { 
+          pMap[String(p.id).trim()] = p.name;
+          if (p.sku) pMap[String(p.sku).trim()] = p.name;
+        });
+        setAllProductsMap(pMap);
+
         if (bData.length > 0) setSelectedBranch(bData[0].id);
 
-        // Build Delivery Dictionary from past orders
-        const dict: Record<string, {phone: string, address: string}> = {};
+        // Build Delivery Dictionary from past orders AND customer database
+        const dict: Record<string, {phone: string, address: string, id?: string}> = {};
+        
+        // Load customers into dictionary first
+        custData.forEach((c: Customer) => {
+          if (c.name) {
+            const nameKey = c.name.trim().toLowerCase();
+            if (!dict[nameKey]) {
+              dict[nameKey] = {
+                id: c.id,
+                phone: c.phone || c.phone_number || '',
+                address: c.address || ''
+              };
+            }
+          }
+        });
+
+        // Add past orders to dictionary (if name not already there as a customer)
         oData.forEach((order: Order) => {
           if (order.order_type === 'delivery' && order.delivery_info?.name) {
             const nameKey = order.delivery_info.name.trim().toLowerCase();
@@ -147,12 +199,6 @@ export default function POS() {
           }
         });
         setDeliveryDict(dict);
-
-        // Load customers for association
-        try {
-          const custData = await customerService.getAll();
-          setCustomers(custData);
-        } catch (e) { /* non-critical */ }
 
         // Load Edit Order if present
         if (editOrderId) {
@@ -174,11 +220,22 @@ export default function POS() {
                if (orderEdit.notes) setOrderNotes(orderEdit.notes);
                if (orderEdit.customer) setSelectedCustomer(orderEdit.customer);
                
-               // Populate cart
+               // Populate cart using full product list (to include inactive)
                const mappedCart = orderEdit.items.map(item => {
-                 const product = activeProducts.find((p: Product) => p.id === item.product);
-                 return product ? { product, quantity: Number(item.quantity) } : null;
-               }).filter(Boolean) as {product: Product, quantity: number}[];
+                 const product = pData.find((p: Product) => String(p.id) === String(item.product));
+                 if (product) return { product, quantity: Number(item.quantity) };
+                 
+                 // Fallback if product truly not found in DB
+                 return {
+                   product: {
+                     id: String(item.product),
+                     name: item.product_name || 'Item',
+                     price: item.unit_price || '0',
+                     is_active: false
+                   } as any,
+                   quantity: Number(item.quantity)
+                 };
+               });
                setCart(mappedCart);
                
                // Keep track of initial items to calc diffs later
@@ -221,9 +278,19 @@ export default function POS() {
     if (orderEdit.customer) setSelectedCustomer(orderEdit.customer);
     
     const mappedCart = orderEdit.items.map(item => {
-      const product = products.find((p: Product) => p.id === item.product);
-      return product ? { product, quantity: Number(item.quantity) } : null;
-    }).filter(Boolean) as {product: Product, quantity: number}[];
+      const product = allProductsList.find((p: Product) => String(p.id) === String(item.product));
+      if (product) return { product, quantity: Number(item.quantity) };
+      
+      return {
+        product: {
+          id: String(item.product),
+          name: item.product_name || 'Item',
+          price: item.unit_price || '0',
+          is_active: false
+        } as any,
+        quantity: Number(item.quantity)
+      };
+    });
     setCart(mappedCart);
     
     setInitialCartItems(orderEdit.items.map((i: any) => ({ 
@@ -717,14 +784,18 @@ const handleProcessPayment = async () => {
         </div>
 
         {/* Search */}
-        <div className="relative">
+        <div className="relative group">
           <Input 
-            placeholder="Search products..." 
+            id="pos-search-input"
+            placeholder="Search products... (Press '/' to focus)" 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            icon={<Search className="w-5 h-5 text-[#808080]" />}
-            className="bg-[#1A1A1A] border-[#2A2A2A]"
+            icon={<Search className="w-5 h-5 text-[#808080] group-focus-within:text-primary transition-colors" />}
+            className="bg-[#1A1A1A] border-[#2A2A2A] focus:border-primary/50"
           />
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-[#444] border border-[#2A2A2A] px-1.5 py-0.5 rounded uppercase tracking-tighter pointer-events-none group-focus-within:opacity-0 transition-opacity">
+            / Show
+          </div>
         </div>
 
         {/* Categories */}
@@ -785,18 +856,21 @@ const handleProcessPayment = async () => {
       
       {/* Cart Section (Right / Mobile Drawer) */}
       <div className={`
-        fixed inset-0 lg:static z-50 lg:z-auto bg-black/80 lg:bg-transparent backdrop-blur-xl lg:backdrop-blur-none
+        fixed inset-0 lg:static z-50 lg:z-auto bg-black/40 lg:bg-transparent backdrop-blur-md lg:backdrop-blur-none
         transition-all duration-500 ease-in-out
         ${isCartOpen ? 'translate-y-0 opacity-100' : 'translate-y-full lg:translate-y-0 opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto'}
       `}>
         <div className={`
-          absolute bottom-0 lg:static w-full lg:w-[410px] bg-[#1A1A1A] border border-[#2A2A2A] rounded-t-[3rem] lg:rounded-3xl 
-          flex flex-col shadow-2xl h-[90vh] lg:h-[calc(100vh-140px)] sticky top-24
-          transition-transform duration-500
+          absolute bottom-0 lg:static w-full lg:w-[410px] bg-[#1A1A1A]/80 border border-white/5 lg:rounded-3xl 
+          flex flex-col shadow-[0_20px_50px_rgba(0,0,0,0.5)] h-[90vh] lg:h-[calc(100vh-140px)] sticky top-24
+          backdrop-blur-2xl transition-transform duration-500 overflow-hidden
           ${isCartOpen ? 'translate-y-0' : 'translate-y-[20%] lg:translate-y-0'}
         `}>
+          {/* Animated Gradient Border Overlay */}
+          <div className="absolute inset-0 pointer-events-none border border-white/5 rounded-[inherit]"></div>
+          
           {/* Header */}
-          <div className="p-5 border-b border-[#2A2A2A] bg-[#0A0A0A]/40 flex items-center justify-between shrink-0">
+          <div className="p-5 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
             <div className="min-w-0">
               <h2 className="text-lg font-black uppercase tracking-tighter text-white leading-none mb-1">Live Bill</h2>
               <div className="flex items-center gap-2 flex-wrap">
@@ -1156,20 +1230,32 @@ const handleProcessPayment = async () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Customer Name"
-              placeholder="e.g. John Doe"
+              placeholder="Enter name to search..."
               value={deliveryInfo.name}
+              list="delivery-customer-names"
+              autoComplete="off"
               onChange={(e) => {
                 const newName = e.target.value;
                 const match = deliveryDict[newName.trim().toLowerCase()];
                 if (match) {
                   setDeliveryInfo({ name: newName, phone: match.phone, address: match.address });
+                  if (match.id) setSelectedCustomer(match.id);
                 } else {
                   setDeliveryInfo({ ...deliveryInfo, name: newName });
+                  // Clear customer association if name is changed and doesn't match
+                  setSelectedCustomer('');
                 }
               }}
               className="bg-[#0A0A0A] border-[#2A2A2A]"
               icon={<User className="w-4 h-4" />}
             />
+            <datalist id="delivery-customer-names">
+              {Object.entries(deliveryDict).map(([nameKey, info]) => (
+                <option key={nameKey} value={nameKey.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}>
+                  {info.phone ? `${info.phone}` : ''}
+                </option>
+              ))}
+            </datalist>
             <Input
               label="Phone Number"
               placeholder="e.g. 03001234567"
@@ -1517,6 +1603,22 @@ const handleProcessPayment = async () => {
                     <span className="font-black text-primary text-sm">Rs. {Number(order.total).toFixed(2)}</span>
                   </div>
 
+                  <div className="bg-[#0A0A0A] p-2 rounded-xl space-y-1 max-h-24 overflow-y-auto">
+                    {order.items?.map((item: any, i: number) => {
+                      const pId = String(item.product || '').trim();
+                      const name = allProductsMap[pId] || 
+                                   (item.product_name && item.product_name.toLowerCase().trim() !== 'string' ? item.product_name : null) || 
+                                   (typeof item.product === 'object' ? (item.product as any)?.name || (item.product as any)?.product_name : null) || 
+                                   'Product';
+                      return (
+                        <div key={i} className="flex justify-between text-[9px] uppercase tracking-tighter">
+                           <span className="text-white font-bold">{item.quantity}x {name}</span>
+                           <span className="text-tertiary">Rs. {Number(item.total_price || 0).toFixed(0)}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+
                   <div className="flex flex-wrap gap-2 pt-3 border-t border-[#2A2A2A]">
                     <Button 
                       variant="outline" 
@@ -1575,7 +1677,7 @@ const handleProcessPayment = async () => {
           <Receipt 
             ref={receiptRef} 
             order={completedOrder} 
-            products={Object.fromEntries(products.map(p => [p.id, p.name]))}
+            products={allProductsMap}
             tables={Object.fromEntries(tables.map(t => [t.id, t.name]))}
             customers={Object.fromEntries(customers.map(c => [c.id, c.name]))}
             users={users}
@@ -1585,13 +1687,32 @@ const handleProcessPayment = async () => {
           <KitchenReceipt 
             ref={kitchenReceiptRef} 
             order={kitchenPrintOrder} 
-            products={Object.fromEntries(products.map(p => [p.id, p.name]))}
+            products={allProductsMap}
             tables={Object.fromEntries(tables.map(t => [t.id, t.name]))}
             customers={Object.fromEntries(customers.map(c => [c.id, c.name]))}
             users={users}
           />
         )}
       </div>
+
+      <style jsx global>{`
+        @keyframes subtle-float {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-3px); }
+          100% { transform: translateY(0px); }
+        }
+        .pos-card-animate {
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .pos-card-animate:hover {
+          transform: translateY(-4px) scale(1.02);
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(212, 175, 55, 0.3);
+        }
+        .pos-card-animate:active {
+          transform: scale(0.98);
+        }
+      `}</style>
     </div>
   );
 }

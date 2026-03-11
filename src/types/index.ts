@@ -87,6 +87,7 @@ export interface OrderItem {
   taxamount?: string;
   discount_amount?: string;
   total_price?: string;
+  notes?: string;
   created_at?: string;
   updated_at?: string;
 }

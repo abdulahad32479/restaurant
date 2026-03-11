@@ -2,8 +2,9 @@ import apiClient from '../lib/axios';
 import { Product } from '../types';
 
 export const productService = {
-  getAll: async () => {
-    const response = await apiClient.get<any>('v1/products/');
+  getAll: async (limit?: number) => {
+    const url = limit ? `v1/products/?limit=${limit}` : 'v1/products/';
+    const response = await apiClient.get<any>(url);
     if (Array.isArray(response.data)) {
       return response.data;
     } else if (response.data && Array.isArray(response.data.results)) {

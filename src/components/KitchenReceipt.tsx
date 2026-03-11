@@ -99,18 +99,36 @@ export const KitchenReceipt = forwardRef<HTMLDivElement, KitchenReceiptProps>(
           </div>
           <div className="space-y-4">
             {order.items.map((item, idx) => {
-              const productName = item.product_name || 
-                                 (typeof item.product === 'string' ? products[item.product] : (item.product as any)?.name) || 
-                                 (typeof item.product === 'string' ? item.product : 'Unknown Item');
+              // ULTIMATE PRODUCT NAME RESOLUTION
+              const productId = String(item.product || '').trim();
+              const mapName = products?.[productId];
+              
+              // Reject "string" or empty placeholders
+              const cleanSnapshot = (item.product_name && item.product_name.toLowerCase().trim() !== 'string') ? item.product_name : null;
+              
+              // If product is an object, try to extract name
+              const objectInfo = typeof item.product === 'object' ? (item.product as any) : null;
+              const objectName = objectInfo?.name || objectInfo?.product_name || objectInfo?.title;
+
+              const productName = mapName || cleanSnapshot || objectName || productId || 'Item';
               
               return (
-                <div key={idx} className="flex gap-4 text-2xl font-bold border-b border-gray-300 pb-2">
-                  <div className="min-w-[50px] text-center border-r-2 border-black pr-2">
-                    {Number(item.quantity).toFixed(0)}x
+                <div key={idx} className="border-b-4 border-gray-100 pb-4 last:border-0 pt-2">
+                  <div className="flex gap-4 items-start mb-2">
+                    <div className="min-w-[80px] bg-black text-white text-4xl font-black rounded-xl flex items-center justify-center py-3 px-2 shadow-lg">
+                      {Number(item.quantity).toFixed(0)}x
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-4xl font-black uppercase leading-tight text-black break-words">
+                        {productName}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="uppercase leading-tight">{productName}</p>
-                  </div>
+                  {item.notes && (
+                    <div className="ml-[80px] mt-1 text-xl bg-yellow-100 p-2 border-l-4 border-black font-black italic uppercase">
+                      * {item.notes}
+                    </div>
+                  )}
                 </div>
               );
             })}

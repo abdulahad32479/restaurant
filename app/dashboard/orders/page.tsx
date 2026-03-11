@@ -11,6 +11,7 @@ import { Card } from '@/src/components/Card';
 import { orderService } from '@/src/services/order.service';
 import { branchService } from '@/src/services/branch.service';
 import { tableService } from '@/src/services/table.service';
+import { productService } from '@/src/services/product.service';
 import { Order, Branch, OrderStatus } from '@/src/types';
 import toast from 'react-hot-toast';
 import { Modal } from '@/src/components/Modal';
@@ -26,6 +27,7 @@ export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [tables, setTables] = useState<Record<string, string>>({});
+  const [productsMap, setProductsMap] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -79,18 +81,23 @@ export default function Orders() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [oData, bData, tData] = await Promise.all([
-        orderService.getAll(),
-        branchService.getAll(),
-        tableService.getAll()
+      const [orderData, productData, tableData, branchData] = await Promise.all([
+        orderService.getAll(), // Fetch all to be safe and filter on frontend
+        productService.getAll(1000),
+        tableService.getAll(),
+        branchService.getAll()
       ]);
       
       const tMap: Record<string, string> = {};
-      tData.forEach((t: any) => { tMap[t.id] = t.name; });
+      tableData.forEach((t: any) => { tMap[t.id] = t.name; });
       setTables(tMap);
+
+      const pMap: Record<string, string> = {};
+      productData.forEach((p: any) => { pMap[p.id] = p.name; });
+      setProductsMap(pMap);
       
-      setOrders(oData);
-      setBranches(bData);
+      setOrders(orderData);
+      setBranches(branchData);
     } catch (error) {
       console.error('Failed to fetch orders', error);
       toast.error('Failed to load dashboard data');
@@ -588,7 +595,12 @@ export default function Orders() {
                   <tbody className="divide-y divide-base/50">
                     {selectedOrder.items?.map((item: any, idx: number) => (
                       <tr key={idx} className="hover:bg-white/5">
-                        <td className="px-4 py-3 text-sm text-white font-medium">{item.product_name || item.product}</td>
+                        <td className="px-4 py-3 text-sm text-white font-medium">
+                          {productsMap[String(item.product || '').trim()] || 
+                           (item.product_name && item.product_name.toLowerCase().trim() !== 'string' ? item.product_name : null) || 
+                           (typeof item.product === 'object' ? (item.product as any)?.name || (item.product as any)?.product_name : null) || 
+                           'Product'}
+                        </td>
                         <td className="px-4 py-3 text-sm font-bold text-center">{item.quantity}</td>
                         <td className="px-4 py-3 text-sm text-right text-tertiary">Rs. {Number(item.unit_price || 0).toFixed(2)}</td>
                         <td className="px-4 py-3 text-sm text-right font-black text-accent whitespace-nowrap">
@@ -776,8 +788,8 @@ export default function Orders() {
 
       {/* Hidden Receipt for Printing */}
       <div className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none">
-        {orderToPrint && <Receipt ref={receiptRef} order={orderToPrint} />}
-        {kitchenPrintOrder && <KitchenReceipt ref={kitchenReceiptRef} order={kitchenPrintOrder} />}
+        {orderToPrint && <Receipt ref={receiptRef} order={orderToPrint} products={productsMap} />}
+        {kitchenPrintOrder && <KitchenReceipt ref={kitchenReceiptRef} order={kitchenPrintOrder} products={productsMap} />}
       </div>
 
       {/* Refund Modal */}
