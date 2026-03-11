@@ -38,6 +38,7 @@ export default function POS() {
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
   const [isActiveOrdersModalOpen, setIsActiveOrdersModalOpen] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
+  const [isFinalizingFromModal, setIsFinalizingFromModal] = useState(false);
 
   // Data state
   const [products, setProducts] = useState<Product[]>([]);
@@ -301,6 +302,16 @@ export default function POS() {
   };
 
   const executeStatusUpdate = async (order: Order, action: string) => {
+    // Intercept complete action if order is not paid
+    if (action === 'complete' && !order.is_paid) {
+      setIsFinalizingFromModal(true);
+      loadOrderForEditing(order);
+      setAmountTendered('');
+      setPaymentMethod('cash');
+      setIsPaymentModalOpen(true);
+      return;
+    }
+
     setIsUpdatingStatus(order.id);
     try {
       const payload = { ...order };
@@ -619,15 +630,21 @@ const handleProcessPayment = async () => {
           amount: finalPayAmount.toFixed(2),
           idempotency_key: `POS-${Date.now()}`,
         });
+
+        // 4. If finalizing from modal, auto-complete
+        if (isFinalizingFromModal) {
+          await orderService.complete(orderId!, { id: orderId });
+        }
       } catch (paymentError) {
         console.error('Payment recording failed', paymentError);
         toast.error('Order confirmed but payment recording failed');
       }
 
-      toast.success(editingOrder ? 'Edited order paid successfully!' : 'Order paid and confirmed successfully!');
+      toast.success(isFinalizingFromModal ? 'Order paid and completed successfully!' : (editingOrder ? 'Edited order paid successfully!' : 'Order paid and confirmed successfully!'));
       
       const refreshedOrders = await orderService.getAll();
       setActiveOrders(refreshedOrders.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
+      setIsFinalizingFromModal(false);
 
       // Determine final order to show on receipt
       let finalOrderForReceipt: Order | null = null;

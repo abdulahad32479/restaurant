@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tabs } from '@/src/components/DukesTabs';
-import { Clock, User, RefreshCw, ChefHat, CheckCheck, PlayCircle, CheckCircle2, PackageCheck, Printer } from 'lucide-react';
+import { Modal } from '@/src/components/Modal';
+import { Clock, User, RefreshCw, ChefHat, CheckCheck, PlayCircle, CheckCircle2, PackageCheck, Printer, CreditCard, Banknote, AlertTriangle } from 'lucide-react';
 import { orderService } from '@/src/services/order.service';
 import { productService } from '@/src/services/product.service';
 import { tableService } from '@/src/services/table.service';
@@ -33,6 +34,12 @@ export default function KitchenDisplay() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [activeStatus, setActiveStatus] = useState('all');
   const [processingOrders, setProcessingOrders] = useState<Record<string, boolean>>({});
+
+  // Payment Modal State
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'other'>('cash');
+  const [amountTendered, setAmountTendered] = useState('');
   
   // Kitchen Receipt Print State
   const kitchenReceiptRef = useRef<HTMLDivElement>(null);
@@ -114,6 +121,15 @@ export default function KitchenDisplay() {
   }, [fetchOrdersAndProducts]);
   
   const handleStatusUpdate = async (order: Order, action: 'prepare' | 'ready' | 'serve' | 'confirm' | 'complete') => {
+    // Intercept complete action if order is not paid
+    if (action === 'complete' && !order.is_paid) {
+      setPaymentOrder(order);
+      setAmountTendered('');
+      setPaymentMethod('cash');
+      setIsPaymentModalOpen(true);
+      return;
+    }
+
     setProcessingOrders(prev => ({ ...prev, [order.id]: true }));
     try {
       if (action === 'confirm') await orderService.confirm(order.id, order);
@@ -141,6 +157,42 @@ export default function KitchenDisplay() {
       toast.error(errorMessage);
     } finally {
       setProcessingOrders(prev => ({ ...prev, [order.id]: false }));
+    }
+  };
+
+  const handleProcessPayment = async () => {
+    if (!paymentOrder) return;
+    
+    setIsUpdating(true);
+    try {
+      const orderTotal = parseFloat(paymentOrder.total);
+      const paidAmount = parseFloat(paymentOrder.paid_amount || '0');
+      const remainingBalance = orderTotal - paidAmount;
+      
+      let finalPayAmount = parseFloat(amountTendered || '0');
+      if (paymentMethod === 'card' || finalPayAmount === 0 || finalPayAmount > remainingBalance) {
+        finalPayAmount = remainingBalance;
+      }
+
+      // 1. Add Payment
+      await orderService.addPayment(paymentOrder.id, {
+        method: paymentMethod,
+        amount: finalPayAmount.toFixed(2),
+        idempotency_key: `KITCHEN-${Date.now()}`,
+      });
+
+      // 2. Complete Order
+      await orderService.complete(paymentOrder.id, paymentOrder);
+
+      toast.success('Order paid and completed!');
+      setIsPaymentModalOpen(false);
+      setPaymentOrder(null);
+      await fetchOrdersAndProducts(true);
+    } catch (error: any) {
+      console.error('Payment processing failed', error);
+      toast.error('Failed to process payment and complete order');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -409,6 +461,94 @@ export default function KitchenDisplay() {
           </div>
         )}
       </div>
+
+      {/* Payment Modal */}
+      <Modal
+        isOpen={isPaymentModalOpen}
+        onClose={() => !isUpdating && setIsPaymentModalOpen(false)}
+        title="Process Payment & Finalize"
+        size="md"
+      >
+        {paymentOrder && (
+          <div className="space-y-6">
+            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6 text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#808080] mb-2">Total Amount Due</p>
+              <h2 className="text-4xl font-black text-white tracking-tighter">
+                Rs. {(parseFloat(paymentOrder.total) - parseFloat(paymentOrder.paid_amount || '0')).toFixed(2)}
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {(['cash', 'card', 'other'] as const).map((method) => (
+                <button
+                  key={method}
+                  onClick={() => setPaymentMethod(method)}
+                  className={`
+                    flex flex-col items-center justify-center p-4 rounded-xl border transition-all duration-300 gap-2
+                    ${paymentMethod === method 
+                      ? 'bg-primary/10 border-primary text-white shadow-[0_0_30px_rgba(212,175,55,0.2)]' 
+                      : 'bg-white/5 border-white/5 text-[#808080] hover:bg-white/10 hover:border-white/10'
+                    }
+                  `}
+                >
+                  {method === 'cash' ? <Banknote className="w-6 h-6" /> : 
+                   method === 'card' ? <CreditCard className="w-6 h-6" /> : 
+                   <RefreshCw className="w-6 h-6" />}
+                  <span className="text-[10px] font-black uppercase tracking-widest">{method}</span>
+                </button>
+              ))}
+            </div>
+
+            {paymentMethod === 'cash' && (
+              <div className="space-y-2 animate-fade-in">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#808080] px-1">Amount Tendered</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#666] font-bold">Rs.</span>
+                  <input
+                    type="number"
+                    value={amountTendered}
+                    onChange={(e) => setAmountTendered(e.target.value)}
+                    placeholder={(parseFloat(paymentOrder.total) - parseFloat(paymentOrder.paid_amount || '0')).toFixed(2)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white font-bold focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                  />
+                </div>
+                {parseFloat(amountTendered || '0') > (parseFloat(paymentOrder.total) - parseFloat(paymentOrder.paid_amount || '0')) && (
+                  <div className="flex items-center justify-between px-1 text-success animate-scale-in">
+                    <span className="text-[10px] font-black uppercase tracking-widest">Change Return</span>
+                    <span className="text-lg font-black">
+                      Rs. {(parseFloat(amountTendered) - (parseFloat(paymentOrder.total) - parseFloat(paymentOrder.paid_amount || '0'))).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button
+              onClick={handleProcessPayment}
+              disabled={isUpdating}
+              className={`
+                w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] transition-all flex items-center justify-center gap-2 shadow-2xl
+                ${isUpdating 
+                  ? 'bg-white/5 text-[#444] cursor-not-allowed' 
+                  : 'bg-white text-black hover:bg-gray-100 active:scale-[0.98]'
+                }
+              `}
+            >
+              {isUpdating ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Process & Finalize Order
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </Modal>
 
       {/* Hidden Receipt for Printing */}
       <div className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none">
