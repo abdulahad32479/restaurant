@@ -7,6 +7,8 @@ export interface ExtraBranchSettings {
   receipt_logo?: string;
   receipt_logo_bottom?: string;
   payment_account?: string;
+  printer_ip?: string;
+  kitchen_printer_ip?: string;
 }
 
 const STORAGE_KEY_PREFIX = 'branch_extra_settings_';

@@ -674,7 +674,67 @@ const handleProcessPayment = async () => {
       setAmountTendered('');
       
       if (finalOrderForReceipt) {
-        setIsReceiptModalOpen(true);
+        const activeBranch = branches.find(b => b.id === selectedBranch);
+        const localSettings = localSettingsService.getForBranch(activeBranch?.id || '');
+        
+        const hasMainPrinter = !!localSettings.printer_ip;
+        const hasKitchenPrinter = !!localSettings.kitchen_printer_ip;
+
+        if (hasMainPrinter || hasKitchenPrinter) {
+          try {
+            toast.loading('Sending to printers...', { id: 'print-job' });
+            
+            const printJobs = [];
+            
+            if (hasMainPrinter) {
+              printJobs.push(
+                fetch('/api/print/receipt', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    order: finalOrderForReceipt,
+                    printerIp: localSettings.printer_ip,
+                    printerRole: 'main',
+                    businessName: activeBranch?.name,
+                    businessAddress: activeBranch?.address,
+                    businessPhone: activeBranch?.phone_number
+                  })
+                })
+              );
+            }
+            
+            if (hasKitchenPrinter) {
+              printJobs.push(
+                fetch('/api/print/receipt', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    order: finalOrderForReceipt,
+                    printerIp: localSettings.kitchen_printer_ip,
+                    printerRole: 'kitchen',
+                  })
+                })
+              );
+            }
+
+            const results = await Promise.all(printJobs);
+            
+            const failedJobs = await Promise.all(results.filter(r => !r.ok).map(r => r.json()));
+            
+            if (failedJobs.length > 0) {
+               throw new Error(failedJobs.map(f => f.error).join(', '));
+            } else {
+               toast.success('Printed successfully!', { id: 'print-job' });
+            }
+          } catch (printErr: any) {
+             console.error('Silent print failed:', printErr);
+             toast.error(`Silent print failed: ${printErr.message}. Falling back to browser print.`, { id: 'print-job' });
+             setIsReceiptModalOpen(true);
+          }
+        } else {
+          // Fallback to normal browser print dialog
+          setIsReceiptModalOpen(true);
+        }
       }
     } catch (error: any) {
       handleError(error);

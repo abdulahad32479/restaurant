@@ -7,7 +7,7 @@ import { Button } from '@/src/components/Button';
 import { Input, Select, TextArea } from '@/src/components/Input';
 import { Toggle } from '@/src/components/FormControls';
 import { Modal } from '@/src/components/Modal';
-import { Settings, User, Bell, Shield, Database, Printer, CreditCard, Plus, Download, Store, UserCircle, Edit, Trash2, Search, MapPin, Mail, Phone, Grid, FileText } from 'lucide-react';
+import { Settings, User, Bell, Shield, Database, Printer, CreditCard, Plus, Download, Store, UserCircle, Edit, Trash2, Search, MapPin, Mail, Phone, Grid, FileText, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/src/components/Badge';
 import { branchService } from '@/src/services/branch.service';
 import { customerService } from '@/src/services/customer.service';
@@ -77,7 +77,9 @@ export default function SettingsPage() {
     address: '',
     receipt_logo: '',
     receipt_logo_bottom: '',
-    payment_account: ''
+    payment_account: '',
+    printer_ip: '',
+    kitchen_printer_ip: ''
   });
 
   useEffect(() => {
@@ -90,7 +92,9 @@ export default function SettingsPage() {
         address: activeBranch.address || '',
         receipt_logo: local.receipt_logo || activeBranch.receipt_logo || '',
         receipt_logo_bottom: local.receipt_logo_bottom || '',
-        payment_account: local.payment_account || activeBranch.payment_account || ''
+        payment_account: local.payment_account || activeBranch.payment_account || '',
+        printer_ip: local.printer_ip || '',
+        kitchen_printer_ip: local.kitchen_printer_ip || ''
       });
     }
   }, [activeBranch]);
@@ -293,15 +297,17 @@ export default function SettingsPage() {
             try {
               setIsLoading(true);
               
-              // 1. Save local settings (logo, account)
+              // 1. Save local settings (logo, account, printer IPs)
               localSettingsService.saveForBranch(activeBranch.id, {
                 receipt_logo: generalForm.receipt_logo,
                 receipt_logo_bottom: generalForm.receipt_logo_bottom,
-                payment_account: generalForm.payment_account
+                payment_account: generalForm.payment_account,
+                printer_ip: generalForm.printer_ip,
+                kitchen_printer_ip: generalForm.kitchen_printer_ip
               });
 
               // 2. Save backend settings (name, email, address, etc.)
-              const { receipt_logo, receipt_logo_bottom, payment_account, ...backendFields } = generalForm;
+              const { receipt_logo, receipt_logo_bottom, payment_account, printer_ip, kitchen_printer_ip, ...backendFields } = generalForm;
               await branchService.patch(activeBranch.id, backendFields);
               
               toast.success('Settings saved successfully');
@@ -713,29 +719,52 @@ export default function SettingsPage() {
 
             {activeTab === 'printers' && (
               <div className="space-y-8 animate-in fade-in duration-500">
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center justify-between">
-                  Connected Printers
-                  <Button variant="secondary" size="sm" icon={<Plus className="w-4 h-4" />}>Add Printer</Button>
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                  <Printer className="w-5 h-5 text-accent" />
+                  Printer Hardware Setup
                 </h3>
-                <div className="space-y-4 text-white">
-                  {[
-                    { name: 'Kitchen Thermal 1', type: 'LAN', status: 'Online' },
-                    { name: 'Receipt Printer (Main)', type: 'USB', status: 'Online' },
-                    { name: 'Label Printer', type: 'WIFI', status: 'Offline' },
-                  ].map((printer, i) => (
-                    <div key={i} className="p-4 rounded-xl bg-secondary border border-base flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-lg ${printer.status === 'Online' ? 'bg-success/20 text-success' : 'bg-error/20 text-error'}`}>
-                          <Printer className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="font-bold">{printer.name}</p>
-                          <p className="text-xs text-tertiary">{printer.type} Connection</p>
-                        </div>
-                      </div>
-                      <Badge variant={printer.status === 'Online' ? 'success' : 'error'}>{printer.status}</Badge>
+                
+                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6">
+                  <h4 className="text-lg font-black text-white uppercase tracking-wider mb-4">Network Thermal Printer Setup</h4>
+                  <p className="text-sm text-tertiary mb-6">
+                    Bypass browser print dialogs completely by sending raw print commands directly over your local network. 
+                    Your thermal printer must be connected to your router (LAN/Wi-Fi) and have a dynamic or static IPv4 address.
+                  </p>
+                  
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Input 
+                        label="Main Printer IP (Cashier/Receipts)" 
+                        placeholder="e.g., 192.168.1.100" 
+                        value={generalForm.printer_ip || ''}
+                        onChange={(e) => setGeneralForm({ ...generalForm, printer_ip: e.target.value })}
+                        className="bg-[#0A0A0A] border-[#2A2A2A]"
+                      />
+                      <Input 
+                        label="Kitchen Printer IP (Orders/Dockets)" 
+                        placeholder="e.g., 192.168.1.101" 
+                        value={generalForm.kitchen_printer_ip || ''}
+                        onChange={(e) => setGeneralForm({ ...generalForm, kitchen_printer_ip: e.target.value })}
+                        className="bg-[#0A0A0A] border-[#2A2A2A]"
+                      />
                     </div>
-                  ))}
+                    
+                    <div className="p-4 bg-white/5 border border-base rounded-xl flex items-start gap-4">
+                        <AlertTriangle className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-bold text-white mb-1">Configuration Note</p>
+                          <p className="text-xs text-tertiary">When an IP address is provided here, the POS will prioritize standard network integration (TCP Port 9100) instantly without showing the browser dialog. If this field is blank, it falls back to the standard browser print dialog.</p>
+                        </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white/5 border border-base rounded-xl flex items-start gap-4">
+                    <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-white mb-1">Developer Notice</p>
+                      <p className="text-xs text-tertiary">Full silent automated printing integration within a hosted UI requires local hardware access. Please ensure QZ Tray or a local Node.js print-spooler microservice is running on your terminal.</p>
+                    </div>
                 </div>
               </div>
             )}
