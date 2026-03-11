@@ -25,6 +25,9 @@ export interface Branch {
   email?: string;
   phone_number: string;
   is_active: boolean;
+  receipt_logo?: string;
+  receipt_logo_bottom?: string;
+  payment_account?: string;
   created_at?: string;
   updated_at?: string;
 }

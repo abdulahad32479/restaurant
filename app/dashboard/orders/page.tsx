@@ -21,6 +21,7 @@ import { useReactToPrint } from 'react-to-print';
 import { Receipt } from '@/src/components/Receipt';
 import { KitchenReceipt } from '@/src/components/KitchenReceipt';
 import { useRef } from 'react';
+import { localSettingsService } from '@/src/services/local-settings.service';
 
 export default function Orders() {
   const router = useRouter();
@@ -234,9 +235,9 @@ export default function Orders() {
       key: 'id', 
       header: 'Order', 
       width: 'w-32',
-      render: (value: string) => (
+      render: (value: string, row: Order) => (
         <span className="font-mono text-xs text-white bg-white/5 px-2 py-1 rounded border border-base">
-          {value.substring(0, 8).toUpperCase()}
+          {row.order_number || value.substring(0, 8).toUpperCase()}
         </span>
       )
     },
@@ -260,13 +261,21 @@ export default function Orders() {
     { 
       key: 'table', 
       header: 'Table / Type',
-      render: (value: string, row: Order) => (
-        <span className="text-white font-bold">
-          {row.order_type === 'dine_in' 
-            ? `Table ${tables[value] || row.table_no || '?'}` 
-            : row.order_type.toUpperCase()}
-        </span>
-      )
+      render: (value: string, row: Order) => {
+        const isActive = ['confirmed', 'preparing', 'ready', 'served'].includes(row.status);
+        return (
+          <span className={`font-bold ${isActive ? 'text-error flex items-center gap-1.5' : 'text-white'}`}>
+            {row.order_type === 'dine_in' 
+              ? (
+                <>
+                  {isActive && <Store className="w-3.5 h-3.5" />}
+                  Table {tables[value] || row.table_no || '?'}
+                </>
+              )
+              : row.order_type.toUpperCase()}
+          </span>
+        );
+      }
     },
     {
       key: 'items',
@@ -788,7 +797,34 @@ export default function Orders() {
 
       {/* Hidden Receipt for Printing */}
       <div className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none">
-        {orderToPrint && <Receipt ref={receiptRef} order={orderToPrint} products={productsMap} />}
+        {orderToPrint && (
+          <Receipt 
+            ref={receiptRef} 
+            order={orderToPrint} 
+            products={productsMap} 
+            tables={tables}
+            logoUrl={(() => {
+              const bId = orderToPrint.branch;
+              const b = branches.find(b => b.id === bId);
+              const local = bId ? localSettingsService.getForBranch(bId) : {};
+              return local.receipt_logo || b?.receipt_logo;
+            })()}
+            logoUrlBottom={(() => {
+              const bId = orderToPrint.branch;
+              const local = bId ? localSettingsService.getForBranch(bId) : {};
+              return local.receipt_logo_bottom;
+            })()}
+            paymentAccount={(() => {
+              const bId = orderToPrint.branch;
+              const b = branches.find(b => b.id === bId);
+              const local = bId ? localSettingsService.getForBranch(bId) : {};
+              return local.payment_account || b?.payment_account;
+            })()}
+            businessName={branches.find(b => b.id === orderToPrint.branch)?.name}
+            businessAddress={branches.find(b => b.id === orderToPrint.branch)?.address}
+            businessPhone={branches.find(b => b.id === orderToPrint.branch)?.phone_number}
+          />
+        )}
         {kitchenPrintOrder && <KitchenReceipt ref={kitchenReceiptRef} order={kitchenPrintOrder} products={productsMap} />}
       </div>
 

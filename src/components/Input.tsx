@@ -7,10 +7,11 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
   icon?: React.ReactNode
   fullWidth?: boolean
+  helperText?: string
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, icon, fullWidth = true, ...props }, ref) => {
+  ({ className, label, icon, fullWidth = true, helperText, ...props }, ref) => {
     return (
       <div className={cn("flex flex-col gap-1.5", fullWidth && "w-full")}>
         {label && <label className="text-sm font-medium text-[#B3B3B3]">{label}</label>}
@@ -30,6 +31,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
         </div>
+        {helperText && <p className="text-[10px] text-[#808080] ml-1 mt-0.5">{helperText}</p>}
       </div>
     )
   }
@@ -39,10 +41,11 @@ Input.displayName = "Input"
 // --- TextArea ---
 interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string
+  helperText?: string
 }
 
 export const TextArea = React.forwardRef<HTMLTextAreaElement, TextAreaProps>(
-  ({ className, label, ...props }, ref) => {
+  ({ className, label, helperText, ...props }, ref) => {
     return (
       <div className="flex flex-col gap-1.5 w-full">
         {label && <label className="text-[10px] font-black uppercase tracking-[0.25em] text-[#808080] ml-1 mb-1.5">{label}</label>}
@@ -54,6 +57,7 @@ export const TextArea = React.forwardRef<HTMLTextAreaElement, TextAreaProps>(
           )}
           {...props}
         />
+        {helperText && <p className="text-[10px] text-[#808080] ml-1 mt-0.5">{helperText}</p>}
       </div>
     )
   }

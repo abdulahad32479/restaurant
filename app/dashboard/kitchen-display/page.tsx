@@ -96,7 +96,7 @@ export default function KitchenDisplay() {
       // Notify on new orders if not the first load (only for 'confirmed' orders typically)
       if (silent && sortedOrders.length > orders.length) {
         const hasNewConfirmed = sortedOrders.some(
-          o => o.status === 'confirmed' && !orders.some(old => old.id === o.id)
+          (o: Order) => o.status === 'confirmed' && !orders.some(old => old.id === o.id)
         );
         if (hasNewConfirmed) {
           toast.success(`New order received!`, { icon: '🔔' });

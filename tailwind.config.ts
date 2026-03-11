@@ -30,6 +30,22 @@ const config: Config = {
             muted: "var(--text-muted)",
           },
           border: "var(--border-color)",
+        },
+        success: {
+          DEFAULT: "var(--color-success)",
+          bg: "var(--color-success-bg)",
+        },
+        warning: {
+          DEFAULT: "var(--color-warning)",
+          bg: "var(--color-warning-bg)",
+        },
+        error: {
+          DEFAULT: "var(--color-error)",
+          bg: "var(--color-error-bg)",
+        },
+        info: {
+          DEFAULT: "var(--color-info)",
+          bg: "var(--color-info-bg)",
         }
       },
       borderRadius: {

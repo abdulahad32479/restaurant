@@ -7,7 +7,7 @@ import { Button } from '@/src/components/Button';
 import { Input, Select, TextArea } from '@/src/components/Input';
 import { Toggle } from '@/src/components/FormControls';
 import { Modal } from '@/src/components/Modal';
-import { Settings, User, Bell, Shield, Database, Printer, CreditCard, Plus, Download, Store, UserCircle, Edit, Trash2, Search, MapPin, Mail, Phone, Grid } from 'lucide-react';
+import { Settings, User, Bell, Shield, Database, Printer, CreditCard, Plus, Download, Store, UserCircle, Edit, Trash2, Search, MapPin, Mail, Phone, Grid, FileText } from 'lucide-react';
 import { Badge } from '@/src/components/Badge';
 import { branchService } from '@/src/services/branch.service';
 import { customerService } from '@/src/services/customer.service';
@@ -15,6 +15,7 @@ import { tableService } from '@/src/services/table.service';
 import { Branch, Customer, Table } from '@/src/types';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/src/context/AuthContext';
+import { localSettingsService } from '@/src/services/local-settings.service';
 
 const settingsTabs = [
   { id: 'general', label: 'General', icon: <Settings className="w-5 h-5" /> },
@@ -26,6 +27,7 @@ const settingsTabs = [
   { id: 'security', label: 'Security', icon: <Shield className="w-5 h-5" /> },
   { id: 'data', label: 'Data & Backup', icon: <Database className="w-5 h-5" /> },
   { id: 'printers', label: 'Printers', icon: <Printer className="w-5 h-5" /> },
+  { id: 'receipt', label: 'Receipt', icon: <FileText className="w-5 h-5" /> },
   { id: 'billing', label: 'Billing', icon: <CreditCard className="w-5 h-5" /> },
 ];
 
@@ -44,7 +46,17 @@ export default function SettingsPage() {
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [editingTableId, setEditingTableId] = useState<string | null>(null);
 
-  const [branchForm, setBranchForm] = useState({ name: '', address: '', city: '', phone_number: '', email: '', is_active: true });
+  const [branchForm, setBranchForm] = useState({ 
+    name: '', 
+    address: '', 
+    city: '', 
+    phone_number: '', 
+    email: '', 
+    is_active: true,
+    receipt_logo: '',
+    receipt_logo_bottom: '',
+    payment_account: ''
+  });
   const [customerForm, setCustomerForm] = useState({ name: '', phone: '', address: '', branch: '' });
   const [tableForm, setTableForm] = useState({ name: '', capacity: 4, branch: '', is_occupied: false, is_active: true });
   
@@ -58,15 +70,40 @@ export default function SettingsPage() {
     sessionTimeout: '30'
   });
 
+  const [generalForm, setGeneralForm] = useState({
+    name: '',
+    phone_number: '',
+    email: '',
+    address: '',
+    receipt_logo: '',
+    receipt_logo_bottom: '',
+    payment_account: ''
+  });
+
+  useEffect(() => {
+    if (activeBranch) {
+      const local = localSettingsService.getForBranch(activeBranch.id);
+      setGeneralForm({
+        name: activeBranch.name || '',
+        phone_number: activeBranch.phone_number || '',
+        email: activeBranch.email || '',
+        address: activeBranch.address || '',
+        receipt_logo: local.receipt_logo || activeBranch.receipt_logo || '',
+        receipt_logo_bottom: local.receipt_logo_bottom || '',
+        payment_account: local.payment_account || activeBranch.payment_account || ''
+      });
+    }
+  }, [activeBranch]);
+
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      if (activeTab === 'general' && user?.branch) {
+      if ((activeTab === 'general' || activeTab === 'receipt') && user?.branch) {
         const b = await branchService.getById(user.branch);
         setActiveBranch(b);
       }
       
-      if (activeTab === 'branches' || activeTab === 'customers' || activeTab === 'tables' || activeTab === 'general') {
+      if (['branches', 'customers', 'tables', 'general', 'receipt'].includes(activeTab)) {
         const [bData] = await Promise.all([
           branchService.getAll()
         ]);
@@ -79,6 +116,11 @@ export default function SettingsPage() {
           const tData = await tableService.getAll();
           setTables(tData);
         }
+
+        // If no active branch but we have branches, pick the first one as default to edit
+        if (!activeBranch && bData.length > 0) {
+          setActiveBranch(bData[0]);
+        }
       }
     } catch (error) {
       toast.error(`Failed to load data for ${activeTab}`);
@@ -90,7 +132,7 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, user?.branch]);
 
   const handleCreateBranch = async () => {
     try {
@@ -99,7 +141,17 @@ export default function SettingsPage() {
       const data = await branchService.getAll();
       setBranches(data);
       setIsBranchModalOpen(false);
-      setBranchForm({ name: '', address: '', city: '', phone_number: '', email: '', is_active: true });
+      setBranchForm({ 
+        name: '', 
+        address: '', 
+        city: '', 
+        phone_number: '', 
+        email: '', 
+        is_active: true,
+        receipt_logo: '',
+        receipt_logo_bottom: '',
+        payment_account: ''
+      });
       toast.success('Branch created');
     } catch (e) {
       console.error('Failed to create branch', e);
@@ -113,12 +165,30 @@ export default function SettingsPage() {
     if (!editingBranchId) return;
     try {
       setIsLoading(true);
-      await branchService.update(editingBranchId, branchForm);
+      // Save local settings if they were updated in the form
+      localSettingsService.saveForBranch(editingBranchId, {
+        receipt_logo: branchForm.receipt_logo,
+        receipt_logo_bottom: branchForm.receipt_logo_bottom,
+        payment_account: branchForm.payment_account
+      });
+
+      const { receipt_logo, receipt_logo_bottom, payment_account, ...backendFields } = branchForm;
+      await branchService.update(editingBranchId, backendFields);
       const data = await branchService.getAll();
       setBranches(data);
       setIsBranchModalOpen(false);
       setEditingBranchId(null);
-      setBranchForm({ name: '', address: '', city: '', phone_number: '', email: '', is_active: true });
+      setBranchForm({ 
+        name: '', 
+        address: '', 
+        city: '', 
+        phone_number: '', 
+        email: '', 
+        is_active: true,
+        receipt_logo: '',
+        receipt_logo_bottom: '',
+        payment_account: ''
+      });
       toast.success('Branch updated');
     } catch (e) {
       console.error('Failed to update branch', e);
@@ -212,7 +282,40 @@ export default function SettingsPage() {
           <h1 className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter mb-1">Settings</h1>
           <p className="text-sm md:text-base text-tertiary">Manage system configuration and preferences</p>
         </div>
-        <Button variant="primary" size="sm">Save All Changes</Button>
+        <Button 
+          variant="primary" 
+          size="sm" 
+          onClick={async () => {
+            if (!activeBranch) {
+              toast.error('No active branch selected to save settings');
+              return;
+            }
+            try {
+              setIsLoading(true);
+              
+              // 1. Save local settings (logo, account)
+              localSettingsService.saveForBranch(activeBranch.id, {
+                receipt_logo: generalForm.receipt_logo,
+                receipt_logo_bottom: generalForm.receipt_logo_bottom,
+                payment_account: generalForm.payment_account
+              });
+
+              // 2. Save backend settings (name, email, address, etc.)
+              const { receipt_logo, receipt_logo_bottom, payment_account, ...backendFields } = generalForm;
+              await branchService.patch(activeBranch.id, backendFields);
+              
+              toast.success('Settings saved successfully');
+              fetchData();
+            } catch (error) {
+              toast.error('Failed to save settings');
+            } finally {
+              setIsLoading(false);
+            }
+          }}
+          isLoading={isLoading}
+        >
+          Save All Changes
+        </Button>
       </div>
       
       <div className="flex flex-col lg:flex-row gap-6 md:gap-8">
@@ -248,12 +351,28 @@ export default function SettingsPage() {
                     Restaurant Information
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <Input label="Restaurant Name" defaultValue={activeBranch?.name || "Duke's Diner"} key={activeBranch?.id + 'name'} />
-                    <Input label="Branch ID" defaultValue={activeBranch?.id || "BR-001"} disabled key={activeBranch?.id + 'id'} />
-                    <Input label="Phone Number" defaultValue={activeBranch?.phone_number || "+1 (555) 123-4567"} key={activeBranch?.id + 'phone'} />
-                    <Input label="Email" defaultValue={activeBranch?.email || "contact@dukesdiner.com"} key={activeBranch?.id + 'email'} />
+                    <Input 
+                      label="Restaurant Name" 
+                      value={generalForm.name} 
+                      onChange={(e) => setGeneralForm({...generalForm, name: e.target.value})}
+                    />
+                    <Input label="Branch ID" defaultValue={activeBranch?.id || "BR-001"} disabled />
+                    <Input 
+                      label="Phone Number" 
+                      value={generalForm.phone_number} 
+                      onChange={(e) => setGeneralForm({...generalForm, phone_number: e.target.value})}
+                    />
+                    <Input 
+                      label="Email" 
+                      value={generalForm.email} 
+                      onChange={(e) => setGeneralForm({...generalForm, email: e.target.value})}
+                    />
                     <div className="md:col-span-2">
-                      <Input label="Business Address" defaultValue={activeBranch?.address || "123 Main St, New York, NY 10001"} key={activeBranch?.id + 'address'} />
+                      <Input 
+                        label="Business Address" 
+                        value={generalForm.address} 
+                        onChange={(e) => setGeneralForm({...generalForm, address: e.target.value})}
+                      />
                     </div>
                   </div>
                 </div>
@@ -312,7 +431,18 @@ export default function SettingsPage() {
                             className="p-2 text-tertiary hover:text-white"
                             onClick={() => {
                               setEditingBranchId(branch.id);
-                              setBranchForm({ name: branch.name || '', address: branch.address || '', city: branch.city || '', phone_number: branch.phone_number || '', email: branch.email || '', is_active: !!branch.is_active });
+                              const local = localSettingsService.getForBranch(branch.id);
+                              setBranchForm({ 
+                                name: branch.name || '', 
+                                address: branch.address || '', 
+                                city: branch.city || '', 
+                                phone_number: branch.phone_number || '', 
+                                email: branch.email || '', 
+                                is_active: !!branch.is_active,
+                                receipt_logo: local.receipt_logo || branch.receipt_logo || '',
+                                receipt_logo_bottom: local.receipt_logo_bottom || branch.receipt_logo_bottom || '',
+                                payment_account: local.payment_account || branch.payment_account || ''
+                              });
                               setIsBranchModalOpen(true);
                             }}
                           >
@@ -699,6 +829,90 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+            {activeTab === 'receipt' && (
+              <div className="space-y-8 animate-in fade-in duration-500">
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-accent" />
+                    Receipt Customization
+                  </h3>
+                  <p className="text-sm text-tertiary mb-8">Personalize your customer receipts with logo and payment details.</p>
+                  
+                  <div className="grid grid-cols-1 gap-8">
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-accent uppercase tracking-wider">Header Configuration</h4>
+                      <Input 
+                        label="Logo URL (Top)" 
+                        value={generalForm.receipt_logo} 
+                        onChange={(e) => setGeneralForm({ ...generalForm, receipt_logo: e.target.value })} 
+                        placeholder="https://example.com/logo-top.png"
+                        helperText="The main logo displayed at the top of every receipt."
+                      />
+                      
+                      {generalForm.receipt_logo && (
+                        <div className="mt-2 p-4 bg-white/5 border border-base rounded-xl flex items-center gap-4">
+                          <img src={generalForm.receipt_logo} alt="Preview" className="h-12 w-auto object-contain bg-white p-1 rounded" />
+                          <span className="text-xs text-tertiary uppercase font-black">Logo Preview (Top)</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-4 pt-6 border-t border-base">
+                      <h4 className="text-sm font-bold text-accent uppercase tracking-wider">Footer & Payment Info</h4>
+                      <Input 
+                        label="Logo URL (Bottom)" 
+                        value={generalForm.receipt_logo_bottom} 
+                        onChange={(e) => setGeneralForm({ ...generalForm, receipt_logo_bottom: e.target.value })} 
+                        placeholder="https://example.com/logo-bottom.png"
+                        helperText="A smaller logo displayed at the very bottom of the receipt."
+                      />
+                      {generalForm.receipt_logo_bottom && (
+                        <div className="mt-2 p-4 bg-white/5 border border-base rounded-xl flex items-center gap-4">
+                          <img src={generalForm.receipt_logo_bottom} alt="Preview" className="h-12 w-auto object-contain bg-white p-1 rounded" />
+                          <span className="text-xs text-tertiary uppercase font-black">Logo Preview (Bottom)</span>
+                        </div>
+                      )}
+                      <TextArea 
+                        label="Account / Payment Details" 
+                        value={generalForm.payment_account} 
+                        onChange={(e) => setGeneralForm({ ...generalForm, payment_account: e.target.value })} 
+                        placeholder="Bank: HBL, Account: 1234..."
+                        rows={3}
+                        helperText="Displayed in the footer for customer reference."
+                      />
+                    </div>
+
+                    {/* Receipt Preview */}
+                    <div className="pt-6 border-t border-base">
+                      <h4 className="text-sm font-bold text-accent uppercase tracking-wider mb-6">Visual Preview</h4>
+                      <div className="bg-white p-6 rounded-xl max-w-[300px] mx-auto shadow-2xl scale-90 md:scale-100 origin-top">
+                         <div className="text-center text-black font-mono text-xs">
+                            {generalForm.receipt_logo && <img src={generalForm.receipt_logo} className="h-8 mx-auto mb-2 opacity-50 grayscale" />}
+                            <p className="font-bold text-sm uppercase">{generalForm.name || "RESTAURANT NAME"}</p>
+                            <p className="text-[10px]">{generalForm.address || "123 Business Street"}</p>
+                            <div className="my-4 border-y border-dashed border-gray-400 py-2">
+                              <div className="flex justify-between"><span>ORDER #</span><span>ORD-001</span></div>
+                            </div>
+                            <div className="space-y-1 mb-4">
+                               <div className="flex justify-between"><span>1x Sample Item</span><span>Rs. 100</span></div>
+                            </div>
+                            <div className="border-t border-gray-800 pt-2 font-bold flex justify-between">
+                               <span>TOTAL</span><span>Rs. 100.00</span>
+                            </div>
+                            {generalForm.payment_account && (
+                              <div className="mt-4 p-1.5 bg-gray-100 rounded border border-gray-200">
+                                <p className="font-bold text-[8px] text-gray-400">PAYMENT INFO</p>
+                                <p className="text-[10px] whitespace-pre-wrap">{generalForm.payment_account}</p>
+                              </div>
+                            )}
+                            <p className="mt-4 text-[9px]">Thank you for your visit!</p>
+                         </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </Card>
         </div>
       </div>
@@ -723,6 +937,24 @@ export default function SettingsPage() {
           <Input label="Address" value={branchForm.address} onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })} />
           <Input label="Phone" value={branchForm.phone_number} onChange={(e) => setBranchForm({ ...branchForm, phone_number: e.target.value })} />
           <Input label="Email" value={branchForm.email} onChange={(e) => setBranchForm({ ...branchForm, email: e.target.value })} />
+          <Input 
+            label="Logo URL (Top)" 
+            value={branchForm.receipt_logo} 
+            onChange={(e) => setBranchForm({ ...branchForm, receipt_logo: e.target.value })} 
+            placeholder="https://example.com/logo.png"
+          />
+          <Input 
+            label="Logo URL (Bottom)" 
+            value={branchForm.receipt_logo_bottom} 
+            onChange={(e) => setBranchForm({ ...branchForm, receipt_logo_bottom: e.target.value })} 
+            placeholder="https://example.com/logo-bottom.png"
+          />
+          <TextArea 
+            label="Payment Account" 
+            value={branchForm.payment_account} 
+            onChange={(e) => setBranchForm({ ...branchForm, payment_account: e.target.value })} 
+            placeholder="Account details to show on receipt..."
+          />
         </div>
       </Modal>
 

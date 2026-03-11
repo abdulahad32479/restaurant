@@ -22,7 +22,7 @@ export const KitchenReceipt = forwardRef<HTMLDivElement, KitchenReceiptProps>(
     return (
       <div 
         ref={ref} 
-        className="bg-white text-black p-4 font-mono text-base max-w-[320px] mx-auto border border-dashed border-gray-300"
+        className="bg-white text-black p-4 md:p-5 font-mono text-base max-w-[320px] mx-auto border border-gray-200 shadow-sm print:shadow-none print:border-none"
       >
         {/* Header - Order Identity */}
         <div className="text-center mb-4 border-b-2 border-black pb-2">
@@ -55,7 +55,7 @@ export const KitchenReceipt = forwardRef<HTMLDivElement, KitchenReceiptProps>(
             </div>
           )}
 
-          <div className="flex justify-between text-xs px-1 italic">
+          <div className="flex justify-between text-xs px-1 italic text-gray-700">
             <span>Time</span>
             <span>{formatDate(order.created_at)}</span>
           </div>
@@ -68,7 +68,7 @@ export const KitchenReceipt = forwardRef<HTMLDivElement, KitchenReceiptProps>(
           )}
 
           {order.created_by && (
-            <div className="flex justify-between text-[10px] px-1 font-normal opacity-80">
+            <div className="flex justify-between text-[10px] px-1 font-normal opacity-80 text-black">
               <span>Staff</span>
               <span className="truncate max-w-[150px] text-right">
                 {users[order.created_by] || order.created_by}
@@ -77,7 +77,7 @@ export const KitchenReceipt = forwardRef<HTMLDivElement, KitchenReceiptProps>(
           )}
 
           {order.delivery_info && (order.delivery_info.phone || order.delivery_info.address) && (
-            <div className="mt-1 pt-1 border-t border-dashed border-gray-400 text-sm font-normal">
+            <div className="mt-1 pt-1 border-t border-dashed border-gray-400 text-sm font-normal text-black">
               {order.delivery_info.phone && <p>Phone: {order.delivery_info.phone}</p>}
               {order.delivery_info.address && <p className="leading-tight mt-0.5">Add: {order.delivery_info.address}</p>}
             </div>

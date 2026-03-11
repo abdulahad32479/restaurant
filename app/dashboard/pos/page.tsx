@@ -24,6 +24,7 @@ import { KitchenReceipt } from '@/src/components/KitchenReceipt';
 import { useRef } from 'react';
 import toast from 'react-hot-toast';
 import { getImageUrl, cn } from '@/src/lib/utils';
+import { localSettingsService } from '@/src/services/local-settings.service';
 import { ConfirmModal } from '@/src/components/ConfirmModal';
 
 export default function POS() {
@@ -1076,25 +1077,25 @@ const handleProcessPayment = async () => {
               <Button 
                 variant={editingOrder && editingOrder.status !== 'draft' ? "primary" : "outline"}
                 className={`${editingOrder && editingOrder.status !== 'draft' ? 'text-white' : 'text-[#808080] border-[#2A2A2A]'} hover:bg-[#2A2A2A] hover:text-white font-black h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2 flex-1`}
-                disabled={cart.length === 0 || isProcessing}
+                disabled={cart.length === 0 || !!isProcessing}
                 onClick={handleSaveDraft}
-                isLoading={isProcessing}
+                isLoading={!!isProcessing}
               >
                 {editingOrder ? (editingOrder.status === 'draft' ? 'Save Draft' : 'Update Order') : 'Draft'}
               </Button>
               <Button 
                 variant="outline" 
                 className="text-primary border-primary/20 hover:bg-primary/10 font-black h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2 flex-1"
-                disabled={cart.length === 0 || isProcessing || (editingOrder && editingOrder.status !== 'draft')}
+                disabled={cart.length === 0 || !!isProcessing || !!(editingOrder && editingOrder.status !== 'draft')}
                 onClick={handleConfirmOrder}
-                isLoading={isProcessing}
+                isLoading={!!isProcessing}
               >
                 {editingOrder && editingOrder.status !== 'draft' ? 'Confirmed' : 'Confirm'}
               </Button>
               <Button 
                 variant="primary" 
                 className="text-white font-black h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] shadow-xl shadow-primary/20 rounded-xl px-2"
-                disabled={cart.length === 0 || isProcessing}
+                disabled={cart.length === 0 || !!isProcessing}
                 onClick={handleCheckoutClick}
               >
                 Checkout
@@ -1379,7 +1380,16 @@ const handleProcessPayment = async () => {
               label="Phone Number"
               placeholder="e.g. 03001234567"
               value={deliveryInfo.phone}
-              onChange={(e) => setDeliveryInfo({ ...deliveryInfo, phone: e.target.value })}
+              onChange={(e) => {
+                const newPhone = e.target.value;
+                const match = customers.find(c => c.phone === newPhone);
+                if (match) {
+                  setDeliveryInfo({ name: match.name, phone: newPhone, address: match.address || '' });
+                  if (match.id) setSelectedCustomer(match.id);
+                } else {
+                  setDeliveryInfo({ ...deliveryInfo, phone: newPhone });
+                }
+              }}
               className="bg-[#0A0A0A] border-[#2A2A2A]"
               icon={<Phone className="w-4 h-4" />}
             />
@@ -1497,13 +1507,13 @@ const handleProcessPayment = async () => {
               </span>
             </div>
             <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-widest">
-              <span className="flex items-center gap-1.5 text-success">
-                <span className="w-2 h-2 rounded-full bg-success" />
-                Available
+              <span className="flex items-center gap-1.5 text-emerald-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                AVAILABLE
               </span>
-              <span className="flex items-center gap-1.5 text-error">
-                <span className="w-2 h-2 rounded-full bg-error" />
-                Occupied
+              <span className="flex items-center gap-1.5 text-red-400">
+                <span className="w-2 h-2 rounded-full bg-red-500" />
+                OCCUPIED
               </span>
             </div>
           </div>
@@ -1540,23 +1550,23 @@ const handleProcessPayment = async () => {
                       }}
                       className={`relative flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 group
                         ${isSelected
-                          ? 'bg-primary/10 border-primary shadow-[0_0_20px_rgba(212,175,55,0.15)] scale-[1.02]'
+                          ? 'bg-primary/20 border-primary shadow-[0_0_20px_rgba(212,175,55,0.2)] scale-[1.02]'
                           : isOccupied
-                            ? 'bg-error/5 border-error/30 hover:border-error/50'
-                            : 'bg-[#1A1A1A] border-[#2A2A2A] hover:border-primary/30 hover:bg-primary/5'
+                            ? 'bg-red-500 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)]'
+                            : 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
                         }
                       `}
                     >
                       {/* Status dot */}
-                      <span className={`absolute top-2 right-2 w-2.5 h-2.5 rounded-full ${isOccupied ? 'bg-error animate-pulse' : 'bg-success'} ${!isOccupied && !isSelected ? 'animate-pulse' : ''}`} />
+                      <span className={`absolute top-2 right-2 w-2.5 h-2.5 rounded-full ${isOccupied ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} ${!isOccupied && !isSelected ? 'animate-pulse' : ''}`} />
 
                       {/* Table icon/number */}
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black transition-all
                         ${isSelected 
-                          ? 'bg-primary/20 text-primary' 
+                          ? 'bg-primary/30 text-primary' 
                           : isOccupied 
-                            ? 'bg-error/10 text-error' 
-                            : 'bg-white/5 text-white group-hover:bg-primary/10 group-hover:text-primary'
+                            ? 'bg-white/20 text-white' 
+                            : 'bg-emerald-500/20 text-emerald-500'
                         }
                       `}>
                         <Store className="w-6 h-6" />
@@ -1564,19 +1574,19 @@ const handleProcessPayment = async () => {
 
                       {/* Table name */}
                       <span className={`text-[11px] font-black uppercase tracking-wider truncate w-full text-center
-                        ${isSelected ? 'text-primary' : isOccupied ? 'text-error' : 'text-white'}
+                        ${isSelected ? 'text-primary' : isOccupied ? 'text-white' : 'text-emerald-400'}
                       `}>
                         {table.name}
                       </span>
 
                       {/* Occupied badge or Capacity */}
                       {isOccupied ? (
-                        <span className="text-[8px] font-black uppercase tracking-widest bg-error/15 text-error px-2.5 py-0.5 rounded-full border border-error/20">
-                          ● Occupied
+                        <span className="text-[9px] font-black uppercase tracking-widest bg-white/20 text-white px-3 py-1 rounded-full border border-white/30">
+                          ● OCCUPIED
                         </span>
                       ) : (
-                        <span className="text-[9px] font-bold text-[#505050] uppercase tracking-widest">
-                          {table.capacity} Seats
+                        <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-500 px-3 py-1 rounded-full border border-emerald-500/30">
+                          ● AVAILABLE
                         </span>
                       )}
 
@@ -1706,7 +1716,7 @@ const handleProcessPayment = async () => {
                 <div key={order.id} className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl p-4 flex flex-col gap-3">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-wider text-white">Order {order.id.substring(0,6)}</p>
+                      <p className="text-xs font-black uppercase tracking-wider text-white">Order {order.order_number || order.id.substring(0,6)}</p>
                       <p className="text-[10px] text-tertiary mt-0.5">{order.order_type.replace('_', ' ').toUpperCase()} • {
                         order.order_type === 'dine_in' ? `Table ${order.table_no || order.table}` : (order.delivery_info?.name || 'Walk-in')
                       }</p>
@@ -1804,6 +1814,23 @@ const handleProcessPayment = async () => {
             tables={Object.fromEntries(tables.map(t => [t.id, t.name]))}
             customers={Object.fromEntries(customers.map(c => [c.id, c.name]))}
             users={users}
+            logoUrl={(() => {
+              const bId = completedOrder.branch || selectedBranch;
+              const b = branches.find(b => b.id === bId) || branches[0];
+              const local = bId ? localSettingsService.getForBranch(bId) : {};
+              return local.receipt_logo || b?.receipt_logo;
+            })()}
+            logoUrlBottom={(() => {
+              const bId = completedOrder.branch || selectedBranch;
+              const local = bId ? localSettingsService.getForBranch(bId) : {};
+              return local.receipt_logo_bottom;
+            })()}
+            paymentAccount={(() => {
+              const bId = completedOrder.branch || selectedBranch;
+              const b = branches.find(b => b.id === bId) || branches[0];
+              const local = bId ? localSettingsService.getForBranch(bId) : {};
+              return local.payment_account || b?.payment_account;
+            })()}
           />
         )}
         {kitchenPrintOrder && (
