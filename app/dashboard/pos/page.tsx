@@ -1068,22 +1068,22 @@ const handleProcessPayment = async () => {
             
             <div className="p-4 grid grid-cols-3 gap-2">
               <Button 
-                variant="outline" 
-                className="text-[#808080] border-[#2A2A2A] hover:bg-[#2A2A2A] hover:text-white font-black h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2"
+                variant={editingOrder && editingOrder.status !== 'draft' ? "primary" : "outline"}
+                className={`${editingOrder && editingOrder.status !== 'draft' ? 'text-white' : 'text-[#808080] border-[#2A2A2A]'} hover:bg-[#2A2A2A] hover:text-white font-black h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2 flex-1`}
                 disabled={cart.length === 0 || isProcessing}
                 onClick={handleSaveDraft}
                 isLoading={isProcessing}
               >
-                {editingOrder ? 'Update' : 'Draft'}
+                {editingOrder ? (editingOrder.status === 'draft' ? 'Save Draft' : 'Update Order') : 'Draft'}
               </Button>
               <Button 
                 variant="outline" 
-                className="text-primary border-primary/20 hover:bg-primary/10 font-black h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2"
-                disabled={cart.length === 0 || isProcessing}
+                className="text-primary border-primary/20 hover:bg-primary/10 font-black h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2 flex-1"
+                disabled={cart.length === 0 || isProcessing || (editingOrder && editingOrder.status !== 'draft')}
                 onClick={handleConfirmOrder}
                 isLoading={isProcessing}
               >
-                Confirm
+                {editingOrder && editingOrder.status !== 'draft' ? 'Confirmed' : 'Confirm'}
               </Button>
               <Button 
                 variant="primary" 
@@ -1681,7 +1681,20 @@ const handleProcessPayment = async () => {
                       <Button variant="primary" className="w-full text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'confirm')} disabled={isUpdatingStatus===order.id}>Confirm</Button>
                     )}
                     {order.status === 'confirmed' && (
-                      <Button variant="primary" className="w-full text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'prepare')} disabled={isUpdatingStatus===order.id}>Start Cooking</Button>
+                      <div className="flex gap-2 w-full">
+                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'prepare')} disabled={isUpdatingStatus===order.id}>Start Cooking</Button>
+                        <Button 
+                          variant="primary" 
+                          className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 border-emerald-500" 
+                          onClick={() => {
+                            loadOrderForEditing(order);
+                            setIsActiveOrdersModalOpen(false);
+                            setTimeout(() => setIsPaymentModalOpen(true), 100);
+                          }}
+                        >
+                          Checkout
+                        </Button>
+                      </div>
                     )}
                     {order.status === 'preparing' && (
                       <Button variant="primary" className="w-full text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'ready')} disabled={isUpdatingStatus===order.id}>Mark Ready</Button>
