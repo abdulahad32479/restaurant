@@ -2,15 +2,24 @@ import apiClient from '../lib/axios';
 import { Order, OrderItem, Payment } from '../types';
 
 export const orderService = {
-  getAll: async (status?: string | string[]) => {
+  getAll: async (status?: string | string[], limit?: number) => {
     let url = 'v1/orders/';
+    const params: string[] = [];
+    
     if (status) {
       if (Array.isArray(status)) {
-        const params = status.map(s => `status=${s}`).join('&');
-        url += `?${params}`;
+        status.forEach(s => params.push(`status=${s}`));
       } else {
-        url += `?status=${status}`;
+        params.push(`status=${status}`);
       }
+    }
+    
+    if (limit) {
+      params.push(`limit=${limit}`);
+    }
+    
+    if (params.length > 0) {
+      url += `?${params.join('&')}`;
     }
     const response = await apiClient.get<any>(url);
     // Handle both direct array and DRF paginated response

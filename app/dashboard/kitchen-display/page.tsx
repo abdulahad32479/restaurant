@@ -53,7 +53,7 @@ export default function KitchenDisplay() {
       const { customerService } = await import('@/src/services/customer.service');
       const { userService } = await import('@/src/services/user.service');
       const [orderData, productData, tableData, customerData, userData] = await Promise.all([
-        orderService.getAll(), // Fetch all to be safe and filter on frontend
+        orderService.getAll(undefined, 1000), // Fetch all to be safe and filter on frontend
         productService.getAll(1000),
         tableService.getAll(),
         customerService.getAll().catch(() => []),

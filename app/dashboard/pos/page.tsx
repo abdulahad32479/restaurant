@@ -142,7 +142,7 @@ export default function POS() {
           categoryService.getAll(),
           branchService.getAll(),
           tableService.getAll(),
-          orderService.getAll(),
+          orderService.getAll(undefined, 1000),
           customerService.getAll().catch(() => []),
           userService.getAll().catch(() => [])
         ]);
@@ -312,11 +312,23 @@ export default function POS() {
       else if (action === 'cancel') await orderService.cancel(order.id, { ...payload, notes: 'Cancelled from POS' });
       
       toast.success(`Order ${action}ed successfully`);
-      const oData = await orderService.getAll();
+      const oData = await orderService.getAll(undefined, 1000);
       setActiveOrders(oData.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
     } catch (e: any) {
       console.error('Update status failed', e);
-      toast.error('Failed to update order status');
+      const errorData = e.response?.data;
+      let errorMessage = 'Failed to update order status';
+      
+      if (typeof errorData === 'object' && errorData !== null) {
+        if (errorData.detail) errorMessage = errorData.detail;
+        else errorMessage = Object.entries(errorData)
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : JSON.stringify(v)}`)
+          .join(' | ');
+      } else if (typeof errorData === 'string') {
+        errorMessage = errorData;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsUpdatingStatus(null);
     }
