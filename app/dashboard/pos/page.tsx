@@ -23,7 +23,7 @@ import { Receipt } from '@/src/components/Receipt';
 import { KitchenReceipt } from '@/src/components/KitchenReceipt';
 import { useRef } from 'react';
 import toast from 'react-hot-toast';
-import { getImageUrl } from '@/src/lib/utils';
+import { getImageUrl, cn } from '@/src/lib/utils';
 import { ConfirmModal } from '@/src/components/ConfirmModal';
 
 export default function POS() {
@@ -39,6 +39,12 @@ export default function POS() {
   const [isActiveOrdersModalOpen, setIsActiveOrdersModalOpen] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [isFinalizingFromModal, setIsFinalizingFromModal] = useState(false);
+  
+  // Printer state
+  const [isPrintOptionsModalOpen, setIsPrintOptionsModalOpen] = useState(false);
+  const [orderToPrint, setOrderToPrint] = useState<Order | null>(null);
+  const [printKitchen, setPrintKitchen] = useState(true);
+  const [printMain, setPrintMain] = useState(true);
 
   // Data state
   const [products, setProducts] = useState<Product[]>([]);
@@ -1241,9 +1247,93 @@ const handleProcessPayment = async () => {
               variant="primary" 
               className="px-10 py-7 h-auto min-w-[180px] font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl shadow-primary/30 rounded-2xl"
               icon={<Printer className="w-4 h-4" />}
-              onClick={() => handlePrint()}
+              onClick={() => {
+                setOrderToPrint(completedOrder);
+                setIsPrintOptionsModalOpen(true);
+              }}
             >
-              Print Document
+              Print Options
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Printer Selection Modal */}
+      <Modal
+        isOpen={isPrintOptionsModalOpen}
+        onClose={() => setIsPrintOptionsModalOpen(false)}
+        title="Print Options"
+        size="sm"
+      >
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <div 
+              onClick={() => setPrintKitchen(!printKitchen)}
+              className={cn(
+                "p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between group",
+                printKitchen ? "bg-primary/10 border-primary shadow-glow-primary" : "bg-[#1A1A1A] border-[#2A2A2A] hover:border-[#404040]"
+              )}
+            >
+              <div className="flex items-center gap-4">
+                <div className={cn("p-2.5 rounded-lg", printKitchen ? "bg-primary text-white" : "bg-white/5 text-[#808080]")}>
+                  <Printer className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className={cn("font-bold text-sm uppercase tracking-wider", printKitchen ? "text-primary" : "text-white")}>Kitchen Thermal 1</p>
+                  <p className="text-[10px] text-tertiary uppercase tracking-widest font-black">LAN Connection • Online</p>
+                </div>
+              </div>
+              <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all", printKitchen ? "border-primary bg-primary" : "border-[#404040]")}>
+                {printKitchen && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+              </div>
+            </div>
+
+            <div 
+              onClick={() => setPrintMain(!printMain)}
+              className={cn(
+                "p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between group",
+                printMain ? "bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]" : "bg-[#1A1A1A] border-[#2A2A2A] hover:border-[#404040]"
+              )}
+            >
+              <div className="flex items-center gap-4">
+                <div className={cn("p-2.5 rounded-lg", printMain ? "bg-emerald-500 text-white" : "bg-white/5 text-[#808080]")}>
+                  <Printer className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className={cn("font-bold text-sm uppercase tracking-wider", printMain ? "text-emerald-500" : "text-white")}>Receipt Printer (Main)</p>
+                  <p className="text-[10px] text-tertiary uppercase tracking-widest font-black">USB Connection • Online</p>
+                </div>
+              </div>
+              <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all", printMain ? "border-emerald-500 bg-emerald-500" : "border-[#404040]")}>
+                {printMain && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-[#2A2A2A]">
+            <Button variant="outline" fullWidth onClick={() => setIsPrintOptionsModalOpen(false)} className="h-12 uppercase tracking-widest text-[10px] font-black rounded-xl">
+              Cancel
+            </Button>
+            <Button 
+              variant="primary" 
+              fullWidth
+              disabled={!printKitchen && !printMain}
+              onClick={() => {
+                if (orderToPrint) {
+                  if (printKitchen) {
+                    setKitchenPrintOrder(orderToPrint);
+                    setTimeout(() => handleKitchenPrint(), 200);
+                  }
+                  if (printMain) {
+                    setCompletedOrder(orderToPrint);
+                    setTimeout(() => handlePrint(), printKitchen ? 500 : 0);
+                  }
+                }
+                setIsPrintOptionsModalOpen(false);
+              }}
+              className="h-12 uppercase tracking-widest text-[10px] font-black rounded-xl shadow-xl shadow-primary/20"
+            >
+              Confirm Print
             </Button>
           </div>
         </div>
@@ -1659,22 +1749,13 @@ const handleProcessPayment = async () => {
                     <Button 
                       variant="outline" 
                       onClick={() => {
-                        setCompletedOrder(order);
-                        setIsReceiptModalOpen(true);
+                        setOrderToPrint(order);
+                        setIsPrintOptionsModalOpen(true);
                       }}
                       className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest hover:text-primary border-white/10"
+                      icon={<Printer className="w-4 h-4" />}
                     >
-                      Receipt
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setKitchenPrintOrder(order);
-                        setTimeout(() => handleKitchenPrint(), 200);
-                      }}
-                      className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest hover:text-orange-400 border-white/10"
-                    >
-                      Kitchen
+                      Print
                     </Button>
                     
                     {order.status === 'draft' && (
