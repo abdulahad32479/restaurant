@@ -81,17 +81,19 @@ export default function KitchenDisplay() {
       const kitchenStatuses = ['draft', 'confirmed', 'preparing', 'ready', 'served'];
       const relevantOrders = orderData.filter((o: any) => kitchenStatuses.includes(o.status));
 
-      // ONLY SHOW CONFIRMED ORDERS ON INITIAL VIEW (User request)
-      const confirmedOrdersOnly = relevantOrders.filter((o: any) => o.status === 'confirmed');
-
       // FIFO Sorting: Oldest First
-      const sortedOrders = confirmedOrdersOnly.sort((a: any, b: any) => 
+      const sortedOrders = relevantOrders.sort((a: any, b: any) => 
         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
 
-      // Notify on new orders if not the first load
+      // Notify on new orders if not the first load (only for 'confirmed' orders typically)
       if (silent && sortedOrders.length > orders.length) {
-        toast.success(`New order received!`, { icon: '🔔' });
+        const hasNewConfirmed = sortedOrders.some(
+          o => o.status === 'confirmed' && !orders.some(old => old.id === o.id)
+        );
+        if (hasNewConfirmed) {
+          toast.success(`New order received!`, { icon: '🔔' });
+        }
       }
 
       setOrders(sortedOrders);
@@ -144,7 +146,8 @@ export default function KitchenDisplay() {
 
   const getFilteredOrders = () => {
     if (activeStatus === 'all') {
-      return orders.filter(o => o.status !== 'served' && o.status !== 'completed');
+      // Active shows confirmed, preparing, and ready orders
+      return orders.filter(o => ['confirmed', 'preparing', 'ready'].includes(o.status));
     }
     return orders.filter(o => o.status === activeStatus);
   };
