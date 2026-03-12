@@ -18,10 +18,10 @@ export async function POST(req: Request) {
     const printer = new escpos.Printer(device);
 
     return new Promise((resolve) => {
-      device.open((error: unknown) => {
+      device.open((error: any) => {
         if (error) {
           console.error(`Failed to connect to ${printerRole} printer at ${printerIp}:`, error);
-          resolve(NextResponse.json({ error: `Failed to connect to ${printerRole} printer.` }, { status: 500 }));
+          resolve(NextResponse.json({ error: `Failed to connect to ${printerRole} printer: ${error.message || 'Check IP/Connection'}` }, { status: 500 }));
           return;
         }
 
@@ -101,6 +101,7 @@ export async function POST(req: Request) {
               .text('KITCHEN DOCKET')
               .style('normal')
               .size(0, 0)
+              .text(businessName || '')
               .text('')
               .align('lt')
               .text('-'.repeat(48))

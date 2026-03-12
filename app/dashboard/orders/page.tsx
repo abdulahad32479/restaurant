@@ -22,6 +22,7 @@ import { Receipt } from '@/src/components/Receipt';
 import { KitchenReceipt } from '@/src/components/KitchenReceipt';
 import { useRef } from 'react';
 import { localSettingsService } from '@/src/services/local-settings.service';
+import { formatOrderToReceiptText, formatOrderToKitchenText } from '@/src/lib/print-utils';
 
 export default function Orders() {
   const router = useRouter();
@@ -159,54 +160,38 @@ export default function Orders() {
       return false;
     }
 
-    const hasMainPrinter = !!localSettings.printer_ip;
-    const hasKitchenPrinter = !!localSettings.kitchen_printer_ip;
-
-    // 2. Validate based on requested printerType
-    if (printerType === 'main' && !hasMainPrinter) {
-      toast.error('Main Receipt Printer IP not configured in Settings.');
-      return false;
-    }
-    if (printerType === 'kitchen' && !hasKitchenPrinter) {
-      toast.error('Kitchen Printer IP not configured in Settings.');
-      return false;
-    }
-    if (printerType === 'both' && !hasMainPrinter && !hasKitchenPrinter) {
-      toast.error('No Printer IPs configured in Settings.');
-      return false;
-    }
-
     try {
       toast.loading('Sending to printers...', { id: 'print-job' });
       
       const printJobs = [];
       
-      if (hasMainPrinter && (printerType === 'main' || printerType === 'both')) {
+      if (printerType === 'main' || printerType === 'both') {
+        const receiptText = formatOrderToReceiptText(targetOrder, {
+          name: activeBranch?.name,
+          address: activeBranch?.address,
+          phone: activeBranch?.phone_number
+        });
+        
         printJobs.push(
-          fetch('/api/print/receipt', {
+          fetch('/api/print/counter', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              order: targetOrder,
-              printerIp: localSettings.printer_ip,
-              printerRole: 'main',
-              businessName: activeBranch?.name,
-              businessAddress: activeBranch?.address,
-              businessPhone: activeBranch?.phone_number
+              text: receiptText
             })
           })
         );
       }
       
-      if (hasKitchenPrinter && (printerType === 'kitchen' || printerType === 'both')) {
+      if (printerType === 'kitchen' || printerType === 'both') {
+        const kitchenText = formatOrderToKitchenText(targetOrder, activeBranch?.name);
+        
         printJobs.push(
-          fetch('/api/print/receipt', {
+          fetch('/api/print/kitchen', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              order: targetOrder,
-              printerIp: localSettings.kitchen_printer_ip,
-              printerRole: 'kitchen',
+              text: kitchenText
             })
           })
         );

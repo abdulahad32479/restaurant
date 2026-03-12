@@ -26,8 +26,8 @@ export const KitchenReceipt = forwardRef<HTMLDivElement, KitchenReceiptProps>(
       >
         {/* Header - Order Identity */}
         <div className="text-center mb-4 border-b-2 border-black pb-2">
-          <div className="text-[10px] font-bold uppercase tracking-widest mb-1 opacity-70">Order Number</div>
-          <h1 className="text-2xl font-black mb-1">
+          <div className="text-[10px] font-black uppercase tracking-widest mb-1 text-black">Order Number</div>
+          <h1 className="text-2xl font-black mb-1 text-black">
             {order.order_number || (order.id ? `#${order.id.slice(-6).toUpperCase()}` : 'NEW ORDER')}
           </h1>
           
@@ -43,32 +43,32 @@ export const KitchenReceipt = forwardRef<HTMLDivElement, KitchenReceiptProps>(
 
         {/* Order Details */}
         <div className="border-b-2 border-black pb-2 mb-4 text-base space-y-2 font-bold">
-          <div className="flex justify-between items-center bg-gray-100 p-1.5">
-            <span className="text-[10px] uppercase">Type</span>
-            <span className="text-lg uppercase">{order.order_type.replace('_', ' ')}</span>
+          <div className="flex justify-between items-center bg-black text-white p-2">
+            <span className="text-[10px] uppercase font-black">Type</span>
+            <span className="text-xl uppercase font-black">{order.order_type.replace('_', ' ')}</span>
           </div>
 
           {order.order_type === 'dine_in' && (order.table_no || order.table) && (
-            <div className="flex justify-between items-center bg-black text-white p-1.5">
-              <span className="text-[10px] uppercase">Table</span>
-              <span className="text-2xl">{order.table_no || tables[order.table || ''] || order.table}</span>
+            <div className="flex justify-between items-center bg-black text-white p-2 mt-1">
+              <span className="text-[10px] uppercase font-black">Table</span>
+              <span className="text-2xl font-black">{order.table_no || tables[order.table || ''] || order.table}</span>
             </div>
           )}
 
-          <div className="flex justify-between text-xs px-1 italic text-gray-700">
+          <div className="flex justify-between text-base px-1 font-black text-black">
             <span>Time</span>
             <span>{formatDate(order.created_at)}</span>
           </div>
 
           {order.branch_name && (
-            <div className="flex justify-between text-[10px] px-1 font-normal opacity-80 border-t border-gray-100 pt-1">
+            <div className="flex justify-between text-[11px] px-1 font-black text-black border-t-2 border-black pt-1">
               <span>Branch</span>
               <span>{order.branch_name}</span>
             </div>
           )}
 
           {order.created_by && (
-            <div className="flex justify-between text-[10px] px-1 font-normal opacity-80 text-black">
+            <div className="flex justify-between text-[11px] px-1 font-black text-black">
               <span>Staff</span>
               <span className="truncate max-w-[150px] text-right">
                 {users[order.created_by] || order.created_by}
@@ -77,16 +77,16 @@ export const KitchenReceipt = forwardRef<HTMLDivElement, KitchenReceiptProps>(
           )}
 
           {order.delivery_info && (order.delivery_info.phone || order.delivery_info.address) && (
-            <div className="mt-1 pt-1 border-t border-dashed border-gray-400 text-sm font-normal text-black">
+            <div className="mt-1 pt-1 border-t-2 border-black text-sm font-black text-black">
               {order.delivery_info.phone && <p>Phone: {order.delivery_info.phone}</p>}
               {order.delivery_info.address && <p className="leading-tight mt-0.5">Add: {order.delivery_info.address}</p>}
             </div>
           )}
 
           {order.notes && (
-             <div className="mt-2 p-1.5 border border-black bg-yellow-50">
-               <p className="uppercase text-[8px] font-black mb-0.5">*** SPECIAL NOTES ***</p>
-               <p className="text-base font-black italic uppercase leading-tight">{order.notes}</p>
+             <div className="mt-2 p-2 border-2 border-black bg-white">
+               <p className="uppercase text-[10px] font-black mb-1 text-black">*** SPECIAL NOTES ***</p>
+               <p className="text-lg font-black uppercase leading-tight text-black">{order.notes}</p>
              </div>
           )}
         </div>
@@ -123,7 +123,7 @@ export const KitchenReceipt = forwardRef<HTMLDivElement, KitchenReceiptProps>(
                     </div>
                   </div>
                   {item.notes && (
-                    <div className="ml-[40px] mt-0.5 text-sm bg-yellow-100 p-1 border-l-2 border-black font-black italic uppercase">
+                    <div className="ml-[40px] mt-1 text-sm bg-white p-1.5 border-2 border-black font-black uppercase">
                       * {item.notes}
                     </div>
                   )}

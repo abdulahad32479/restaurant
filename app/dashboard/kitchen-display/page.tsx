@@ -15,6 +15,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
 import { KitchenReceipt } from '@/src/components/KitchenReceipt';
 import { useRef } from 'react';
+import { formatOrderToKitchenText } from '@/src/lib/print-utils';
 
 const statusTabs = [
   { id: 'all', label: 'Active' },
@@ -87,6 +88,7 @@ export default function KitchenDisplay() {
       const uMap: Record<string, string> = {};
       userData.forEach((u: any) => { uMap[u.id] = u.name || u.username; });
       setUsers(uMap);
+      setBranches(branchData);
 
       // Filter for kitchen-relevant statuses in the frontend
       const kitchenStatuses = ['draft', 'confirmed', 'preparing', 'ready', 'served'];
@@ -183,21 +185,17 @@ export default function KitchenDisplay() {
       return false;
     }
 
-    if (!localSettings.kitchen_printer_ip) {
-      toast.error('Kitchen Printer IP not configured in Settings.');
-      return false;
-    }
-
     try {
       toast.loading('Sending to kitchen printer...', { id: 'print-job' });
       
-      const response = await fetch('/api/print/receipt', {
+      const activeBranch = branches.find(b => b.id === branchId);
+      const kitchenText = formatOrderToKitchenText(targetOrder, activeBranch?.name);
+      
+      const response = await fetch('/api/print/kitchen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          order: targetOrder,
-          printerIp: localSettings.kitchen_printer_ip,
-          printerRole: 'kitchen',
+          text: kitchenText
         })
       });
 

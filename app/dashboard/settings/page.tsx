@@ -78,8 +78,6 @@ export default function SettingsPage() {
     receipt_logo: '',
     receipt_logo_bottom: '',
     payment_account: '',
-    printer_ip: '',
-    kitchen_printer_ip: '',
     direct_printing: false
   });
 
@@ -96,39 +94,11 @@ export default function SettingsPage() {
         receipt_logo: local.receipt_logo || activeBranch.receipt_logo || '',
         receipt_logo_bottom: local.receipt_logo_bottom || '',
         payment_account: local.payment_account || activeBranch.payment_account || '',
-        printer_ip: local.printer_ip || '',
-        kitchen_printer_ip: local.kitchen_printer_ip || '',
         direct_printing: !!local.direct_printing
       });
     }
   }, [activeBranch]);
 
-  const handleTestConnection = async (ip: string, role: string) => {
-    if (!ip) {
-      toast.error(`Please enter an IP address for the ${role} printer.`);
-      return;
-    }
-
-    setIsTestingConnection(role);
-    try {
-      const response = await fetch('/api/print/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ printerIp: ip, printerRole: role })
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        toast.success(data.message || `Connected to ${role} printer!`);
-      } else {
-        toast.error(data.error || `Failed to connect to ${role} printer.`);
-      }
-    } catch (err) {
-      toast.error('Network error while testing printer connection.');
-    } finally {
-      setIsTestingConnection(null);
-    }
-  };
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -333,13 +303,11 @@ export default function SettingsPage() {
                 receipt_logo: generalForm.receipt_logo,
                 receipt_logo_bottom: generalForm.receipt_logo_bottom,
                 payment_account: generalForm.payment_account,
-                printer_ip: generalForm.printer_ip,
-                kitchen_printer_ip: generalForm.kitchen_printer_ip,
                 direct_printing: generalForm.direct_printing
               });
 
               // 2. Save backend settings (name, email, address, etc.)
-              const { receipt_logo, receipt_logo_bottom, payment_account, printer_ip, kitchen_printer_ip, direct_printing, ...backendFields } = generalForm;
+              const { receipt_logo, receipt_logo_bottom, payment_account, direct_printing, ...backendFields } = generalForm;
               await branchService.patch(activeBranch.id, backendFields);
               
               toast.success('Settings saved successfully');
@@ -765,92 +733,39 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 
-                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6">
-                  <h4 className="text-lg font-black text-white uppercase tracking-wider mb-4">Network Thermal Printer Setup</h4>
-                  <p className="text-sm text-tertiary mb-6">
-                    Bypass browser print dialogs completely by sending raw print commands directly over your local network (TCP Port 9100). 
-                    Ensure your printers are on the same network as this terminal.
-                  </p>
+                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6 space-y-6">
+                  <div>
+                    <h4 className="text-lg font-black text-white uppercase tracking-wider mb-2">Network Thermal Printer Setup</h4>
+                    <p className="text-sm text-tertiary">
+                      Bypass browser print dialogs completely by sending raw print commands directly over your local network. 
+                      Ensure your printers are on the same network as this terminal.
+                    </p>
+                  </div>
                   
-                  <div className="space-y-8">
-                    {/* Main Receipt Printer */}
-                    <div className="p-5 rounded-2xl bg-[#0A0A0A] border border-[#2A2A2A] space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center text-accent">
-                            <CreditCard className="w-4 h-4" />
-                          </div>
-                          <span className="font-bold text-white uppercase tracking-widest text-xs">Main / Receipt Printer</span>
+                  <div className="p-5 rounded-2xl bg-[#0A0A0A] border border-[#2A2A2A] space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                          <Printer className="w-4 h-4" />
                         </div>
-                        {generalForm.printer_ip && (
-                          <Badge variant="success" size="sm" className="bg-success/10 text-success border-success/20">Configured</Badge>
-                        )}
+                        <span className="font-bold text-white uppercase tracking-widest text-xs">Printer Configuration</span>
                       </div>
-                      
-                      <div className="flex flex-col md:flex-row gap-4">
-                        <div className="flex-1">
-                          <Input 
-                            placeholder="e.g., 192.168.1.100" 
-                            value={generalForm.printer_ip || ''}
-                            onChange={(e) => setGeneralForm({ ...generalForm, printer_ip: e.target.value })}
-                            className="bg-black/40 border-[#333]"
-                          />
-                        </div>
-                        <Button 
-                          variant="secondary" 
-                          className="md:w-48 font-bold text-xs uppercase"
-                          onClick={() => handleTestConnection(generalForm.printer_ip, 'main')}
-                          isLoading={isTestingConnection === 'main'}
-                        >
-                          Test Connection
-                        </Button>
-                      </div>
+                      <Badge variant="success" size="sm" className="bg-success/10 text-success border-success/20">Backend Managed</Badge>
                     </div>
-
-                    {/* Kitchen Printer */}
-                    <div className="p-5 rounded-2xl bg-[#0A0A0A] border border-[#2A2A2A] space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
-                            <Store className="w-4 h-4" />
-                          </div>
-                          <span className="font-bold text-white uppercase tracking-widest text-xs">Kitchen / Docket Printer</span>
-                        </div>
-                        {generalForm.kitchen_printer_ip && (
-                          <Badge variant="success" size="sm" className="bg-success/10 text-success border-success/20">Configured</Badge>
-                        )}
-                      </div>
-                      
-                      <div className="flex flex-col md:flex-row gap-4">
-                        <div className="flex-1">
-                          <Input 
-                            placeholder="e.g., 192.168.1.101" 
-                            value={generalForm.kitchen_printer_ip || ''}
-                            onChange={(e) => setGeneralForm({ ...generalForm, kitchen_printer_ip: e.target.value })}
-                            className="bg-black/40 border-[#333]"
-                          />
-                        </div>
-                        <Button 
-                          variant="secondary" 
-                          className="md:w-48 font-bold text-xs uppercase"
-                          onClick={() => handleTestConnection(generalForm.kitchen_printer_ip, 'kitchen')}
-                          isLoading={isTestingConnection === 'kitchen'}
-                        >
-                          Test Connection
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <div className="p-4 bg-accent/5 border border-accent/20 rounded-xl flex items-start gap-4">
-                        <AlertTriangle className="w-5 h-5 text-accent shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-bold text-white mb-1">Elite Features Ready</p>
-                          <p className="text-xs text-tertiary">
-                            Direct printing provides a seamless cashier experience. If "Direct Printing" is enabled, 
-                            the system will skip the browser dialog and print instantly. 
-                            Failure to communicate with the printer will automatically fallback to the manual dialog.
-                          </p>
-                        </div>
+                    <p className="text-xs text-tertiary">
+                      Printer IP addresses are managed on the backend for maximum reliability and security. 
+                      Contact support if you need to change your printer hardware.
+                    </p>
+                  </div>
+                  
+                  <div className="p-4 bg-accent/5 border border-accent/20 rounded-xl flex items-start gap-4">
+                    <AlertTriangle className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-white mb-1">Elite Features Ready</p>
+                      <p className="text-xs text-tertiary">
+                        Direct printing provides a seamless cashier experience. If "Direct Printing" is enabled, 
+                        the system will skip the browser dialog and print instantly.
+                      </p>
                     </div>
                   </div>
                 </div>

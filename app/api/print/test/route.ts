@@ -17,19 +17,12 @@ export async function POST(req: Request) {
     const device = new escpos.Network(printerIp);
 
     return new Promise((resolve) => {
-      // Set a timeout for the connection attempt
-      const timeout = setTimeout(() => {
-        try {
-          device.close();
-        } catch (e) {}
-        resolve(NextResponse.json({ error: `Connection to ${printerRole || 'printer'} timed out.` }, { status: 504 }));
-      }, 5000);
-
-      device.open((error: unknown) => {
-        clearTimeout(timeout);
+      device.open((error: any) => {
         if (error) {
           console.error(`Failed to connect to ${printerRole || 'printer'} at ${printerIp}:`, error);
-          resolve(NextResponse.json({ error: `Failed to connect to ${printerRole || 'printer'}. Ensure it is online and reachable.` }, { status: 500 }));
+          resolve(NextResponse.json({ 
+            error: `Failed to connect to ${printerRole || 'printer'}. Socket Error: ${error.message || 'Connection Refused'}. Ensure it is online and reachable on TCP Port 9100.` 
+          }, { status: 500 }));
           return;
         }
 

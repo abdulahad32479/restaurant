@@ -49,8 +49,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             </div>
           )}
           <h1 className="text-xl font-black uppercase tracking-widest mb-1 text-black">{businessName}</h1>
-          <p className="text-xs text-black font-bold">{businessAddress}</p>
-          <p className="text-xs text-black font-bold">{businessPhone}</p>
+          <p className="text-xs text-black font-black">{businessAddress}</p>
+          <p className="text-xs text-black font-black">{businessPhone}</p>
         </div>
 
         {/* Divider */}
@@ -67,7 +67,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             <span>{formatDate(order.created_at)}</span>
           </div>
           <div className="flex justify-between items-center text-black text-xs mt-1">
-            <span className="uppercase bg-black text-white px-2 py-0.5 font-bold rounded-sm">
+            <span className="uppercase bg-black text-white px-2 py-0.5 font-black rounded-sm">
               {order.order_type.replace('_', ' ')}
             </span>
             {order.order_type === 'dine_in' && (order.table_no || order.table) && (
@@ -136,7 +136,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
                 <div className="flex-1 pr-2">
                   <div className="font-bold capitalize">{productName}</div>
                   {qty > 1 && (
-                    <div className="text-[10px] text-black font-bold mt-0.5">
+                    <div className="text-[10px] text-black font-black mt-0.5">
                       {item.quantity} @ Rs.{unitPrice.toFixed(2)}
                     </div>
                   )}
@@ -179,7 +179,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         {/* Payment Info */}
         {order.status !== 'draft' && order.payments && order.payments.length > 0 && (
           <div className="mt-5 text-xs text-black border-2 border-black p-2 rounded-sm bg-white">
-            <div className="text-center mb-1.5 font-bold uppercase tracking-widest text-[10px]">Payment Summary</div>
+            <div className="text-center mb-1.5 font-black uppercase tracking-widest text-[10px]">Payment Summary</div>
             {order.payments.map((payment, idx) => (
               <div key={idx} className="flex justify-between items-center mb-1 last:mb-0">
                 <span className="uppercase font-bold">{payment.method}</span>
@@ -214,8 +214,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           </div>
 
           {logoUrlBottom && (
-            <div className="mt-6 flex justify-center border-t border-gray-200 pt-4">
-              <img src={logoUrlBottom} alt="Bottom Logo" className="max-h-12 w-auto object-contain opacity-60 grayscale" />
+            <div className="mt-6 flex justify-center border-t border-black pt-4">
+              <img src={logoUrlBottom} alt="Bottom Logo" className="max-h-12 w-auto object-contain" />
             </div>
           )}
         </div>
