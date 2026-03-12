@@ -3,8 +3,18 @@ import axios from 'axios';
 const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://pos-backend-production-b659.up.railway.app/api/';
 export const BASE_CONTENT_URL = baseURL.replace('/api/', '');
 
+// Separate Base URL for Printers
+const printerBaseURL = process.env.NEXT_PUBLIC_PRINTER_API_URL || '/api/';
+
 const apiClient = axios.create({
   baseURL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+export const printerClient = axios.create({
+  baseURL: printerBaseURL,
   headers: {
     'Content-Type': 'application/json',
   },

@@ -24,6 +24,7 @@ import { KitchenReceipt } from '@/src/components/KitchenReceipt';
 import { useRef } from 'react';
 import toast from 'react-hot-toast';
 import { getImageUrl, cn } from '@/src/lib/utils';
+import apiClient, { printerClient } from '@/src/lib/axios';
 import { localSettingsService } from '@/src/services/local-settings.service';
 import { ConfirmModal } from '@/src/components/ConfirmModal';
 import { formatOrderToReceiptText, formatOrderToKitchenText } from '@/src/lib/print-utils';
@@ -491,12 +492,8 @@ export default function POS() {
         });
         
         printJobs.push(
-          fetch('/api/print/counter', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text: receiptText
-            })
+          printerClient.post('print/counter', {
+            text: receiptText
           })
         );
       }
@@ -505,33 +502,20 @@ export default function POS() {
         const kitchenText = formatOrderToKitchenText(targetOrder, activeBranch?.name);
         
         printJobs.push(
-          fetch('/api/print/kitchen', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text: kitchenText
-            })
+          printerClient.post('print/kitchen', {
+            text: kitchenText
           })
         );
       }
 
-      if (printJobs.length === 0) {
-        toast.dismiss('print-job');
-        return false;
-      }
-
       const results = await Promise.all(printJobs);
-      const failedJobs = await Promise.all(results.filter(r => !r.ok).map(r => r.json()));
       
-      if (failedJobs.length > 0) {
-         throw new Error(failedJobs.map(f => f.error).join(', '));
-      } else {
-         toast.success('Printed successfully!', { id: 'print-job' });
-         return true;
-      }
+      toast.success('Printed successfully!', { id: 'print-job' });
+      return true;
     } catch (printErr: any) {
        console.error('Silent print failed:', printErr);
-       toast.error(`Silent print failed: ${printErr.message}. Falling back to manual print.`, { id: 'print-job' });
+       const errorMsg = printErr.response?.data?.error || printErr.message || 'Failed to print';
+       toast.error(`Silent print failed: ${errorMsg}. Falling back to manual print.`, { id: 'print-job' });
        return false;
     }
   };

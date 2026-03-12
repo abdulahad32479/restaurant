@@ -15,6 +15,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
 import { KitchenReceipt } from '@/src/components/KitchenReceipt';
 import { useRef } from 'react';
+import apiClient, { printerClient } from '@/src/lib/axios';
 import { formatOrderToKitchenText } from '@/src/lib/print-utils';
 
 const statusTabs = [
@@ -191,24 +192,16 @@ export default function KitchenDisplay() {
       const activeBranch = branches.find(b => b.id === branchId);
       const kitchenText = formatOrderToKitchenText(targetOrder, activeBranch?.name);
       
-      const response = await fetch('/api/print/kitchen', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: kitchenText
-        })
+      await printerClient.post('print/kitchen', {
+        text: kitchenText
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to print');
-      }
 
       toast.success('Printed successfully!', { id: 'print-job' });
       return true;
     } catch (printErr: any) {
        console.error('Silent print failed:', printErr);
-       toast.error(`Silent print failed: ${printErr.message}. Falling back to manual print.`, { id: 'print-job' });
+       const errorMsg = printErr.response?.data?.error || printErr.message || 'Failed to print';
+       toast.error(`Print failed: ${errorMsg}`, { id: 'print-job' });
        return false;
     }
   };
