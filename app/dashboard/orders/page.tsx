@@ -140,6 +140,99 @@ export default function Orders() {
     }
   };
 
+  const triggerDirectPrint = async (targetOrder: Order, printerType: 'main' | 'kitchen' | 'both' = 'both') => {
+    // 1. Identify Branch ID robustly
+    const rawBranch = targetOrder.branch || (targetOrder as any).branch_id;
+    let branchId = '';
+    
+    if (typeof rawBranch === 'object' && rawBranch !== null) {
+      branchId = (rawBranch as any).id || '';
+    } else if (typeof rawBranch === 'string') {
+      branchId = rawBranch;
+    }
+
+    const activeBranch = branches.find(b => b.id === branchId);
+    const localSettings = localSettingsService.getForBranch(branchId);
+    
+    if (!localSettings.direct_printing) {
+      console.log('Direct printing is disabled in settings');
+      return false;
+    }
+
+    const hasMainPrinter = !!localSettings.printer_ip;
+    const hasKitchenPrinter = !!localSettings.kitchen_printer_ip;
+
+    // 2. Validate based on requested printerType
+    if (printerType === 'main' && !hasMainPrinter) {
+      toast.error('Main Receipt Printer IP not configured in Settings.');
+      return false;
+    }
+    if (printerType === 'kitchen' && !hasKitchenPrinter) {
+      toast.error('Kitchen Printer IP not configured in Settings.');
+      return false;
+    }
+    if (printerType === 'both' && !hasMainPrinter && !hasKitchenPrinter) {
+      toast.error('No Printer IPs configured in Settings.');
+      return false;
+    }
+
+    try {
+      toast.loading('Sending to printers...', { id: 'print-job' });
+      
+      const printJobs = [];
+      
+      if (hasMainPrinter && (printerType === 'main' || printerType === 'both')) {
+        printJobs.push(
+          fetch('/api/print/receipt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              order: targetOrder,
+              printerIp: localSettings.printer_ip,
+              printerRole: 'main',
+              businessName: activeBranch?.name,
+              businessAddress: activeBranch?.address,
+              businessPhone: activeBranch?.phone_number
+            })
+          })
+        );
+      }
+      
+      if (hasKitchenPrinter && (printerType === 'kitchen' || printerType === 'both')) {
+        printJobs.push(
+          fetch('/api/print/receipt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              order: targetOrder,
+              printerIp: localSettings.kitchen_printer_ip,
+              printerRole: 'kitchen',
+            })
+          })
+        );
+      }
+
+      if (printJobs.length === 0) {
+        toast.dismiss('print-job');
+        return false;
+      }
+
+      const results = await Promise.all(printJobs);
+      const failedJobs = await Promise.all(results.filter(r => !r.ok).map(r => r.json()));
+      
+      if (failedJobs.length > 0) {
+         throw new Error(failedJobs.map(f => f.error).join(', '));
+      } else {
+         toast.success('Printed successfully!', { id: 'print-job' });
+         return true;
+      }
+    } catch (printErr: any) {
+       console.error('Silent print failed:', printErr);
+       toast.error(`Silent print failed: ${printErr.message}. Use manual print if needed.`, { id: 'print-job' });
+       return false;
+    }
+  };
+
   const handleAddPayment = async () => {
     if (!selectedOrder || !paymentAmount) return;
     
@@ -338,10 +431,7 @@ export default function Orders() {
             <button 
               className="p-2 hover:bg-primary/10 rounded-xl transition-all text-tertiary hover:text-primary" 
               title="Print Receipt"
-              onClick={() => {
-                setOrderToPrint(row);
-                setTimeout(() => handlePrint(), 150);
-              }}
+              onClick={() => triggerDirectPrint(row, 'main')}
             >
               <Printer className="w-4 h-4" />
             </button>
@@ -349,11 +439,8 @@ export default function Orders() {
             {/* Kitchen Receipt Button */}
             <button 
               className="p-2 hover:bg-orange-500/10 rounded-xl transition-all text-tertiary hover:text-orange-400" 
-              title="Print Kitchen Ticket"
-              onClick={() => {
-                setKitchenPrintOrder(row);
-                setTimeout(() => handleKitchenPrint(), 150);
-              }}
+              title="Send to Kitchen"
+              onClick={() => triggerDirectPrint(row, 'kitchen')}
             >
               <ChefHat className="w-4 h-4" />
             </button>
@@ -692,10 +779,7 @@ export default function Orders() {
               <Button 
                 variant="outline" 
                 icon={<Printer className="w-4 h-4" />}
-                onClick={() => {
-                  setOrderToPrint(selectedOrder);
-                  setTimeout(() => handlePrint(), 150);
-                }}
+                onClick={() => triggerDirectPrint(selectedOrder)}
               >
                 Print Receipt
               </Button>

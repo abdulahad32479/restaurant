@@ -49,15 +49,15 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             </div>
           )}
           <h1 className="text-xl font-black uppercase tracking-widest mb-1 text-black">{businessName}</h1>
-          <p className="text-xs text-gray-700">{businessAddress}</p>
-          <p className="text-xs text-gray-700">{businessPhone}</p>
+          <p className="text-xs text-black font-bold">{businessAddress}</p>
+          <p className="text-xs text-black font-bold">{businessPhone}</p>
         </div>
 
         {/* Divider */}
-        <div className="border-b-2 border-dashed border-gray-400 my-4" />
+        <div className="border-b-2 border-dashed border-black my-4" />
 
         {/* Order Info */}
-        <div className="space-y-1.5 mb-4">
+        <div className="space-y-1.5 mb-4 font-bold">
           <div className="flex justify-between items-center text-black">
             <span className="uppercase text-xs font-bold">Order No:</span>
             <span className="font-bold text-base">{order.order_number || order.id.slice(-6).toUpperCase()}</span>
@@ -85,7 +85,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           )}
           
           {(order.order_type === 'delivery' || order.customer) && (
-            <div className="mt-2 pt-2 border-t border-gray-200 border-dotted">
+            <div className="mt-2 pt-2 border-t border-black border-dotted">
               <div className="flex justify-between text-black text-xs">
                 <span>Customer:</span>
                 <span className="font-bold whitespace-nowrap overflow-hidden text-ellipsis pl-2">
@@ -99,7 +99,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
                 </div>
               )}
               {order.delivery_info?.address && (
-                <div className="text-xs mt-0.5 text-gray-700 leading-snug">
+                <div className="text-xs mt-0.5 text-black font-bold leading-snug">
                   {order.delivery_info.address}
                 </div>
               )}
@@ -136,7 +136,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
                 <div className="flex-1 pr-2">
                   <div className="font-bold capitalize">{productName}</div>
                   {qty > 1 && (
-                    <div className="text-[10px] text-gray-500 mt-0.5">
+                    <div className="text-[10px] text-black font-bold mt-0.5">
                       {item.quantity} @ Rs.{unitPrice.toFixed(2)}
                     </div>
                   )}
@@ -152,7 +152,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         <div className="border-b border-black my-3" />
 
         {/* Totals */}
-        <div className="space-y-1 text-black px-1">
+        <div className="space-y-1 text-black font-bold px-1">
           <div className="flex justify-between text-[13px]">
             <span>Subtotal</span>
             <span>Rs. {Number(order.subtotal).toFixed(2)}</span>
@@ -168,7 +168,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             <span>Rs. {Number(order.taxamount).toFixed(2)}</span>
           </div>
           
-          <div className="border-b-2 border-dashed border-gray-400 my-2" />
+          <div className="border-b-2 border-dashed border-black my-2" />
           
           <div className="flex justify-between items-end mt-2 text-black">
             <span className="font-bold text-sm uppercase">Total Due</span>
@@ -178,12 +178,12 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
 
         {/* Payment Info */}
         {order.status !== 'draft' && order.payments && order.payments.length > 0 && (
-          <div className="mt-5 text-xs text-black border border-gray-300 p-2 rounded-sm bg-gray-50">
+          <div className="mt-5 text-xs text-black border-2 border-black p-2 rounded-sm bg-white">
             <div className="text-center mb-1.5 font-bold uppercase tracking-widest text-[10px]">Payment Summary</div>
             {order.payments.map((payment, idx) => (
               <div key={idx} className="flex justify-between items-center mb-1 last:mb-0">
                 <span className="uppercase font-bold">{payment.method}</span>
-                <span className="font-mono">Rs. {Number(payment.amount).toFixed(2)}</span>
+                <span className="font-black">Rs. {Number(payment.amount).toFixed(2)}</span>
               </div>
             ))}
           </div>
@@ -192,7 +192,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         {/* Footer */}
         <div className="text-center mt-8 text-black">
           {paymentAccount && (
-            <div className="mb-5 border-t border-b border-dashed border-gray-400 py-3">
+            <div className="mb-5 border-t-2 border-b-2 border-dashed border-black py-3">
               <p className="font-bold uppercase tracking-widest text-[10px] mb-1">Payment / Account Details</p>
               <p className="font-black text-[13px]">{paymentAccount}</p>
             </div>
@@ -200,15 +200,15 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           
           <div className="mb-4 space-y-1">
             <p className="font-bold italic">Thank you for your visit!</p>
-            <p className="text-xs">Please come again.</p>
+            <p className="text-xs font-bold">Please come again.</p>
           </div>
 
           {/* Simulated Barcode */}
-          <div className="mt-6 flex flex-col items-center justify-center opacity-80">
-            <div className="font-mono text-[8px] tracking-[0.3em] overflow-hidden whitespace-nowrap max-w-full">
+          <div className="mt-6 flex flex-col items-center justify-center text-black">
+            <div className="font-mono text-[8px] tracking-[0.3em] overflow-hidden whitespace-nowrap max-w-full font-black">
                ||| || ||| | || ||| || ||| | || ||| || 
             </div>
-            <div className="text-[10px] mt-1 tracking-widest">
+            <div className="text-[10px] mt-1 tracking-widest font-bold">
               {order.id.slice(-12).toUpperCase()}
             </div>
           </div>

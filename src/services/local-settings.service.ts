@@ -9,6 +9,7 @@ export interface ExtraBranchSettings {
   payment_account?: string;
   printer_ip?: string;
   kitchen_printer_ip?: string;
+  direct_printing?: boolean;
 }
 
 const STORAGE_KEY_PREFIX = 'branch_extra_settings_';

@@ -6,7 +6,7 @@ import { Input, Select, TextArea } from '@/src/components/Input';
 import { Badge } from '@/src/components/Badge';
 import { 
   Search, Plus, Minus, CreditCard, Banknote, 
-  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User, Phone, AlertTriangle, ListOrdered, Clock
+  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User, Phone, AlertTriangle, ListOrdered, Clock, ChefHat
 } from 'lucide-react';
 import { productService } from '@/src/services/product.service';
 import { categoryService } from '@/src/services/category.service';
@@ -131,10 +131,17 @@ export default function POS() {
         handleCheckoutClick();
       }
       // F4 Kitchen Print
-      if (e.key === 'F4' && completedOrder) {
+      if (e.key === 'F4' && (completedOrder || editingOrder)) {
         e.preventDefault();
-        setKitchenPrintOrder(completedOrder);
-        setTimeout(() => handleKitchenPrint(), 200);
+        const target = completedOrder || editingOrder;
+        if (target) {
+          triggerDirectPrint(target, 'kitchen').then(printed => {
+            if (!printed) {
+              setKitchenPrintOrder(target);
+              setTimeout(() => handleKitchenPrint(), 200);
+            }
+          });
+        }
       }
     };
 
@@ -448,6 +455,102 @@ export default function POS() {
     toast.error(errorMessage);
   };
 
+  const triggerDirectPrint = async (targetOrder: Order, printerType: 'main' | 'kitchen' | 'both' = 'both') => {
+    // 1. Identify Branch ID robustly
+    const rawBranch = targetOrder.branch || (targetOrder as any).branch_id;
+    let branchId = '';
+    
+    if (typeof rawBranch === 'object' && rawBranch !== null) {
+      branchId = (rawBranch as any).id || '';
+    } else if (typeof rawBranch === 'string') {
+      branchId = rawBranch;
+    }
+    
+    // Fallback to selectedBranch if order doesn't have it (new orders)
+    if (!branchId) branchId = selectedBranch;
+
+    const activeBranch = branches.find(b => b.id === branchId);
+    const localSettings = localSettingsService.getForBranch(branchId);
+    
+    if (!localSettings.direct_printing) {
+      console.log('Direct printing is disabled in settings');
+      return false;
+    }
+
+    const hasMainPrinter = !!localSettings.printer_ip;
+    const hasKitchenPrinter = !!localSettings.kitchen_printer_ip;
+
+    // 2. Validate based on requested printerType
+    if (printerType === 'main' && !hasMainPrinter) {
+      toast.error('Main Receipt Printer IP not configured in Settings.');
+      return false;
+    }
+    if (printerType === 'kitchen' && !hasKitchenPrinter) {
+      toast.error('Kitchen Printer IP not configured in Settings.');
+      return false;
+    }
+    if (printerType === 'both' && !hasMainPrinter && !hasKitchenPrinter) {
+      toast.error('No Printer IPs configured in Settings.');
+      return false;
+    }
+
+    try {
+      toast.loading('Sending to printers...', { id: 'print-job' });
+      
+      const printJobs = [];
+      
+      if (hasMainPrinter && (printerType === 'main' || printerType === 'both')) {
+        printJobs.push(
+          fetch('/api/print/receipt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              order: targetOrder,
+              printerIp: localSettings.printer_ip,
+              printerRole: 'main',
+              businessName: activeBranch?.name,
+              businessAddress: activeBranch?.address,
+              businessPhone: activeBranch?.phone_number
+            })
+          })
+        );
+      }
+      
+      if (hasKitchenPrinter && (printerType === 'kitchen' || printerType === 'both')) {
+        printJobs.push(
+          fetch('/api/print/receipt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              order: targetOrder,
+              printerIp: localSettings.kitchen_printer_ip,
+              printerRole: 'kitchen',
+            })
+          })
+        );
+      }
+
+      if (printJobs.length === 0) {
+        toast.dismiss('print-job');
+        return false;
+      }
+
+      const results = await Promise.all(printJobs);
+      const failedJobs = await Promise.all(results.filter(r => !r.ok).map(r => r.json()));
+      
+      if (failedJobs.length > 0) {
+         throw new Error(failedJobs.map(f => f.error).join(', '));
+      } else {
+         toast.success('Printed successfully!', { id: 'print-job' });
+         return true;
+      }
+    } catch (printErr: any) {
+       console.error('Silent print failed:', printErr);
+       toast.error(`Silent print failed: ${printErr.message}. Falling back to manual print.`, { id: 'print-job' });
+       return false;
+    }
+  };
+
   const syncEditedOrderCart = async (orderId: string) => {
     // Determine diff
     const currentItemsMap = new Map(cart.map(i => [i.product.id, i.quantity]));
@@ -674,67 +777,9 @@ const handleProcessPayment = async () => {
       setAmountTendered('');
       
       if (finalOrderForReceipt) {
-        const activeBranch = branches.find(b => b.id === selectedBranch);
-        const localSettings = localSettingsService.getForBranch(activeBranch?.id || '');
-        
-        const hasMainPrinter = !!localSettings.printer_ip;
-        const hasKitchenPrinter = !!localSettings.kitchen_printer_ip;
-
-        if (hasMainPrinter || hasKitchenPrinter) {
-          try {
-            toast.loading('Sending to printers...', { id: 'print-job' });
-            
-            const printJobs = [];
-            
-            if (hasMainPrinter) {
-              printJobs.push(
-                fetch('/api/print/receipt', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    order: finalOrderForReceipt,
-                    printerIp: localSettings.printer_ip,
-                    printerRole: 'main',
-                    businessName: activeBranch?.name,
-                    businessAddress: activeBranch?.address,
-                    businessPhone: activeBranch?.phone_number
-                  })
-                })
-              );
-            }
-            
-            if (hasKitchenPrinter) {
-              printJobs.push(
-                fetch('/api/print/receipt', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    order: finalOrderForReceipt,
-                    printerIp: localSettings.kitchen_printer_ip,
-                    printerRole: 'kitchen',
-                  })
-                })
-              );
-            }
-
-            const results = await Promise.all(printJobs);
-            
-            const failedJobs = await Promise.all(results.filter(r => !r.ok).map(r => r.json()));
-            
-            if (failedJobs.length > 0) {
-               throw new Error(failedJobs.map(f => f.error).join(', '));
-            } else {
-               toast.success('Printed successfully!', { id: 'print-job' });
-            }
-          } catch (printErr: any) {
-             console.error('Silent print failed:', printErr);
-             toast.error(`Silent print failed: ${printErr.message}. Falling back to browser print.`, { id: 'print-job' });
-             setIsReceiptModalOpen(true);
-          }
-        } else {
-          // Fallback to normal browser print dialog
-          setIsReceiptModalOpen(true);
-        }
+        await triggerDirectPrint(finalOrderForReceipt);
+        // Note: We no longer auto-pop the manual browser dialog (setIsReceiptModalOpen) 
+        // to avoid annoying the user if the server doesn't respond quickly.
       }
     } catch (error: any) {
       handleError(error);
@@ -1296,17 +1341,27 @@ const handleProcessPayment = async () => {
             </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-10">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-10">
             <Button 
               variant="outline" 
-              className="px-10 py-7 h-auto min-w-[180px] font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl border-white/10 hover:bg-white/5"
+              className="flex-1 py-7 h-auto font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl border-white/10 hover:bg-white/5"
               onClick={() => { setIsReceiptModalOpen(false); setCompletedOrder(null); }}
             >
               New Transaction
             </Button>
             <Button 
+              variant="outline" 
+              className="flex-1 py-7 h-auto font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl border-white/10 hover:bg-orange-500/10 hover:text-orange-500"
+              icon={<ChefHat className="w-4 h-4" />}
+              onClick={() => {
+                if (completedOrder) triggerDirectPrint(completedOrder, 'kitchen');
+              }}
+            >
+              Kitchen
+            </Button>
+            <Button 
               variant="primary" 
-              className="px-10 py-7 h-auto min-w-[180px] font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl shadow-primary/30 rounded-2xl"
+              className="flex-1 py-7 h-auto font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl shadow-primary/30 rounded-2xl"
               icon={<Printer className="w-4 h-4" />}
               onClick={() => {
                 setOrderToPrint(completedOrder);
@@ -1379,22 +1434,15 @@ const handleProcessPayment = async () => {
               variant="primary" 
               fullWidth
               disabled={!printKitchen && !printMain}
-              onClick={() => {
+              onClick={async () => {
                 if (orderToPrint) {
-                  if (printKitchen) {
-                    setKitchenPrintOrder(orderToPrint);
-                    setTimeout(() => handleKitchenPrint(), 200);
-                  }
-                  if (printMain) {
-                    setCompletedOrder(orderToPrint);
-                    setTimeout(() => handlePrint(), printKitchen ? 500 : 0);
-                  }
+                  await triggerDirectPrint(orderToPrint, printKitchen && printMain ? 'both' : printKitchen ? 'kitchen' : 'main');
                 }
                 setIsPrintOptionsModalOpen(false);
               }}
               className="h-12 uppercase tracking-widest text-[10px] font-black rounded-xl shadow-xl shadow-primary/20"
             >
-              Confirm Print
+              Start Print Job
             </Button>
           </div>
         </div>
@@ -1816,27 +1864,45 @@ const handleProcessPayment = async () => {
                     >
                       Edit 
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setOrderToPrint(order);
-                        setIsPrintOptionsModalOpen(true);
-                      }}
-                      className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest hover:text-primary border-white/10"
-                      icon={<Printer className="w-4 h-4" />}
-                    >
-                      Print
-                    </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => triggerDirectPrint(order, 'kitchen')}
+                        className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest hover:text-orange-500 border-white/10"
+                        icon={<ChefHat className="w-4 h-4" />}
+                      >
+                        Kitchen
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => triggerDirectPrint(order, 'main')}
+                        className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest hover:text-primary border-white/10"
+                        icon={<Printer className="w-4 h-4" />}
+                      >
+                        Receipt
+                      </Button>
                     
-                    {order.status === 'draft' && (
-                      <Button variant="primary" className="w-full text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'confirm')} disabled={isUpdatingStatus===order.id}>Confirm</Button>
-                    )}
-                    {order.status === 'confirmed' && (
-                      <div className="flex gap-2 w-full">
+                    <div className="flex flex-wrap gap-2 w-full pt-1">
+                      {order.status === 'draft' && (
+                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'confirm')} disabled={isUpdatingStatus===order.id}>Send to Kitchen</Button>
+                      )}
+                      {order.status === 'confirmed' && (
                         <Button variant="primary" className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'prepare')} disabled={isUpdatingStatus===order.id}>Start Cooking</Button>
+                      )}
+                      {order.status === 'preparing' && (
+                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'ready')} disabled={isUpdatingStatus===order.id}>Mark Ready</Button>
+                      )}
+                      {order.status === 'ready' && (
+                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'serve')} disabled={isUpdatingStatus===order.id}>Mark Served</Button>
+                      )}
+                      {order.status === 'served' && (
+                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest hover:bg-success hover:border-success/50 bg-success border-success text-white shadow-lg shadow-success/20" onClick={() => executeStatusUpdate(order, 'complete')} disabled={isUpdatingStatus===order.id}>Finalize Order</Button>
+                      )}
+                      
+                      {/* Checkout Button: Available for all non-draft/non-complete statuses */}
+                      {order.status !== 'draft' && (
                         <Button 
                           variant="primary" 
-                          className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 border-emerald-500" 
+                          className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/10" 
                           onClick={() => {
                             loadOrderForEditing(order);
                             setIsActiveOrdersModalOpen(false);
@@ -1845,17 +1911,8 @@ const handleProcessPayment = async () => {
                         >
                           Checkout
                         </Button>
-                      </div>
-                    )}
-                    {order.status === 'preparing' && (
-                      <Button variant="primary" className="w-full text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'ready')} disabled={isUpdatingStatus===order.id}>Mark Ready</Button>
-                    )}
-                    {order.status === 'ready' && (
-                      <Button variant="primary" className="w-full text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'serve')} disabled={isUpdatingStatus===order.id}>Mark Served</Button>
-                    )}
-                    {order.status === 'served' && (
-                      <Button variant="primary" className="w-full text-[10px] h-8 font-black uppercase tracking-widest hover:bg-success hover:border-success/50 bg-success border-success text-white shadow-lg shadow-success/20" onClick={() => executeStatusUpdate(order, 'complete')} disabled={isUpdatingStatus===order.id}>Finalize Order</Button>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

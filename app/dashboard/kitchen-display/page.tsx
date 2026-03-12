@@ -7,7 +7,9 @@ import { Clock, User, RefreshCw, ChefHat, CheckCheck, PlayCircle, CheckCircle2, 
 import { orderService } from '@/src/services/order.service';
 import { productService } from '@/src/services/product.service';
 import { tableService } from '@/src/services/table.service';
-import { Order } from '@/src/types';
+import { branchService } from '@/src/services/branch.service';
+import { localSettingsService } from '@/src/services/local-settings.service';
+import { Order, Branch } from '@/src/types';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { useReactToPrint } from 'react-to-print';
@@ -34,6 +36,7 @@ export default function KitchenDisplay() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [activeStatus, setActiveStatus] = useState('all');
   const [processingOrders, setProcessingOrders] = useState<Record<string, boolean>>({});
+  const [branches, setBranches] = useState<Branch[]>([]);
 
   // Payment Modal State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -59,12 +62,13 @@ export default function KitchenDisplay() {
     try {
       const { customerService } = await import('@/src/services/customer.service');
       const { userService } = await import('@/src/services/user.service');
-      const [orderData, productData, tableData, customerData, userData] = await Promise.all([
+      const [orderData, productData, tableData, customerData, userData, branchData] = await Promise.all([
         orderService.getAll(undefined, 1000), // Fetch all to be safe and filter on frontend
         productService.getAll(1000),
         tableService.getAll(),
         customerService.getAll().catch(() => []),
-        userService.getAll().catch(() => [])
+        userService.getAll().catch(() => []),
+        branchService.getAll().catch(() => [])
       ]);
 
       // Create maps for efficient lookup
@@ -104,6 +108,7 @@ export default function KitchenDisplay() {
       }
 
       setOrders(sortedOrders);
+      setBranches(branchData);
     } catch (error) {
       console.error('Failed to fetch kitchen data', error);
       if (!silent) toast.error('Failed to load kitchen display');
@@ -157,6 +162,56 @@ export default function KitchenDisplay() {
       toast.error(errorMessage);
     } finally {
       setProcessingOrders(prev => ({ ...prev, [order.id]: false }));
+    }
+  };
+
+  const triggerDirectPrint = async (targetOrder: Order) => {
+    // 1. Identify Branch ID robustly
+    const rawBranch = targetOrder.branch || (targetOrder as any).branch_id;
+    let branchId = '';
+    
+    if (typeof rawBranch === 'object' && rawBranch !== null) {
+      branchId = (rawBranch as any).id || '';
+    } else if (typeof rawBranch === 'string') {
+      branchId = rawBranch;
+    }
+
+    const localSettings = localSettingsService.getForBranch(branchId);
+    
+    if (!localSettings.direct_printing) {
+      console.log('Direct printing is disabled in settings');
+      return false;
+    }
+
+    if (!localSettings.kitchen_printer_ip) {
+      toast.error('Kitchen Printer IP not configured in Settings.');
+      return false;
+    }
+
+    try {
+      toast.loading('Sending to kitchen printer...', { id: 'print-job' });
+      
+      const response = await fetch('/api/print/receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order: targetOrder,
+          printerIp: localSettings.kitchen_printer_ip,
+          printerRole: 'kitchen',
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to print');
+      }
+
+      toast.success('Printed successfully!', { id: 'print-job' });
+      return true;
+    } catch (printErr: any) {
+       console.error('Silent print failed:', printErr);
+       toast.error(`Silent print failed: ${printErr.message}. Falling back to manual print.`, { id: 'print-job' });
+       return false;
     }
   };
 
@@ -301,14 +356,14 @@ export default function KitchenDisplay() {
   const renderPrintButton = (order: Order) => {
     return (
       <button 
-        onClick={() => {
-          setKitchenPrintOrder(order);
-          setTimeout(() => handleKitchenPrint(), 200);
+        onClick={async () => {
+          await triggerDirectPrint(order);
+          // Auto-fallback removed to avoid annoying browser dialogs
         }}
-        className="w-full mt-2 px-4 py-3 bg-transparent text-[#808080] hover:text-white font-black text-[9px] uppercase tracking-[0.2em] rounded-xl hover:bg-white/5 transition-all border border-transparent hover:border-white/10 flex items-center justify-center gap-2"
+        className="w-full mt-2 px-4 py-3 bg-white/5 text-primary hover:text-white font-black text-[9px] uppercase tracking-[0.2em] rounded-xl hover:bg-primary/20 transition-all border border-primary/10 flex items-center justify-center gap-2"
       >
-        <Printer className="w-3.5 h-3.5" />
-        Print Ticket
+        <ChefHat className="w-3.5 h-3.5" />
+        Send to Kitchen
       </button>
     );
   };
