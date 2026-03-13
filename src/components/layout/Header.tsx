@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell, Search, LogOut, Command, Menu, Store } from "lucide-react"
+import { Bell, Search, LogOut, Command, Menu } from "lucide-react"
 import { Button } from "@/src/components/ui/button"
 import { useAuth } from "@/src/context/AuthContext"
 
@@ -56,15 +56,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         <div className="flex items-center gap-2 md:gap-4 md:pl-2">
           <div className="flex flex-col items-end hidden lg:flex">
             <p className="text-sm font-bold text-white leading-none">{user?.username || 'Admin User'}</p>
-            <div className="flex items-center gap-2 mt-1">
-               {user?.branch_name && (
-                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#808080] flex items-center gap-1">
-                   <Store className="w-3 h-3 text-primary" />
-                   {user.branch_name}
-                 </p>
-               )}
-               <p className="text-[10px] font-medium text-accent border-l border-white/10 pl-2 uppercase tracking-widest">{user?.role || 'Staff'}</p>
-            </div>
+            <p className="text-[11px] font-medium text-accent mt-1">{user?.role || 'Staff'}</p>
           </div>
           <div className="group relative cursor-pointer">
             <div className="flex h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-xl md:rounded-2xl bg-gradient-to-br from-accent to-accent-active text-bg-main font-black shadow-glow-accent group-hover:scale-105 transition-transform duration-300">
