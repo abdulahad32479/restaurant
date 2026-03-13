@@ -190,10 +190,10 @@ export default function KitchenDisplay() {
       toast.loading('Sending to kitchen printer...', { id: 'print-job' });
       
       const activeBranch = branches.find(b => b.id === branchId);
-      const kitchenText = formatOrderToKitchenText(targetOrder, activeBranch?.name);
       
       await printerClient.post('print/kitchen', {
-        text: kitchenText
+        order: targetOrder,
+        businessName: activeBranch?.name
       });
 
       toast.success('Printed successfully!', { id: 'print-job' });
@@ -606,6 +606,7 @@ export default function KitchenDisplay() {
             tables={tables}
             customers={customers}
             users={users}
+            businessName={branches.find(b => b.id === kitchenPrintOrder.branch)?.name}
           />
         )}
       </div>

@@ -34,42 +34,38 @@ export async function POST(req: Request) {
               .font('a')
               .align('ct')
               .style('b')
-              .size(2, 2)
-              .text('KITCHEN DOCKET')
-              .style('normal')
               .size(0, 0)
-              .text(businessName || '')
-              .text('')
+              .text('KITCHEN DOCKET')
+              .size(0, 0)
+              .text(businessName?.toUpperCase() || '')
+              .text('-'.repeat(48))
               .align('lt')
               .style('b')
-              .text('-'.repeat(48))
-              .text(`Order No: ${order.order_number || order.id.slice(-6).toUpperCase()}`)
-              .text(`Date: ${new Date(order.created_at).toLocaleString()}`)
-              .style('b')
-              .size(1, 1)
-              .text(`TYPE: ${order.order_type.replace('_', ' ').toUpperCase()}`);
-              
-            if (order.table || order.table_no) {
-              printer.text(`TABLE: ${order.table_no || order.table}`);
-            }
-            
-            printer
+              .text('ORDER NO:'.padEnd(30, ' ') + (order.order_number || order.id.slice(-6).toUpperCase()).padStart(18, ' '))
               .style('normal')
-              .size(0, 0)
-              .text('-'.repeat(48))
+              .text('Date:'.padEnd(30, ' ') + new Date(order.created_at).toLocaleString().padStart(18, ' '))
+              .text('')
+              .align('ct')
               .style('b')
-              .text('QTY  ITEM')
+              .text(`[ ${order.order_type.replace('_', ' ').toUpperCase()} ]`.padEnd(24, ' ') + `[ Table: ${order.table_no || order.table || 'N/A'} ]`)
+              .align('lt')
               .style('normal')
               .text('-'.repeat(48))
-              .size(1, 1);
+              .style('b')
+              .text('QTY    ITEM')
+              .style('normal')
+              .text('-'.repeat(48))
+              .size(0, 0);
 
             order.items.forEach((item: any) => {
-              const productName = (item.product_name && item.product_name !== 'string') ? item.product_name : 'Item';
-              printer.text(`[${item.quantity}]  ${productName.toUpperCase()}`);
-              if (order.notes) {
-                  printer.style('normal').size(0, 0).text(`      * NOTE: ${order.notes}`);
+              const productName = (item.product_name && item.product_name !== 'string') ? item.product_name : (item.product?.name || 'Item');
+              printer.style('b').text(`[${Number(item.quantity).toFixed(0)}]    ${productName.toUpperCase()}`);
+              if (item.notes || order.notes) {
+                  printer.style('normal').size(0, 0).text(`       * NOTE: ${item.notes || order.notes}`);
               }
+              printer.size(0, 0);
             });
+            printer.size(0, 0).text('-'.repeat(48)).text('*** END OF TICKET ***');
           } else {
             // Raw Text Printing
             printer

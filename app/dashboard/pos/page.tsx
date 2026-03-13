@@ -485,25 +485,21 @@ export default function POS() {
       const printJobs = [];
       
       if (printerType === 'main' || printerType === 'both') {
-        const receiptText = formatOrderToReceiptText(targetOrder, {
-          name: activeBranch?.name,
-          address: activeBranch?.address,
-          phone: activeBranch?.phone_number
-        });
-        
         printJobs.push(
           printerClient.post('print/counter', {
-            text: receiptText
+            order: targetOrder,
+            businessName: activeBranch?.name,
+            businessAddress: activeBranch?.address,
+            businessPhone: activeBranch?.phone_number
           })
         );
       }
       
       if (printerType === 'kitchen' || printerType === 'both') {
-        const kitchenText = formatOrderToKitchenText(targetOrder, activeBranch?.name);
-        
         printJobs.push(
           printerClient.post('print/kitchen', {
-            text: kitchenText
+            order: targetOrder,
+            businessName: activeBranch?.name
           })
         );
       }
@@ -1900,6 +1896,18 @@ const handleProcessPayment = async () => {
             tables={Object.fromEntries(tables.map(t => [t.id, t.name]))}
             customers={Object.fromEntries(customers.map(c => [c.id, c.name]))}
             users={users}
+            businessName={(() => {
+              const bId = completedOrder.branch || selectedBranch;
+              return (branches.find(b => b.id === bId) || branches[0])?.name;
+            })()}
+            businessAddress={(() => {
+              const bId = completedOrder.branch || selectedBranch;
+              return (branches.find(b => b.id === bId) || branches[0])?.address;
+            })()}
+            businessPhone={(() => {
+              const bId = completedOrder.branch || selectedBranch;
+              return (branches.find(b => b.id === bId) || branches[0])?.phone_number;
+            })()}
             logoUrl={(() => {
               const bId = completedOrder.branch || selectedBranch;
               const b = branches.find(b => b.id === bId) || branches[0];

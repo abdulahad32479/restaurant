@@ -35,55 +35,51 @@ export async function POST(req: Request) {
               .align('ct')
               .style('b')
               .size(1, 1)
-              .text(businessName || 'RESTAURANT NAME')
+              .text(businessName?.toUpperCase() || 'DUKES')
               .style('normal')
               .size(0, 0)
-              .text(businessAddress || '')
+              .text(businessAddress?.toUpperCase() || '')
               .text(businessPhone || '')
-              .text('')
+              .text('-'.repeat(48))
               .align('lt')
               .style('b')
-              .text('-'.repeat(48))
-              .text(`Order No: ${order.order_number || order.id.slice(-6).toUpperCase()}`)
-              .text(`Date: ${new Date(order.created_at).toLocaleString()}`)
-              .text(`Type: ${order.order_type.replace('_', ' ').toUpperCase()}`);
-
-            if (order.table || order.table_no) {
-              printer.text(`Table: ${order.table_no || order.table}`);
-            }
-            if (order.customer || order.delivery_info?.name) {
-              printer.text(`Customer: ${order.delivery_info?.name || order.customer}`);
-              if (order.delivery_info?.phone) printer.text(`Phone: ${order.delivery_info.phone}`);
-            }
-
-            printer.style('normal');
-
-            printer
+              .text('ORDER NO:'.padEnd(30, ' ') + (order.order_number || order.id.slice(-6).toUpperCase()).padStart(18, ' '))
+              .style('normal')
+              .text('Date:'.padEnd(30, ' ') + new Date(order.created_at).toLocaleString().padStart(18, ' '))
+              .text('')
+              .align('ct')
+              .style('b')
+              .text(`[ ${order.order_type.replace('_', ' ').toUpperCase()} ]`.padEnd(24, ' ') + `[ Table: ${order.table_no || order.table || 'N/A'} ]`)
+              .align('lt')
+              .style('normal')
+              .text('Cashier:'.padEnd(30, ' ') + (order.created_by || 'dukes').padStart(18, ' '))
               .text('-'.repeat(48))
               .style('b')
-              .text('QTY  ITEM                                  TOTAL')
-              .style('normal');
+              .text('QTY  ITEM'.padEnd(38, ' ') + 'TOTAL'.padStart(10, ' '))
+              .style('normal')
+              .text('-'.repeat(48));
 
             order.items.forEach((item: any) => {
-              const productName = (item.product_name && item.product_name !== 'string') ? item.product_name : 'Item';
-              const qtyStr = `${item.quantity}`.padEnd(5, ' ');
-              const nameStr = productName.substring(0, 30).padEnd(32, ' ');
-              const totalStr = Number(item.total_price).toFixed(2).padStart(11, ' ');
+              const productName = (item.product_name && item.product_name !== 'string') ? item.product_name : (item.product?.name || 'Item');
+              const qtyStr = `${Number(item.quantity).toFixed(2)}`.padEnd(5, ' ');
+              const nameStr = productName.toUpperCase().substring(0, 32).padEnd(33, ' ');
+              const totalStr = Number(item.total_price || (item.quantity * (item.unit_price || 0))).toFixed(2).padStart(10, ' ');
               printer.text(`${qtyStr}${nameStr}${totalStr}`);
             });
 
             printer
               .text('-'.repeat(48))
               .align('rt')
-              .text(`Subtotal: Rs. ${Number(order.subtotal).toFixed(2)}`)
-              .text(`Tax: Rs. ${Number(order.taxamount).toFixed(2)}`)
+              .text(`Subtotal: Rs. ${Number(order.subtotal || order.total).toFixed(2)}`)
+              .text(`Tax: Rs. ${Number(order.taxamount || 0).toFixed(2)}`)
               .style('b')
               .size(1, 1)
-              .text(`Total Due: Rs. ${Number(order.total).toFixed(2)}`)
+              .text(`TOTAL DUE: Rs. ${Number(order.total).toFixed(2)}`)
               .style('normal')
               .size(0, 0)
               .text('')
               .align('ct')
+              .text('THANK YOU FOR VISITING!')
               .text('*** END OF RECEIPT ***');
           } else {
             // Raw Text Printing

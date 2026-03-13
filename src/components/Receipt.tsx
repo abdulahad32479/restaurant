@@ -42,47 +42,43 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         className="bg-white text-black p-4 md:p-6 font-mono text-[13px] leading-tight max-w-[320px] mx-auto border border-gray-200 shadow-sm print:shadow-none print:border-none"
       >
         {/* Header */}
-        <div className="text-center mb-5">
-          {logoUrl && (
-            <div className="mb-3 flex justify-center">
-              <img src={logoUrl} alt="Logo" className="max-h-16 w-auto object-contain" />
-            </div>
-          )}
-          <h1 className="text-xl font-black uppercase tracking-widest mb-1 text-black">{businessName}</h1>
-          <p className="text-xs text-black font-black">{businessAddress}</p>
-          <p className="text-xs text-black font-black">{businessPhone}</p>
+        <div className="text-center mb-4">
+          <h1 className="text-xl font-black uppercase tracking-widest mb-1 text-black">
+            {businessName.toUpperCase()}
+          </h1>
+          <p className="text-[11px] text-black font-bold uppercase">{businessAddress}</p>
+          <p className="text-[11px] text-black font-bold">{businessPhone}</p>
         </div>
 
         {/* Divider */}
-        <div className="border-b-2 border-dashed border-black my-4" />
+        <div className="border-b border-dashed border-black my-4" />
 
         {/* Order Info */}
-        <div className="space-y-1.5 mb-4 font-bold">
-          <div className="flex justify-between items-center text-black">
-            <span className="uppercase text-xs font-bold">Order No:</span>
-            <span className="font-bold text-base">{order.order_number || order.id.slice(-6).toUpperCase()}</span>
+        <div className="space-y-2 mb-4">
+          <div className="flex justify-between items-baseline text-black">
+            <span className="uppercase text-[11px] font-black">Order No:</span>
+            <span className="font-black text-sm">{order.order_number || order.id.slice(-6).toUpperCase()}</span>
           </div>
-          <div className="flex justify-between text-black text-xs">
-            <span>Date:</span>
-            <span>{formatDate(order.created_at)}</span>
+          <div className="flex justify-between items-baseline text-black text-[11px]">
+            <span className="font-bold">Date:</span>
+            <span className="font-bold">{formatDate(order.created_at)}</span>
           </div>
-          <div className="flex justify-between items-center text-black text-xs mt-1">
-            <span className="uppercase bg-black text-white px-2 py-0.5 font-black rounded-sm">
+          
+          <div className="flex justify-between items-center py-1">
+            <div className="bg-black text-white px-3 py-1 text-[11px] font-black rounded-full uppercase">
               {order.order_type.replace('_', ' ')}
-            </span>
-            {order.order_type === 'dine_in' && (order.table_no || order.table) && (
-              <span className="font-black border border-black px-2 py-0.5 rounded-sm">
+            </div>
+            {(order.table_no || order.table) && (
+              <div className="border border-black px-3 py-1 text-[11px] font-black rounded-full">
                 Table {order.table_no || tables[order.table || ''] || order.table}
-              </span>
+              </div>
             )}
           </div>
           
-          {order.created_by && (
-            <div className="flex justify-between text-black text-xs pt-1">
-              <span>Cashier:</span>
-              <span className="truncate max-w-[150px]">{users[order.created_by] || order.created_by}</span>
-            </div>
-          )}
+          <div className="flex justify-between items-baseline text-black text-[11px] pt-1 border-t border-black border-dotted">
+            <span className="font-bold">Cashier:</span>
+            <span className="font-bold">{users[order.created_by || ''] || order.created_by || 'dukes'}</span>
+          </div>
           
           {(order.order_type === 'delivery' || order.customer) && (
             <div className="mt-2 pt-2 border-t border-black border-dotted">
@@ -107,24 +103,23 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           )}
         </div>
 
-        <div className="border-b-2 border-black my-3" />
+        <div className="border-b border-black my-4" />
 
         {/* Items Header */}
-        <div className="flex justify-between font-bold text-xs uppercase text-black mb-2 px-1">
-          <span className="w-8">Qty</span>
+        <div className="flex justify-between font-black text-[11px] uppercase text-black mb-3 px-1">
+          <span className="w-10">Qty</span>
           <span className="flex-1 text-left">Item</span>
           <span className="w-16 text-right">Total</span>
         </div>
 
         {/* Items List */}
-        <div className="space-y-3 px-1">
+        <div className="space-y-4 px-1">
           {order.items.map((item, idx) => {
             const productId = String(item.product || '').trim();
             const mapName = products?.[productId];
             const cleanSnapshot = (item.product_name && item.product_name.toLowerCase().trim() !== 'string') ? item.product_name : null;
             const objectInfo = typeof item.product === 'object' ? (item.product as any) : null;
-            const objectName = objectInfo?.name || objectInfo?.product_name || objectInfo?.title;
-            const productName = mapName || cleanSnapshot || objectName || productId || 'Item';
+            const productName = mapName || cleanSnapshot || objectInfo?.name || productId || 'Item';
             
             const unitPrice = Number(item.unit_price || 0);
             const qty = Number(item.quantity || 0);
@@ -132,16 +127,11 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
 
             return (
               <div key={idx} className="flex items-start text-black">
-                <span className="w-8 font-bold">{item.quantity}</span>
+                <span className="w-10 font-bold text-[12px]">{qty.toFixed(2)}</span>
                 <div className="flex-1 pr-2">
-                  <div className="font-bold capitalize">{productName}</div>
-                  {qty > 1 && (
-                    <div className="text-[10px] text-black font-black mt-0.5">
-                      {item.quantity} @ Rs.{unitPrice.toFixed(2)}
-                    </div>
-                  )}
+                  <div className="font-bold text-[13px]">{productName}</div>
                 </div>
-                <span className="w-16 text-right font-bold mt-0.5">
+                <span className="w-16 text-right font-bold text-[13px]">
                   {itemTotal.toFixed(2)}
                 </span>
               </div>
@@ -149,30 +139,27 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           })}
         </div>
 
-        <div className="border-b border-black my-3" />
+        <div className="border-b border-black my-4" />
 
         {/* Totals */}
-        <div className="space-y-1 text-black font-bold px-1">
+        <div className="space-y-2 text-black font-bold px-1">
           <div className="flex justify-between text-[13px]">
             <span>Subtotal</span>
-            <span>Rs. {Number(order.subtotal).toFixed(2)}</span>
+            <span>Rs. {Number(order.subtotal || order.total).toFixed(2)}</span>
           </div>
-          {Number(order.discount_amount) > 0 && (
-            <div className="flex justify-between text-[13px]">
-              <span>Discount</span>
-              <span>-Rs. {Number(order.discount_amount).toFixed(2)}</span>
-            </div>
-          )}
           <div className="flex justify-between text-[13px]">
             <span>Tax</span>
-            <span>Rs. {Number(order.taxamount).toFixed(2)}</span>
+            <span>Rs. {Number(order.taxamount || 0).toFixed(2)}</span>
           </div>
           
-          <div className="border-b-2 border-dashed border-black my-2" />
+          <div className="border-b border-dashed border-black my-3" />
           
-          <div className="flex justify-between items-end mt-2 text-black">
-            <span className="font-bold text-sm uppercase">Total Due</span>
-            <span className="font-black text-2xl leading-none">Rs. {Number(order.total).toFixed(2)}</span>
+          <div className="flex justify-between items-baseline text-black">
+            <span className="font-black text-sm uppercase">Total Due</span>
+            <span className="font-black text-2xl">
+              <span className="text-xl">Rs. </span>
+              {Number(order.total).toFixed(2)}
+            </span>
           </div>
         </div>
 
