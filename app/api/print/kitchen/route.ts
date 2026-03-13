@@ -37,7 +37,9 @@ export async function POST(req: Request) {
 
         try {
           if (order) {
-            // Professional Kitchen Formatting
+            // --------- PROFESSIONAL KITCHEN DOCKET FORMATTING ---------
+            const lineDash = '-'.repeat(48);
+            
             printer
               .font('a')
               .align('ct')
@@ -46,40 +48,54 @@ export async function POST(req: Request) {
               .text('KITCHEN DOCKET')
               .style('normal')
               .size(0, 0)
-              .text(businessName || '')
+              .text((businessName || 'DUKES').toUpperCase())
               .text('')
               .align('lt')
               .style('b')
-              .text('-'.repeat(48))
-              .text(`Order No: ${order.order_number || order.id.slice(-6).toUpperCase()}`)
-              .text(`Date: ${new Date(order.created_at).toLocaleString()}`)
-              .style('b')
+              .text(lineDash);
+
+            const orderNo = order.order_number || (order.id ? String(order.id).slice(-6).toUpperCase() : 'N/A');
+            const dateStr = order.created_at ? new Date(order.created_at).toLocaleString() : new Date().toLocaleString();
+            
+            printer
+              .text(`Order No: ${orderNo}`)
+              .text(`Date: ${dateStr}`)
+              .text('')
               .size(1, 1)
-              .text(`TYPE: ${order.order_type.replace('_', ' ').toUpperCase()}`);
+              .text(`TYPE: ${String(order.order_type || 'Takeaway').replace('_', ' ').toUpperCase()}`);
               
-            if (order.table || order.table_no) {
+            if (order.table_no || order.table) {
               printer.text(`TABLE: ${order.table_no || order.table}`);
             }
             
             printer
               .style('normal')
               .size(0, 0)
-              .text('-'.repeat(48))
+              .text(lineDash)
               .style('b')
-              .text('QTY  ITEM')
+              .text('QTY   ITEM')
               .style('normal')
-              .text('-'.repeat(48))
+              .text(lineDash)
               .size(1, 1);
 
             order.items.forEach((item: any) => {
-              const productName = (item.product_name && item.product_name !== 'string') ? item.product_name : 'Item';
-              printer.text(`[${item.quantity}]  ${productName.toUpperCase()}`);
-              if (order.notes) {
-                  printer.style('normal').size(0, 0).text(`      * NOTE: ${order.notes}`);
+              const productName = (item.product_name && item.product_name !== 'string') ? item.product_name : (item.product?.name || 'Item');
+              const qty = Number(item.quantity).toFixed(0);
+              printer.text(`[${qty}]  ${productName.toUpperCase()}`);
+              if (item.notes || order.notes) {
+                  printer.style('normal').size(0, 0).text(`      * NOTE: ${item.notes || order.notes}`);
+                  printer.size(1, 1);
               }
             });
+
+            printer
+              .style('normal')
+              .size(0, 0)
+              .text('')
+              .text(lineDash)
+              .text('*** END OF TICKET ***');
           } else {
-            // Raw Text Printing
+            // Raw Text Printing (Fallback)
             printer
               .font('a')
               .align('lt')

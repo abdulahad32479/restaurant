@@ -28,6 +28,8 @@ import apiClient, { printerClient } from '@/src/lib/axios';
 import { localSettingsService } from '@/src/services/local-settings.service';
 import { ConfirmModal } from '@/src/components/ConfirmModal';
 import { formatOrderToReceiptText, formatOrderToKitchenText } from '@/src/lib/print-utils';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function POS() {
   const searchParams = useSearchParams();
@@ -457,6 +459,51 @@ export default function POS() {
     toast.error(errorMessage);
   };
 
+  const pdfReceiptRef = useRef<HTMLDivElement>(null);
+  const [pdfOrder, setPdfOrder] = useState<Order | null>(null);
+
+  const captureAndUploadPDF = async (order: Order) => {
+    try {
+      // Set the order for PDF rendering and wait a beat
+      setPdfOrder(order);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      if (!pdfReceiptRef.current) {
+        console.warn('PDF Receipt Ref not found');
+        return;
+      }
+
+      const canvas = await html2canvas(pdfReceiptRef.current, {
+        scale: 2, // Better quality
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [80, 297] // Standard thermal paper width
+      });
+
+      const imgWidth = 80;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      const pdfBase64 = pdf.output('datauristring');
+
+      // Upload to server using printerClient (relative to local API)
+      await printerClient.post('print/upload-pdf', {
+        pdfData: pdfBase64,
+        orderId: order.order_number || order.id
+      });
+
+      console.log('>>> [PDF] Receipt uploaded successfully');
+    } catch (err) {
+      console.error('Error capturing PDF:', err);
+    }
+  };
+
   const triggerDirectPrint = async (targetOrder: Order, printerType: 'main' | 'kitchen' | 'both' = 'both') => {
     // 1. Identify Branch ID robustly
     const rawBranch = targetOrder.branch || (targetOrder as any).branch_id;
@@ -480,6 +527,11 @@ export default function POS() {
     }
 
     try {
+      // Trigger PDF capture in parallel
+      if (printerType === 'main' || printerType === 'both') {
+         captureAndUploadPDF(targetOrder);
+      }
+
       toast.loading('Sending to printers...', { id: 'print-job' });
       
       const printJobs = [];
@@ -499,11 +551,12 @@ export default function POS() {
       }
       
       if (printerType === 'kitchen' || printerType === 'both') {
-        const kitchenText = formatOrderToKitchenText(targetOrder, activeBranch?.name);
-        
         printJobs.push(
           printerClient.post('print/kitchen', {
-            text: kitchenText
+            order: targetOrder,
+            businessName: activeBranch?.name,
+            businessAddress: activeBranch?.address,
+            businessPhone: activeBranch?.phone_number
           })
         );
       }
@@ -1918,6 +1971,34 @@ const handleProcessPayment = async () => {
               return local.payment_account || b?.payment_account;
             })()}
           />
+        )}
+        {pdfOrder && (
+          <div ref={pdfReceiptRef}>
+            <Receipt 
+              order={pdfOrder} 
+              products={allProductsMap}
+              tables={Object.fromEntries(tables.map(t => [t.id, t.name]))}
+              customers={Object.fromEntries(customers.map(c => [c.id, c.name]))}
+              users={users}
+              logoUrl={(() => {
+                const bId = pdfOrder.branch || selectedBranch;
+                const b = branches.find(b => b.id === bId) || branches[0];
+                const local = bId ? localSettingsService.getForBranch(bId) : {};
+                return local.receipt_logo || b?.receipt_logo;
+              })()}
+              logoUrlBottom={(() => {
+                const bId = pdfOrder.branch || selectedBranch;
+                const local = bId ? localSettingsService.getForBranch(bId) : {};
+                return local.receipt_logo_bottom;
+              })()}
+              paymentAccount={(() => {
+                const bId = pdfOrder.branch || selectedBranch;
+                const b = branches.find(b => b.id === bId) || branches[0];
+                const local = bId ? localSettingsService.getForBranch(bId) : {};
+                return local.payment_account || b?.payment_account;
+              })()}
+            />
+          </div>
         )}
         {kitchenPrintOrder && (
           <KitchenReceipt 
