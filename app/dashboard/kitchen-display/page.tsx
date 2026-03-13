@@ -348,8 +348,12 @@ export default function KitchenDisplay() {
     return (
       <button 
         onClick={async () => {
-          await triggerDirectPrint(order);
-          // Auto-fallback removed to avoid annoying browser dialogs
+          const printed = await triggerDirectPrint(order);
+          if (!printed) {
+            // Fallback to manual print if silent print fails (common on Vercel)
+            setKitchenPrintOrder(order);
+            setTimeout(() => handleKitchenPrint(), 200);
+          }
         }}
         className="w-full mt-2 px-4 py-3 bg-white/5 text-primary hover:text-white font-black text-[9px] uppercase tracking-[0.2em] rounded-xl hover:bg-primary/20 transition-all border border-primary/10 flex items-center justify-center gap-2"
       >

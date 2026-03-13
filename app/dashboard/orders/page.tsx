@@ -401,7 +401,13 @@ export default function Orders() {
             <button 
               className="p-2 hover:bg-primary/10 rounded-xl transition-all text-tertiary hover:text-primary" 
               title="Print Receipt"
-              onClick={() => triggerDirectPrint(row, 'main')}
+              onClick={async () => {
+                const printed = await triggerDirectPrint(row, 'main');
+                if (!printed) {
+                  setOrderToPrint(row);
+                  setTimeout(() => handlePrint(), 200);
+                }
+              }}
             >
               <Printer className="w-4 h-4" />
             </button>
@@ -410,7 +416,13 @@ export default function Orders() {
             <button 
               className="p-2 hover:bg-orange-500/10 rounded-xl transition-all text-tertiary hover:text-orange-400" 
               title="Send to Kitchen"
-              onClick={() => triggerDirectPrint(row, 'kitchen')}
+              onClick={async () => {
+                const printed = await triggerDirectPrint(row, 'kitchen');
+                if (!printed) {
+                  setKitchenPrintOrder(row);
+                  setTimeout(() => handleKitchenPrint(), 200);
+                }
+              }}
             >
               <ChefHat className="w-4 h-4" />
             </button>
@@ -749,7 +761,13 @@ export default function Orders() {
               <Button 
                 variant="outline" 
                 icon={<Printer className="w-4 h-4" />}
-                onClick={() => triggerDirectPrint(selectedOrder)}
+                onClick={async () => {
+                  const printed = await triggerDirectPrint(selectedOrder);
+                  if (!printed) {
+                    setOrderToPrint(selectedOrder);
+                    setTimeout(() => handlePrint(), 200);
+                  }
+                }}
               >
                 Print Receipt
               </Button>

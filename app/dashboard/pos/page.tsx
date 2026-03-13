@@ -742,9 +742,11 @@ const handleProcessPayment = async () => {
       setAmountTendered('');
       
       if (finalOrderForReceipt) {
-        await triggerDirectPrint(finalOrderForReceipt);
-        // Note: We no longer auto-pop the manual browser dialog (setIsReceiptModalOpen) 
-        // to avoid annoying the user if the server doesn't respond quickly.
+        const printed = await triggerDirectPrint(finalOrderForReceipt);
+        if (!printed) {
+          // If silent print fails (Vercel), auto-open the manual preview modal
+          setIsReceiptModalOpen(true);
+        }
       }
     } catch (error: any) {
       handleError(error);
@@ -1831,7 +1833,13 @@ const handleProcessPayment = async () => {
                     </Button>
                       <Button 
                         variant="outline" 
-                        onClick={() => triggerDirectPrint(order, 'kitchen')}
+                        onClick={async () => {
+                          const printed = await triggerDirectPrint(order, 'kitchen');
+                          if (!printed) {
+                            setKitchenPrintOrder(order);
+                            setTimeout(() => handleKitchenPrint(), 200);
+                          }
+                        }}
                         className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest hover:text-orange-500 border-white/10"
                         icon={<ChefHat className="w-4 h-4" />}
                       >
@@ -1839,7 +1847,13 @@ const handleProcessPayment = async () => {
                       </Button>
                       <Button 
                         variant="outline" 
-                        onClick={() => triggerDirectPrint(order, 'main')}
+                        onClick={async () => {
+                          const printed = await triggerDirectPrint(order, 'main');
+                          if (!printed) {
+                            setCompletedOrder(order);
+                            setIsReceiptModalOpen(true);
+                          }
+                        }}
                         className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest hover:text-primary border-white/10"
                         icon={<Printer className="w-4 h-4" />}
                       >
