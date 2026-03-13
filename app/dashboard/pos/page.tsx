@@ -462,45 +462,48 @@ export default function POS() {
   const pdfReceiptRef = useRef<HTMLDivElement>(null);
   const [pdfOrder, setPdfOrder] = useState<Order | null>(null);
 
-  const captureAndUploadPDF = async (order: Order) => {
+  const generatePDFPayload = async (order: Order): Promise<string | null> => {
     try {
-      // Set the order for PDF rendering and wait a beat
+      console.log('>>> [POS] Preparing PDF for order:', order.order_number || order.id);
       setPdfOrder(order);
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      if (!pdfReceiptRef.current) {
-        console.warn('PDF Receipt Ref not found');
-        return;
+      
+      // Retry loop to wait for the ref to be available
+      let attempts = 0;
+      while (!pdfReceiptRef.current && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        attempts++;
       }
 
+      if (!pdfReceiptRef.current) {
+        console.error('>>> [POS] CRITICAL: PDF Receipt Ref not found after 2 seconds!');
+        return null;
+      }
+
+      // Final short wait for images to potentially settle
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       const canvas = await html2canvas(pdfReceiptRef.current, {
-        scale: 2, // Better quality
+        scale: 1.5, // Slightly lower scale to reduce payload size
         useCORS: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        logging: false
       });
 
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/jpeg', 0.8); // Use JPEG with 0.8 quality to further reduce size
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: [80, 297] // Standard thermal paper width
+        format: [80, 297]
       });
 
       const imgWidth = 80;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-      const pdfBase64 = pdf.output('datauristring');
-
-      // Upload to server using printerClient (relative to local API)
-      await printerClient.post('print/upload-pdf', {
-        pdfData: pdfBase64,
-        orderId: order.order_number || order.id
-      });
-
-      console.log('>>> [PDF] Receipt uploaded successfully');
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+      return pdf.output('datauristring');
     } catch (err) {
-      console.error('Error capturing PDF:', err);
+      console.error('>>> [POS] Error generating PDF payload:', err);
+      return null;
     }
   };
 
@@ -527,43 +530,42 @@ export default function POS() {
     }
 
     try {
-      // Trigger PDF capture in parallel
-      if (printerType === 'main' || printerType === 'both') {
-         captureAndUploadPDF(targetOrder);
-      }
-
       toast.loading('Sending to printers...', { id: 'print-job' });
       
       const printJobs = [];
       
       if (printerType === 'main' || printerType === 'both') {
-        const receiptText = formatOrderToReceiptText(targetOrder, {
-          name: activeBranch?.name,
-          address: activeBranch?.address,
-          phone: activeBranch?.phone_number
-        });
+        // Generate PDF on the fly
+        console.log('>>> [POS] Generating PDF receipt...');
+        const pdfData = await generatePDFPayload(targetOrder);
+        
+        if (pdfData) {
+          console.log(`>>> [POS] PDF generated successfully. Payload size: ${Math.round(pdfData.length / 1024)} KB`);
+        } else {
+          console.warn('>>> [POS] PDF generation failed!');
+        }
         
         printJobs.push(
           printerClient.post('print/counter', {
-            text: receiptText
+            pdf: pdfData,
+            orderId: targetOrder.order_number || targetOrder.id
           })
         );
       }
       
       if (printerType === 'kitchen' || printerType === 'both') {
+        const kitchenText = formatOrderToKitchenText(targetOrder, activeBranch?.name);
+        
         printJobs.push(
           printerClient.post('print/kitchen', {
-            order: targetOrder,
-            businessName: activeBranch?.name,
-            businessAddress: activeBranch?.address,
-            businessPhone: activeBranch?.phone_number
+            text: kitchenText
           })
         );
       }
 
       const results = await Promise.all(printJobs);
       
-      toast.success('Printed successfully!', { id: 'print-job' });
+      toast.success('Sent successfully!', { id: 'print-job' });
       return true;
     } catch (printErr: any) {
        console.error('Silent print failed:', printErr);

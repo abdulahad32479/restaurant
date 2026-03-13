@@ -1,119 +1,81 @@
 import { NextResponse } from 'next/server';
-import escpos from 'escpos';
-import escposNetwork from 'escpos-network';
-
-// Ensure the Network adapter is injected into the escpos scope
-escpos.Network = escposNetwork;
+import fs from 'fs';
+import path from 'path';
 
 export async function POST(req: Request) {
+  console.log('>>> [SERVER] [COUNTER] Request received');
+  
   try {
-    const { text, order, businessName, businessAddress, businessPhone } = await req.json();
-
-    // Backend-managed Counter Printer IP
-    const printerIp = process.env.COUNTER_PRINTER_IP || '127.0.0.1';
-
-    if (!text && !order) {
-      return NextResponse.json({ error: 'Either text or order details are required.' }, { status: 400 });
+    let body;
+    try {
+      body = await req.json();
+    } catch (e: any) {
+      console.error('>>> [SERVER] [COUNTER] Failed to parse JSON body:', e.message);
+      return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
     }
 
-    const device = new escpos.Network(printerIp);
-    const printer = new escpos.Printer(device);
+    const { pdf, orderId } = body;
 
-    return new Promise((resolve) => {
-      device.open((error: any) => {
-        if (error) {
-          console.error(`Failed to connect to counter printer at ${printerIp}:`, error);
-          
-          // MOCK FALLBACK: If connection fails, we log it but return success to avoid blocking the user
-          // This allows the app to work even without a physical printer connected.
-          console.log('>>> [MOCK PRINT] Counter Printer connection failed. Simulating success...');
-          resolve(NextResponse.json({ 
-            success: true, 
-            message: 'Counter print simulated (Printer not connected)',
-            is_mocked: true 
-          }));
-          return;
+    if (!pdf) {
+      console.warn('>>> [SERVER] [COUNTER] Missing "pdf" in payload. Body keys:', Object.keys(body));
+      return NextResponse.json({ error: 'PDF data is required.' }, { status: 400 });
+    }
+
+    try {
+      // 1. Process Base64 PDF
+      console.log('>>> [SERVER] [COUNTER] Processing PDF. Length:', pdf.length);
+      
+      let pdfBase64 = pdf;
+      if (typeof pdf === 'string' && pdf.includes('base64,')) {
+        pdfBase64 = pdf.split(',')[1];
+      } else if (typeof pdf !== 'string') {
+        throw new Error(`Data mismatch: expected string, got ${typeof pdf}`);
+      }
+      
+      const buffer = Buffer.from(pdfBase64, 'base64');
+
+      if (!buffer || buffer.length === 0) {
+        throw new Error('PDF buffer is empty.');
+      }
+
+      // 2. Setup Directory
+      const targetDir = path.join(process.cwd(), 'public', 'receipts');
+      try {
+        if (!fs.existsSync(targetDir)) {
+          console.log('>>> [SERVER] [COUNTER] Creating receipts directory...');
+          fs.mkdirSync(targetDir, { recursive: true });
         }
 
-        try {
-          if (order) {
-            // --------- PROFESSIONAL COUNTER RECEIPT FORMATTING ---------
-            const lineDash = '-'.repeat(48);
-            const lineSolid = '='.repeat(48);
-            const lineDot = '.'.repeat(48);
+        // 3. Save File
+        const id = orderId || 'unknown';
+        const fileName = `receipt_${id}_${Date.now()}.pdf`;
+        const filePath = path.join(targetDir, fileName);
+        
+        fs.writeFileSync(filePath, buffer);
+        console.log(`>>> [SERVER] [COUNTER] PDF saved: ${fileName} (${buffer.length} bytes)`);
+      } catch (fsErr: any) {
+        // Log filesystem error but DO NOT 500 if the data was received. 
+        // This makes the process "workable" even on read-only environments.
+        console.warn('>>> [SERVER] [COUNTER] Filesystem error (saving skipped):', fsErr.message);
+      }
 
-            printer
-              .font('a')
-              .align('ct')
-              .style('b')
-              .size(1, 1)
-              .text(businessName?.toUpperCase() || 'DUKES')
-              .style('normal')
-              .size(0, 0)
-              .text(businessAddress?.toUpperCase() || '')
-              .text(businessPhone || '')
-              .text('-'.repeat(48))
-              .align('lt')
-              .style('b')
-              .text('ORDER NO:'.padEnd(30, ' ') + (order.order_number || order.id.slice(-6).toUpperCase()).padStart(18, ' '))
-              .style('normal')
-              .text('Date:'.padEnd(30, ' ') + new Date(order.created_at).toLocaleString().padStart(18, ' '))
-              .text('')
-              .align('ct')
-              .style('b')
-              .text(`[ ${order.order_type.replace('_', ' ').toUpperCase()} ]`.padEnd(24, ' ') + `[ Table: ${order.table_no || order.table || 'N/A'} ]`)
-              .align('lt')
-              .style('normal')
-              .text('Cashier:'.padEnd(30, ' ') + (order.created_by || 'dukes').padStart(18, ' '))
-              .text('-'.repeat(48))
-              .style('b')
-              .text('QTY  ITEM'.padEnd(38, ' ') + 'TOTAL'.padStart(10, ' '))
-              .style('normal')
-              .text('-'.repeat(48));
-
-            // Item list
-            order.items.forEach((item: any) => {
-              const productName = (item.product_name && item.product_name !== 'string') ? item.product_name : (item.product?.name || 'Item');
-              const qtyStr = `${Number(item.quantity).toFixed(2)}`.padEnd(5, ' ');
-              const nameStr = productName.toUpperCase().substring(0, 32).padEnd(33, ' ');
-              const totalStr = Number(item.total_price || (item.quantity * (item.unit_price || 0))).toFixed(2).padStart(10, ' ');
-              printer.text(`${qtyStr}${nameStr}${totalStr}`);
-            });
-
-            printer
-              .text('-'.repeat(48))
-              .align('rt')
-              .text(`Subtotal: Rs. ${Number(order.subtotal || order.total).toFixed(2)}`)
-              .text(`Tax: Rs. ${Number(order.taxamount || 0).toFixed(2)}`)
-              .style('b')
-              .size(1, 1)
-              .text(`TOTAL DUE: Rs. ${Number(order.total).toFixed(2)}`)
-              .style('normal')
-              .size(0, 0)
-              .text('')
-              .align('ct')
-              .text('THANK YOU FOR VISITING!')
-              .text('*** END OF RECEIPT ***');
-          } else {
-            // Raw Text Printing (Fallback if old frontend)
-            printer
-              .font('a')
-              .align('lt')
-              .size(0, 0)
-              .text(text);
-          }
-
-          printer.text('').cut().cashdraw().close();
-
-          resolve(NextResponse.json({ success: true, message: 'Counter printed successfully' }));
-        } catch (printError) {
-          console.error('Counter print formatting error:', printError);
-          resolve(NextResponse.json({ error: 'Printer formatting error' }, { status: 500 }));
-        }
+      // 4. Return success
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Counter receipt processed.',
+        is_mocked: true 
       });
-    });
+
+    } catch (processErr: any) {
+      console.error('>>> [SERVER] [COUNTER] PDF processing failed:', processErr.message);
+      return NextResponse.json({ 
+        error: 'Failed to process PDF payload.', 
+        details: processErr.message 
+      }, { status: 500 });
+    }
+
   } catch (err: any) {
-    console.error('Counter Printing Error:', err);
+    console.error('>>> [SERVER] [COUNTER] Fatal Error:', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
