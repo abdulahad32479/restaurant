@@ -47,70 +47,51 @@ export async function POST(req: Request) {
               .align('ct')
               .style('b')
               .size(1, 1)
-              .text((businessName || 'DUKE\'S POS').toUpperCase())
+              .text(businessName?.toUpperCase() || 'DUKES')
               .style('normal')
               .size(0, 0)
-              .text(businessAddress || '123 Main St, City')
-              .text(businessPhone || '+92 300 1234567')
-              .text('')
-              .text(lineDash)
-              .align('lt');
-
-            // Order Info Table-like layout
-            const orderNo = order.order_number || order.id.slice(-6).toUpperCase();
-            const dateStr = new Date(order.created_at).toLocaleString('en-US', { 
-              year: 'numeric', month: 'numeric', day: 'numeric', 
-              hour: '2-digit', minute: '2-digit', hour12: true 
-            });
-            const cashier = order.created_by || 'dukes';
-
-            printer
-              .style('b').text(`ORDER NO:`.padEnd(30) + orderNo.padStart(18)).style('normal')
-              .text(`Date:`.padEnd(30) + dateStr.padStart(18))
+              .text(businessAddress?.toUpperCase() || '')
+              .text(businessPhone || '')
+              .text('-'.repeat(48))
+              .align('lt')
+              .style('b')
+              .text('ORDER NO:'.padEnd(30, ' ') + (order.order_number || order.id.slice(-6).toUpperCase()).padStart(18, ' '))
+              .style('normal')
+              .text('Date:'.padEnd(30, ' ') + new Date(order.created_at).toLocaleString().padStart(18, ' '))
               .text('')
               .align('ct')
-              .text(`[ ${order.order_type.replace('_', ' ').toUpperCase()} ]`.padEnd(24) + `[ Table ${order.table_no || order.table || 'N/A'} ]`)
-              .align('lt')
-              .text(`Cashier:`.padEnd(30) + cashier.padStart(18))
-              .text(lineSolid);
-
-            // Items Header
-            printer
               .style('b')
-              .text('QTY  ITEM'.padEnd(38) + 'TOTAL'.padStart(10))
+              .text(`[ ${order.order_type.replace('_', ' ').toUpperCase()} ]`.padEnd(24, ' ') + `[ Table: ${order.table_no || order.table || 'N/A'} ]`)
+              .align('lt')
               .style('normal')
-              .text(lineSolid);
+              .text('Cashier:'.padEnd(30, ' ') + (order.created_by || 'dukes').padStart(18, ' '))
+              .text('-'.repeat(48))
+              .style('b')
+              .text('QTY  ITEM'.padEnd(38, ' ') + 'TOTAL'.padStart(10, ' '))
+              .style('normal')
+              .text('-'.repeat(48));
 
             // Item list
             order.items.forEach((item: any) => {
               const productName = (item.product_name && item.product_name !== 'string') ? item.product_name : (item.product?.name || 'Item');
-              const qty = Number(item.quantity).toFixed(2);
-              const totalLine = Number(item.total_price || (item.quantity * (item.unit_price || 0))).toFixed(2);
-              
-              printer.style('b').text(`${qty} ${productName.padEnd(32)} ${totalLine.padStart(9)}`).style('normal');
+              const qtyStr = `${Number(item.quantity).toFixed(2)}`.padEnd(5, ' ');
+              const nameStr = productName.toUpperCase().substring(0, 32).padEnd(33, ' ');
+              const totalStr = Number(item.total_price || (item.quantity * (item.unit_price || 0))).toFixed(2).padStart(10, ' ');
+              printer.text(`${qtyStr}${nameStr}${totalStr}`);
             });
 
             printer
-              .text(lineDot)
-              .align('rt');
-
-            // Subtotal and Tax
-            const subtotal = Number(order.subtotal || order.total).toFixed(2);
-            const tax = Number(order.taxamount || 0).toFixed(2);
-            const total = Number(order.total).toFixed(2);
-
-            printer
-              .text(`Subtotal`.padEnd(30) + `Rs. ${subtotal.padStart(10)}`)
-              .text(`Tax`.padEnd(30) + `Rs. ${tax.padStart(10)}`)
+              .text('-'.repeat(48))
+              .align('rt')
+              .text(`Subtotal: Rs. ${Number(order.subtotal || order.total).toFixed(2)}`)
+              .text(`Tax: Rs. ${Number(order.taxamount || 0).toFixed(2)}`)
               .style('b')
-              .size(1, 0)
-              .text(`TOTAL DUE`.padEnd(20) + `Rs. ${total.padStart(10)}`)
+              .size(1, 1)
+              .text(`TOTAL DUE: Rs. ${Number(order.total).toFixed(2)}`)
               .style('normal')
               .size(0, 0)
               .text('')
               .align('ct')
-              .text(lineDot)
-              .text('')
               .text('THANK YOU FOR VISITING!')
               .text('*** END OF RECEIPT ***');
           } else {

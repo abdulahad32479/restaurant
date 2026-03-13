@@ -167,21 +167,25 @@ export default function Orders() {
       const printJobs = [];
       
       if (printerType === 'main' || printerType === 'both') {
+        const receiptText = formatOrderToReceiptText(targetOrder, {
+          name: activeBranch?.name,
+          address: activeBranch?.address,
+          phone: activeBranch?.phone_number
+        });
+        
         printJobs.push(
           printerClient.post('print/counter', {
-            order: targetOrder,
-            businessName: activeBranch?.name,
-            businessAddress: activeBranch?.address,
-            businessPhone: activeBranch?.phone_number
+            text: receiptText
           })
         );
       }
       
       if (printerType === 'kitchen' || printerType === 'both') {
+        const kitchenText = formatOrderToKitchenText(targetOrder, activeBranch?.name);
+        
         printJobs.push(
           printerClient.post('print/kitchen', {
-            order: targetOrder,
-            businessName: activeBranch?.name
+            text: kitchenText
           })
         );
       }
@@ -879,14 +883,7 @@ export default function Orders() {
             businessPhone={branches.find(b => b.id === orderToPrint.branch)?.phone_number}
           />
         )}
-        {kitchenPrintOrder && (
-          <KitchenReceipt 
-            ref={kitchenReceiptRef} 
-            order={kitchenPrintOrder} 
-            products={productsMap} 
-            businessName={branches.find(b => b.id === kitchenPrintOrder.branch)?.name}
-          />
-        )}
+        {kitchenPrintOrder && <KitchenReceipt ref={kitchenReceiptRef} order={kitchenPrintOrder} products={productsMap} />}
       </div>
 
       {/* Refund Modal */}
