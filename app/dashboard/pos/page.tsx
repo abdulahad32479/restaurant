@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/src/components/Button';
 import { Input, Select, TextArea } from '@/src/components/Input';
 import { Badge } from '@/src/components/Badge';
@@ -37,6 +37,7 @@ export default function POS() {
   const editOrderId = searchParams.get('edit');
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
   // Active Orders State
@@ -153,133 +154,87 @@ export default function POS() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [completedOrder, cart.length, orderType]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [pData, cData, bData, tData, oData, custData, userData] = await Promise.all([
-          productService.getAll(1000),
-          categoryService.getAll(),
-          branchService.getAll(),
-          tableService.getAll(),
-          orderService.getAll(undefined, 1000),
-          customerService.getAll().catch(() => []),
-          userService.getAll().catch(() => [])
-        ]);
-        
-        const activeProducts = pData.filter((p: Product) => p.is_active);
-        setProducts(activeProducts);
-        setAllProductsList(pData);
-        setCategories(cData);
-        setBranches(bData);
-        setTables(tData.filter((t: Table) => t.is_active));
-        setActiveOrders(oData.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
-        setCustomers(custData);
-        
-        const uMap: Record<string, string> = {};
-        userData.forEach((u: any) => { uMap[u.id] = u.name || u.username; });
-        setUsers(uMap);
+  const refreshAllData = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
+    else setIsRefreshing(true);
+    
+    try {
+      const [pData, cData, bData, tData, oData, custData, userData] = await Promise.all([
+        productService.getAll(1000),
+        categoryService.getAll(),
+        branchService.getAll(),
+        tableService.getAll(),
+        orderService.getAll(undefined, 1000),
+        customerService.getAll().catch(() => []),
+        userService.getAll().catch(() => [])
+      ]);
+      
+      const activeProducts = pData.filter((p: Product) => p.is_active);
+      setProducts(activeProducts);
+      setAllProductsList(pData);
+      setCategories(cData);
+      setBranches(bData);
+      setTables(tData.filter((t: Table) => t.is_active));
+      setActiveOrders(oData.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
+      setCustomers(custData);
+      
+      const uMap: Record<string, string> = {};
+      userData.forEach((u: any) => { uMap[u.id] = u.name || u.username; });
+      setUsers(uMap);
 
-        const pMap: Record<string, string> = {};
-        pData.forEach((p: Product) => { 
-          pMap[String(p.id).trim()] = p.name;
-          if (p.sku) pMap[String(p.sku).trim()] = p.name;
-        });
-        setAllProductsMap(pMap);
+      const pMap: Record<string, string> = {};
+      pData.forEach((p: Product) => { 
+        pMap[String(p.id).trim()] = p.name;
+        if (p.sku) pMap[String(p.sku).trim()] = p.name;
+      });
+      setAllProductsMap(pMap);
 
-        if (bData.length > 0) setSelectedBranch(bData[0].id);
+      if (!selectedBranch && bData.length > 0) setSelectedBranch(bData[0].id);
 
-        // Build Delivery Dictionary from past orders AND customer database
-        const dict: Record<string, {phone: string, address: string, id?: string}> = {};
-        
-        // Load customers into dictionary first
-        custData.forEach((c: Customer) => {
-          if (c.name) {
-            const nameKey = c.name.trim().toLowerCase();
-            if (!dict[nameKey]) {
-              dict[nameKey] = {
-                id: c.id,
-                phone: c.phone || c.phone_number || '',
-                address: c.address || ''
-              };
-            }
-          }
-        });
-
-        // Add past orders to dictionary (if name not already there as a customer)
-        oData.forEach((order: Order) => {
-          if (order.order_type === 'delivery' && order.delivery_info?.name) {
-            const nameKey = order.delivery_info.name.trim().toLowerCase();
-            if (!dict[nameKey]) {
-              dict[nameKey] = {
-                phone: order.delivery_info.phone || '',
-                address: order.delivery_info.address || ''
-              };
-            }
-          }
-        });
-        setDeliveryDict(dict);
-
-        // Load Edit Order if present
-        if (editOrderId) {
-          try {
-            const orderEdit = await orderService.getById(editOrderId);
-            if (['completed', 'cancelled', 'refunded'].includes(orderEdit.status)) {
-               toast.error(`Order in ${orderEdit.status} status cannot be edited`);
-               router.push('/dashboard/pos');
-            } else {
-               setEditingOrder(orderEdit);
-               setSelectedBranch(orderEdit.branch || (orderEdit as any).branch_id || '');
-               setOrderType(orderEdit.order_type as any);
-               if (orderEdit.order_type === 'dine_in') {
-                 setSelectedTable(orderEdit.table || orderEdit.table_id || '');
-               }
-               if (orderEdit.order_type === 'delivery' && orderEdit.delivery_info) {
-                 setDeliveryInfo(orderEdit.delivery_info);
-               }
-               if (orderEdit.notes) setOrderNotes(orderEdit.notes);
-               if (orderEdit.customer) setSelectedCustomer(orderEdit.customer);
-               
-               // Populate cart using full product list (to include inactive)
-               const mappedCart = orderEdit.items.map(item => {
-                 const product = pData.find((p: Product) => String(p.id) === String(item.product));
-                 if (product) return { product, quantity: Number(item.quantity) };
-                 
-                 // Fallback if product truly not found in DB
-                 return {
-                   product: {
-                     id: String(item.product),
-                     name: item.product_name || 'Item',
-                     price: item.unit_price || '0',
-                     is_active: false
-                   } as any,
-                   quantity: Number(item.quantity)
-                 };
-               });
-               setCart(mappedCart);
-               
-               // Keep track of initial items to calc diffs later
-               setInitialCartItems(orderEdit.items.map(i => ({ 
-                  id: i.id, product: i.product, quantity: Number(i.quantity) 
-               })));
-            }
-          } catch (e) {
-            console.error('Failed to load order for editing', e);
-            toast.error('Could not load existing order.');
-            router.push('/dashboard/pos');
+      // Build Delivery Dictionary
+      const dict: Record<string, {phone: string, address: string, id?: string}> = {};
+      custData.forEach((c: Customer) => {
+        if (c.name) {
+          const nameKey = c.name.trim().toLowerCase();
+          if (!dict[nameKey]) {
+            dict[nameKey] = { id: c.id, phone: c.phone || c.phone_number || '', address: c.address || '' };
           }
         }
+      });
+      oData.forEach((order: Order) => {
+        if (order.order_type === 'delivery' && order.delivery_info?.name) {
+          const nameKey = order.delivery_info.name.trim().toLowerCase();
+          if (!dict[nameKey]) {
+            dict[nameKey] = { phone: order.delivery_info.phone || '', address: order.delivery_info.address || '' };
+          }
+        }
+      });
+      setDeliveryDict(dict);
 
-      } catch (error) {
-        console.error('Failed to fetch POS data', error);
-        toast.error('Failed to load products or categories');
-      } finally {
-        setIsLoading(false);
+      // Re-sync editing order if active
+      if (editOrderId) {
+        const orderEdit = oData.find((o: Order) => String(o.id) === String(editOrderId));
+        if (orderEdit && !['completed', 'cancelled', 'refunded'].includes(orderEdit.status)) {
+          // Metadata sync (only if not already deep in editing to avoid overwriting typed notes/customer)
+          // For now we just refresh the active order list and rely on initial load for full object
+        }
       }
-    };
-    fetchData();
-  }, [editOrderId, router]);
 
-  const loadOrderForEditing = (orderEdit: Order) => {
+    } catch (error) {
+      console.error('Failed to fetch POS data', error);
+      if (!silent) toast.error('Failed to load POS data');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [editOrderId, selectedBranch]);
+
+  useEffect(() => {
+    refreshAllData();
+  }, [refreshAllData]);
+
+
+  const loadOrderForEditing = (orderEdit: Order, shouldCloseModal = true) => {
     if (['completed', 'cancelled', 'refunded'].includes(orderEdit.status)) {
        toast.error(`Order in ${orderEdit.status} status cannot be edited`);
        return;
@@ -296,7 +251,7 @@ export default function POS() {
     if (orderEdit.notes) setOrderNotes(orderEdit.notes);
     if (orderEdit.customer) setSelectedCustomer(orderEdit.customer);
     
-    const mappedCart = orderEdit.items.map(item => {
+    const mappedOrderCart = orderEdit.items.map(item => {
       const product = allProductsList.find((p: Product) => String(p.id) === String(item.product));
       if (product) return { product, quantity: Number(item.quantity) };
       
@@ -310,12 +265,12 @@ export default function POS() {
         quantity: Number(item.quantity)
       };
     });
-    setCart(mappedCart);
+    setCart(mappedOrderCart);
     
     setInitialCartItems(orderEdit.items.map((i: any) => ({ 
        id: i.id, product: i.product, quantity: Number(i.quantity) 
     })));
-    setIsActiveOrdersModalOpen(false);
+    if (shouldCloseModal) setIsActiveOrdersModalOpen(false);
     toast.success(`Loaded Order ${orderEdit.id.substring(0,8)}`);
   };
 
@@ -323,7 +278,7 @@ export default function POS() {
     // Intercept complete action if order is not paid
     if (action === 'complete' && !order.is_paid) {
       setIsFinalizingFromModal(true);
-      loadOrderForEditing(order);
+      loadOrderForEditing(order, false);
       setAmountTendered('');
       setPaymentMethod('cash');
       setIsPaymentModalOpen(true);
@@ -333,7 +288,11 @@ export default function POS() {
     setIsUpdatingStatus(order.id);
     try {
       const payload = { ...order };
-      if (action === 'confirm') await orderService.confirm(order.id, payload);
+      if (action === 'confirm') {
+        await orderService.confirm(order.id, payload);
+        // Auto-print to kitchen on confirmation
+        await triggerDirectPrint(order, 'kitchen');
+      }
       else if (action === 'prepare') await orderService.markPreparing(order.id, payload);
       else if (action === 'ready') await orderService.markReady(order.id, payload);
       else if (action === 'serve') await orderService.markServed(order.id, payload);
@@ -341,8 +300,7 @@ export default function POS() {
       else if (action === 'cancel') await orderService.cancel(order.id, { ...payload, notes: 'Cancelled from POS' });
       
       toast.success(`Order ${action}ed successfully`);
-      const oData = await orderService.getAll(undefined, 1000);
-      setActiveOrders(oData.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
+      await refreshAllData(true);
     } catch (e: any) {
       console.error('Update status failed', e);
       const errorData = e.response?.data;
@@ -638,9 +596,7 @@ export default function POS() {
     }
     
     toast.success(editingOrder ? 'Order updated successfully!' : 'Order saved as draft!');
-    
-    const refreshedOrders = await orderService.getAll();
-    setActiveOrders(refreshedOrders.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
+    await refreshAllData(true);
 
     setEditingOrder(null);
     setCart([]);
@@ -692,8 +648,15 @@ const handleConfirmOrder = async () => {
     
     toast.success('Order confirmed successfully!');
     
-    const refreshedOrders = await orderService.getAll();
-    setActiveOrders(refreshedOrders.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
+    // Auto-print to kitchen on confirmation
+    try {
+      const confirmedOrder = await orderService.getById(orderId!);
+      await triggerDirectPrint(confirmedOrder, 'kitchen');
+    } catch (printErr) {
+      console.error('Auto kitchen print failed', printErr);
+    }
+
+    await refreshAllData(true);
 
     setEditingOrder(null);
     setCart([]);
@@ -765,8 +728,8 @@ const handleProcessPayment = async () => {
           idempotency_key: `POS-${Date.now()}`,
         });
 
-        // 4. If finalizing from modal, auto-complete
-        if (isFinalizingFromModal) {
+        // 4. AUTO-FINALIZE: If full payment is made, complete the order
+        if (isFinalizingFromModal || finalPayAmount >= remainingToPay) {
           await orderService.complete(orderId!, { id: orderId });
         }
       } catch (paymentError) {
@@ -776,9 +739,17 @@ const handleProcessPayment = async () => {
 
       toast.success(isFinalizingFromModal ? 'Order paid and completed successfully!' : (editingOrder ? 'Edited order paid successfully!' : 'Order paid and confirmed successfully!'));
       
-      const refreshedOrders = await orderService.getAll();
-      setActiveOrders(refreshedOrders.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
-      setIsFinalizingFromModal(false);
+      // Auto-print to kitchen on payment/confirmation
+      try {
+        const confirmedOrder = await orderService.getById(orderId!);
+        await triggerDirectPrint(confirmedOrder, 'kitchen');
+      } catch (printErr) {
+        console.error('Auto kitchen print failed', printErr);
+      }
+
+      await refreshAllData(true);
+      // We don't reset isFinalizingFromModal here, we do it in the final cleanup code below
+      // so we can conditionalize the behavior.
 
       // Determine final order to show on receipt
       let finalOrderForReceipt: Order | null = null;
@@ -800,11 +771,15 @@ const handleProcessPayment = async () => {
       setIsPaymentModalOpen(false);
       setAmountTendered('');
       
-      if (finalOrderForReceipt) {
-        await triggerDirectPrint(finalOrderForReceipt);
-        // Note: We no longer auto-pop the manual browser dialog (setIsReceiptModalOpen) 
-        // to avoid annoying the user if the server doesn't respond quickly.
+      // If we finished from the Active Orders modal, keep it open; otherwise, reset isFinalizingFromModal
+      if (!isFinalizingFromModal) {
+         // This was a regular checkout from the POS home, so we are already "home"
       }
+      setIsFinalizingFromModal(false);
+      
+      // Note: We no longer auto-print the counter receipt here. 
+      // It must be printed manually from the summary modal.
+
     } catch (error: any) {
       handleError(error);
     } finally {
@@ -1853,10 +1828,15 @@ const handleProcessPayment = async () => {
                         order.order_type === 'dine_in' ? `Table ${order.table_no || order.table}` : (order.delivery_info?.name || 'Walk-in')
                       }</p>
                     </div>
-                    <Badge variant={
-                      order.status === 'draft' ? 'secondary' :
-                      order.status === 'ready' ? 'accent' as any : 'warning'
-                    } className="text-[9px] px-2 py-0.5 uppercase tracking-widest border border-white/5">{order.status.replace('_', ' ')}</Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant={
+                        order.status === 'draft' ? 'secondary' :
+                        order.status === 'ready' ? 'accent' as any : 'warning'
+                      } className="text-[9px] px-2 py-0.5 uppercase tracking-widest border border-white/5">{order.status.replace('_', ' ')}</Badge>
+                      <Badge variant={order.is_paid ? 'success' : 'warning'} className="text-[8px] px-1.5 py-0 uppercase tracking-tighter shadow-sm border border-white/5">
+                        {order.is_paid ? 'Paid' : 'Unpaid'}
+                      </Badge>
+                    </div>
                   </div>
                   
                   <div className="flex justify-between items-center text-xs">
@@ -1928,8 +1908,8 @@ const handleProcessPayment = async () => {
                           variant="primary" 
                           className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/10" 
                           onClick={() => {
-                            loadOrderForEditing(order);
-                            setIsActiveOrdersModalOpen(false);
+                            setIsFinalizingFromModal(true);
+                            loadOrderForEditing(order, false);
                             setTimeout(() => setIsPaymentModalOpen(true), 100);
                           }}
                         >

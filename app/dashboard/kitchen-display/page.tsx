@@ -432,6 +432,13 @@ export default function KitchenDisplay() {
                         }
                        </span>
                     </div>
+                    {/* Payment Status Indicator */}
+                    <div className="flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-lg bg-white/5 border border-white/5 w-fit">
+                      <CreditCard className={`w-3 h-3 ${order.is_paid ? 'text-success' : 'text-amber-500'}`} />
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${order.is_paid ? 'text-success' : 'text-amber-500'}`}>
+                        {order.is_paid ? 'PAID' : 'PAYMENT DUE'}
+                      </span>
+                    </div>
                   </div>
                   
                   <div className="flex flex-col items-end shrink-0">
