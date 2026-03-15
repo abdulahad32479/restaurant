@@ -1,6 +1,6 @@
 import { Order } from '../types';
 
-export const formatOrderToReceiptText = (order: Order, businessInfo: { name?: string, address?: string, phone?: string }) => {
+export const formatOrderToReceiptText = (order: Order, businessInfo: { name?: string, address?: string, phone?: string, tables?: Record<string, string> }) => {
   const line = '-'.repeat(48);
   const itemsHeader = 'QTY  ITEM                                  TOTAL';
   
@@ -15,7 +15,8 @@ export const formatOrderToReceiptText = (order: Order, businessInfo: { name?: st
   text += `TYPE: ${order.order_type.replace('_', ' ').toUpperCase()}\n`;
   
   if (order.table_no || order.table) {
-    text += `TABLE: ${order.table_no || order.table}\n`;
+    const tableName = (order.table && businessInfo.tables?.[order.table]) || order.table_no || order.table;
+    text += `TABLE: ${tableName}\n`;
   }
   
   text += `${line}\n`;
@@ -42,7 +43,7 @@ export const formatOrderToReceiptText = (order: Order, businessInfo: { name?: st
   return text;
 };
 
-export const formatOrderToKitchenText = (order: Order, businessName?: string) => {
+export const formatOrderToKitchenText = (order: Order, businessName?: string, tables: Record<string, string> = {}) => {
   const line = '-'.repeat(48);
   
   let text = '';
@@ -55,7 +56,8 @@ export const formatOrderToKitchenText = (order: Order, businessName?: string) =>
   text += `TYPE: ${order.order_type.replace('_', ' ').toUpperCase()}\n`;
   
   if (order.table_no || order.table) {
-    text += `TABLE: ${order.table_no || order.table}\n`;
+    const tableName = (order.table && tables[order.table]) || order.table_no || order.table;
+    text += `TABLE: ${tableName}\n`;
   }
   
   text += `${line}\n`;

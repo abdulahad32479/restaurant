@@ -81,6 +81,68 @@ export default function Orders() {
     `
   } as any);
 
+  const triggerDirectPrint = async (targetOrder: Order, printerType: 'main' | 'kitchen' | 'both' = 'both') => {
+    // 1. Identify Branch ID robustly
+    const rawBranch = targetOrder.branch || (targetOrder as any).branch_id;
+    let branchId = '';
+    
+    if (typeof rawBranch === 'object' && rawBranch !== null) {
+      branchId = (rawBranch as any).id || '';
+    } else if (typeof rawBranch === 'string') {
+      branchId = rawBranch;
+    }
+
+    const activeBranch = branches.find(b => b.id === branchId);
+    const localSettings = localSettingsService.getForBranch(branchId);
+    
+    if (!localSettings.direct_printing) {
+      console.log('Direct printing is disabled in settings');
+      return false;
+    }
+
+    try {
+      toast.loading('Sending to printers...', { id: 'print-job' });
+      
+      const printJobs = [];
+      
+      if (printerType === 'main' || printerType === 'both') {
+        printJobs.push(
+          printerClient.post('print/counter', {
+            order: targetOrder,
+            businessName: activeBranch?.name,
+            businessAddress: activeBranch?.address,
+            businessPhone: activeBranch?.phone_number
+          })
+        );
+      }
+      
+      if (printerType === 'kitchen' || printerType === 'both') {
+        const kitchenText = formatOrderToKitchenText(targetOrder, activeBranch?.name, tables);
+        
+        printJobs.push(
+          printerClient.post('print/kitchen', {
+            text: kitchenText
+          })
+        );
+      }
+
+      if (printJobs.length === 0) {
+        toast.dismiss('print-job');
+        return false;
+      }
+
+      await Promise.all(printJobs);
+      
+      toast.success('Printed successfully!', { id: 'print-job' });
+      return true;
+    } catch (printErr: any) {
+       console.error('Silent print failed:', printErr);
+       const errorMsg = printErr.response?.data?.error || printErr.message || 'Failed to print';
+       toast.error(`Silent print failed: ${errorMsg}. Falling back to manual print.`, { id: 'print-job' });
+       return false;
+    }
+  };
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -142,70 +204,6 @@ export default function Orders() {
     }
   };
 
-  const triggerDirectPrint = async (targetOrder: Order, printerType: 'main' | 'kitchen' | 'both' = 'both') => {
-    // 1. Identify Branch ID robustly
-    const rawBranch = targetOrder.branch || (targetOrder as any).branch_id;
-    let branchId = '';
-    
-    if (typeof rawBranch === 'object' && rawBranch !== null) {
-      branchId = (rawBranch as any).id || '';
-    } else if (typeof rawBranch === 'string') {
-      branchId = rawBranch;
-    }
-
-    const activeBranch = branches.find(b => b.id === branchId);
-    const localSettings = localSettingsService.getForBranch(branchId);
-    
-    if (!localSettings.direct_printing) {
-      console.log('Direct printing is disabled in settings');
-      return false;
-    }
-
-    try {
-      toast.loading('Sending to printers...', { id: 'print-job' });
-      
-      const printJobs = [];
-      
-      if (printerType === 'main' || printerType === 'both') {
-        const receiptText = formatOrderToReceiptText(targetOrder, {
-          name: activeBranch?.name,
-          address: activeBranch?.address,
-          phone: activeBranch?.phone_number
-        });
-        
-        printJobs.push(
-          printerClient.post('print/counter', {
-            text: receiptText
-          })
-        );
-      }
-      
-      if (printerType === 'kitchen' || printerType === 'both') {
-        const kitchenText = formatOrderToKitchenText(targetOrder, activeBranch?.name);
-        
-        printJobs.push(
-          printerClient.post('print/kitchen', {
-            text: kitchenText
-          })
-        );
-      }
-
-      if (printJobs.length === 0) {
-        toast.dismiss('print-job');
-        return false;
-      }
-
-      const results = await Promise.all(printJobs);
-      
-      toast.success('Printed successfully!', { id: 'print-job' });
-      return true;
-    } catch (printErr: any) {
-       console.error('Silent print failed:', printErr);
-       const errorMsg = printErr.response?.data?.error || printErr.message || 'Failed to print';
-       toast.error(`Silent print failed: ${errorMsg}. Falling back to manual print.`, { id: 'print-job' });
-       return false;
-    }
-  };
 
   const handleAddPayment = async () => {
     if (!selectedOrder || !paymentAmount) return;
@@ -883,7 +881,14 @@ export default function Orders() {
             businessPhone={branches.find(b => b.id === orderToPrint.branch)?.phone_number}
           />
         )}
-        {kitchenPrintOrder && <KitchenReceipt ref={kitchenReceiptRef} order={kitchenPrintOrder} products={productsMap} />}
+        {kitchenPrintOrder && (
+          <KitchenReceipt 
+            ref={kitchenReceiptRef} 
+            order={kitchenPrintOrder} 
+            products={productsMap} 
+            tables={tables}
+          />
+        )}
       </div>
 
       {/* Refund Modal */}
