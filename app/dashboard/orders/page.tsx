@@ -486,18 +486,6 @@ export default function Orders() {
             <Eye className="w-4 h-4 text-tertiary group-hover:text-accent" />
           </button>
 
-          {/* Audit History View */}
-          <button 
-            className="p-2.5 hover:bg-white/5 rounded-xl transition-all group" 
-            title="View Edit History"
-            onClick={() => {
-              setSelectedOrder(row);
-              setModalViewMode('history');
-              setIsDetailsModalOpen(true);
-            }}
-          >
-            <History className="w-4 h-4 text-tertiary group-hover:text-amber-400" />
-          </button>
         </div>
       )
     }
@@ -695,9 +683,31 @@ export default function Orders() {
                 <h4 className="font-bold text-white uppercase tracking-widest text-xs">
                   {modalViewMode === 'history' ? 'Transaction Audit Log' : 'Order Items'}
                 </h4>
-                {modalViewMode === 'history' && (
-                  <Badge variant="accent" size="sm" className="text-[9px] uppercase tracking-widest px-3 border border-accent/20">Audit Trail Active</Badge>
-                )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setModalViewMode(modalViewMode === 'simplified' ? 'history' : 'simplified')}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-[10px] font-black uppercase tracking-widest ${
+                      modalViewMode === 'history' 
+                        ? 'bg-amber-500/10 border-amber-500/50 text-amber-400' 
+                        : 'bg-white/5 border-base text-tertiary hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {modalViewMode === 'history' ? (
+                      <>
+                        <Eye className="w-3 h-3" />
+                        View Items
+                      </>
+                    ) : (
+                      <>
+                        <History className="w-3 h-3" />
+                        View History
+                      </>
+                    )}
+                  </button>
+                  {modalViewMode === 'history' && (
+                    <Badge variant="accent" size="sm" className="text-[9px] uppercase tracking-widest px-3 border border-accent/20">Audit Trail Active</Badge>
+                  )}
+                </div>
               </div>
               <div className="bg-bg-main border border-base rounded-xl overflow-hidden">
                 <table className="w-full text-left">
