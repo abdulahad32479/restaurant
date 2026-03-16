@@ -251,22 +251,31 @@ export default function POS() {
     }
     if (orderEdit.notes) setOrderNotes(orderEdit.notes);
     if (orderEdit.customer) setSelectedCustomer(orderEdit.customer);
-    
-    const mappedOrderCart = orderEdit.items.map(item => {
-      const product = allProductsList.find((p: Product) => String(p.id) === String(item.product));
-      if (product) return { product, quantity: Number(item.quantity) };
-      
-      return {
-        product: {
-          id: String(item.product),
-          name: item.product_name || 'Item',
-          price: item.unit_price || '0',
-          is_active: false
-        } as any,
-        quantity: Number(item.quantity)
-      };
-    });
-    setCart(mappedOrderCart);
+    if (orderEdit.items && orderEdit.items.length > 0) {
+      const grouped: Record<string, any> = {};
+      orderEdit.items.forEach((item: any) => {
+        const pId = String(item.product).trim();
+        if (!grouped[pId]) {
+          const product = allProductsList.find((p: Product) => String(p.id) === pId) || {
+            id: pId,
+            name: item.product_name || 'Item',
+            price: item.unit_price || '0',
+            is_active: false
+          };
+          grouped[pId] = { product, quantity: 0 };
+        }
+        const qty = parseFloat(item.quantity || '0');
+        const action = item.action || 'original';
+        if (action === 'void') {
+          grouped[pId].quantity -= qty;
+        } else {
+          grouped[pId].quantity += qty;
+        }
+      });
+
+      const mappedOrderCart = Object.values(grouped).filter(g => g.quantity > 0);
+      setCart(mappedOrderCart);
+    }
     
     if (shouldCloseModal) setIsActiveOrdersModalOpen(false);
     toast.success(`Loaded Order ${orderEdit.id.substring(0,8)}`);
@@ -534,20 +543,19 @@ export default function POS() {
   try {
     let orderId = editingOrder?.id;
     if (editingOrder) {
-      const updateData = getOrderData();
-      const updated = await orderService.update(editingOrder.id, updateData);
-      orderId = updated.id;
+      // Granular updates for Items
+      await orderService.syncOrderItems(orderId!, cart, editingOrder.items);
       
-      // Sync items for existing orders
-      await orderService.syncOrderItems(orderId, cart, editingOrder.items);
+      // Granular updates for Table 
+      if (orderType === 'dine_in' && selectedTable && selectedTable !== editingOrder.table && selectedTable !== (editingOrder as any).table_id) {
+        try { await orderService.changeTable(orderId!, selectedTable); } catch (e) { console.warn('Table change failed', e); }
+      }
       
-      // Fresh fetch after sync if needed, or just use 'updated' from update call
-      // (orderService.update already returns updated order but without items sync)
-      const finalOrder = await orderService.getById(orderId);
+      const finalOrder = await orderService.getById(orderId!);
 
       // Kitchen always trigger on update
       await triggerDirectPrint(finalOrder, 'kitchen');
-      // Counter ONLY for delivery (Requirement 3.3)
+      // Counter ONLY for delivery
       if (finalOrder.order_type === 'delivery') {
         await triggerDirectPrint(finalOrder, 'main');
       }
@@ -588,10 +596,13 @@ const handleConfirmOrder = async () => {
     let orderId = editingOrder?.id;
 
     if (editingOrder) {
-      const updateData = getOrderData();
-      await orderService.update(editingOrder.id, updateData);
-      // Sync items
+      // Sync items via granular item endpoints
       await orderService.syncOrderItems(editingOrder.id, cart, editingOrder.items);
+      
+      // Update table if dine in and table changed
+      if (orderType === 'dine_in' && selectedTable && selectedTable !== editingOrder.table && selectedTable !== (editingOrder as any).table_id) {
+        try { await orderService.changeTable(editingOrder.id, selectedTable); } catch (e) { console.warn('Table change failed', e); }
+      }
     } else {
       const orderData = getOrderData();
       const newOrder = await orderService.create(orderData);
@@ -688,9 +699,12 @@ const handleProcessPayment = async () => {
       let orderId = editingOrder?.id;
 
       if (editingOrder) {
-         const updateData = getOrderData();
-         try { await orderService.update(editingOrder.id, updateData); } catch (e) {
-           console.warn('Metadata update failed, continuing with payment', e);
+         // Sync items via granular item endpoints entirely avoiding patch
+         await orderService.syncOrderItems(editingOrder.id, cart, editingOrder.items);
+         
+         // Update table if it changed
+         if (orderType === 'dine_in' && selectedTable && selectedTable !== editingOrder.table && selectedTable !== (editingOrder as any).table_id) {
+           try { await orderService.changeTable(editingOrder.id, selectedTable); } catch (e) { console.warn('Table change failed', e); }
          }
       } else {
          const orderData = getOrderData();
@@ -2047,26 +2061,50 @@ const handleProcessPayment = async () => {
                       <span className="font-bold text-primary text-sm font-mono">Rs. {Number(order.total).toFixed(2)}</span>
                     </div>
 
-                    <div className="bg-[#0A0A0A] p-2 rounded-xl space-y-1 max-h-24 overflow-y-auto custom-scrollbar border border-white/5">
-                      {order.items?.map((item: any, i: number) => {
-                        const pId = String(item.product || '').trim();
-                        const name = allProductsMap[pId] || 
-                                     (item.product_name && item.product_name.toLowerCase().trim() !== 'string' ? item.product_name : null) || 
-                                     (typeof item.product === 'object' ? (item.product as any)?.name || (item.product as any)?.product_name : null) || 
-                                     'Product';
-                        return (
-                          <div key={i} className="flex justify-between text-[9px] uppercase tracking-tighter items-center">
-                             <div className="flex items-center gap-1.5 min-w-0">
-                               <span className="w-4 h-4 rounded bg-white/5 flex items-center justify-center text-[7px] text-tertiary shrink-0">{item.quantity}</span>
-                               <span className="text-white font-bold truncate max-w-[100px]">{name}</span>
-                               <Badge variant={item.action === 'void' ? 'error' : item.action === 'addition' ? 'accent' as any : 'secondary'} size="sm" className="text-[6px] h-3 px-1 py-0 border-0 opacity-80 uppercase leading-none">
-                                 {item.action || 'original'}
-                               </Badge>
-                             </div>
-                             <span className="text-tertiary font-mono shrink-0">Rs. {Number(item.total_price || 0).toFixed(0)}</span>
-                          </div>
-                        )
-                      })}
+                    <div className="bg-[#1A1A1A] p-3 rounded-xl space-y-2 max-h-32 overflow-y-auto custom-scrollbar border border-[#333] shadow-inner">
+                      {(() => {
+                        const items = order.items || [];
+                        const grouped: Record<string, any> = {};
+                        items.forEach((item: any) => {
+                          const pId = String(typeof item.product === 'object' ? item.product?.id : item.product || '').trim();
+                          if (!grouped[pId]) {
+                            grouped[pId] = {
+                              id: pId,
+                              product: item.product,
+                              product_name: item.product_name,
+                              quantity: 0,
+                              total_price: 0
+                            };
+                          }
+                          const qty = parseFloat(item.quantity || '0');
+                          const price = parseFloat(item.total_price || '0');
+                          const action = item.action || 'original';
+                          
+                          if (action === 'void') {
+                            grouped[pId].quantity -= qty;
+                            grouped[pId].total_price -= price;
+                          } else {
+                            grouped[pId].quantity += qty;
+                            grouped[pId].total_price += price;
+                          }
+                        });
+                        
+                        return Object.values(grouped).filter(g => g.quantity > 0).map((item: any, i: number) => {
+                          const name = allProductsMap[item.id] || 
+                                       (item.product_name && item.product_name.toLowerCase().trim() !== 'string' ? item.product_name : null) || 
+                                       (typeof item.product === 'object' ? (item.product as any)?.name || (item.product as any)?.product_name : null) || 
+                                       'Product';
+                          return (
+                            <div key={i} className="flex justify-between text-xs uppercase tracking-tighter items-center bg-white/5 p-2 rounded-lg border border-white/5">
+                               <div className="flex items-center gap-2 min-w-0">
+                                 <span className="min-w-[24px] h-5 px-1.5 rounded bg-primary/20 text-primary font-extrabold flex items-center justify-center text-[11px] shrink-0 border border-primary/20">x{item.quantity}</span>
+                                 <span className="text-white font-extrabold truncate max-w-[140px] tracking-wide text-[11px]">{name}</span>
+                               </div>
+                               <span className="text-[#CCCCCC] font-bold font-mono tracking-wider shrink-0 text-[11px]">Rs. {Number(item.total_price || 0).toFixed(0)}</span>
+                            </div>
+                          )
+                        });
+                      })()}
                     </div>
 
                   <div className="flex flex-wrap gap-2 pt-3 border-t border-[#2A2A2A]">
