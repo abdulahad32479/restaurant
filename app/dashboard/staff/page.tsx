@@ -61,7 +61,12 @@ export default function StaffManagement() {
     const matchesSearch = staff.username.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          staff.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === 'all' || staff.role === roleFilter;
-    return matchesSearch && matchesRole;
+    
+    // Robust check: Hide only explicitly revoked users (is_active === false)
+    // If it's undefined or true, treat as active for this view.
+    const isActive = staff.is_active !== false;
+    
+    return matchesSearch && matchesRole && isActive;
   });
   
   const handleSaveStaff = async () => {
@@ -78,12 +83,10 @@ export default function StaffManagement() {
         if (!dataToUpdate.password) {
           delete dataToUpdate.password;
         }
-        delete dataToUpdate.is_active;
         await userService.update(editingUserId, dataToUpdate);
         toast.success('Staff member updated successfully!');
       } else {
         const dataToCreate = { ...newUser } as any;
-        delete dataToCreate.is_active;
         await userService.create(dataToCreate);
         toast.success('Staff member created successfully!');
       }

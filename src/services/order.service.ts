@@ -141,35 +141,88 @@ export const orderService = {
   },
 
   syncOrderItems: async (orderId: string, currentCart: { product: any; quantity: number }[], originalItems: OrderItem[]) => {
-    // 1. Identify what to add, update, or remove
-    const originalItemsMap = new Map(originalItems.map(item => [String(item.product), item]));
-    const currentItemsMap = new Map(currentCart.map(item => [String(item.product.id), item]));
+    // Helper to extract product ID robustly
+    const getProductId = (item: any): string => {
+      if (!item) return '';
+      if (typeof item === 'string') return item.trim();
+      if (typeof item === 'object' && item !== null) {
+        return (item.id || item.product || '').toString().trim();
+      }
+      return String(item).trim();
+    };
 
-    const promises: Promise<any>[] = [];
+    console.log(`[syncOrderItems] Syncing items for order ${orderId}`, {
+      cartCount: currentCart.length,
+      originalCount: originalItems.length
+    });
 
-    // Remove items not in current cart
-    Array.from(originalItemsMap.keys()).forEach(prodId => {
-      if (!currentItemsMap.has(prodId)) {
-        promises.push(orderService.removeItem(orderId, prodId));
+    // 1. Calculate EFFECTIVE quantities from original items
+    // (Backend sends all actions, we need the current net state)
+    const effectiveOriginalMap = new Map<string, number>();
+    originalItems.forEach(item => {
+      const pId = getProductId(item.product);
+      if (!pId) return;
+      const qty = Number(item.quantity || 0);
+      const current = effectiveOriginalMap.get(pId) || 0;
+      if (item.action === 'void') {
+        effectiveOriginalMap.set(pId, current - qty);
+      } else {
+        effectiveOriginalMap.set(pId, current + qty);
       }
     });
 
-    // Add or Update items in current cart
+    // 2. Identify what to add, update, or remove
+    const currentItemsMap = new Map(currentCart.map(item => [getProductId(item.product), item]));
+
+    const promises: Promise<any>[] = [];
+
+    // Remove or Update existing items
+    Array.from(effectiveOriginalMap.entries()).forEach(([prodId, origQty]) => {
+      const currentItem = currentItemsMap.get(prodId);
+      
+      if (!currentItem || currentItem.quantity <= 0) {
+        // If it was effectively in the order (qty > 0) but now it's not, remove it
+        if (origQty > 0) {
+          console.log(`[syncOrderItems] Removing product: ${prodId} (Effective qty was ${origQty})`);
+          promises.push(orderService.removeItem(orderId, prodId).catch(err => {
+            console.error(`[syncOrderItems] Failed to remove product ${prodId}`, err);
+            throw err;
+          }));
+        }
+      } else if (Number(origQty) !== Number(currentItem.quantity)) {
+        // Quantity changed
+        console.log(`[syncOrderItems] Updating quantity for product: ${prodId} (${origQty} -> ${currentItem.quantity})`);
+        promises.push(orderService.updateItem(orderId, { product: prodId, quantity: currentItem.quantity }).catch(err => {
+          console.error(`[syncOrderItems] Failed to update product ${prodId}`, err);
+          throw err;
+        }));
+      }
+    });
+
+    // Add entirely new items
     Array.from(currentItemsMap.entries()).forEach(([prodId, item]) => {
-      const original = originalItemsMap.get(prodId);
-      if (!original) {
-        // New item
-        promises.push(orderService.addItem(orderId, { product: prodId, quantity: item.quantity }));
-      } else if (Number(original.quantity) !== Number(item.quantity)) {
-        // Updated quantity
-        promises.push(orderService.updateItem(orderId, { product: prodId, quantity: item.quantity }));
+      if (!prodId || item.quantity <= 0) return;
+      
+      const origQty = effectiveOriginalMap.get(prodId) || 0;
+      if (origQty <= 0) {
+        // New item (not effectively in order before)
+        console.log(`[syncOrderItems] Adding new product: ${prodId} with quantity ${item.quantity}`);
+        promises.push(orderService.addItem(orderId, { product: prodId, quantity: item.quantity }).catch(err => {
+          console.error(`[syncOrderItems] Failed to add product ${prodId}`, err);
+          throw err;
+        }));
       }
     });
 
     if (promises.length > 0) {
-      await Promise.all(promises);
-      // Return fresh order data after updates
-      return await orderService.getById(orderId);
+      try {
+        await Promise.all(promises);
+        console.log(`[syncOrderItems] Successfully synced all items for order ${orderId}`);
+        return await orderService.getById(orderId);
+      } catch (syncError) {
+        console.error(`[syncOrderItems] Error during item synchronization for order ${orderId}`, syncError);
+        throw syncError;
+      }
     }
     
     return null;

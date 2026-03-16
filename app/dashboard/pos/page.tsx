@@ -132,6 +132,15 @@ export default function POS() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
 
+  const getID = (val: any): string => {
+    if (!val) return '';
+    if (typeof val === 'string') return val.trim();
+    if (typeof val === 'object' && val !== null) {
+      return (val.id || val.product || '').toString().trim();
+    }
+    return String(val).trim();
+  };
+
   const refreshAllData = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     else setIsRefreshing(true);
@@ -241,20 +250,22 @@ export default function POS() {
        return;
     }
     setEditingOrder(orderEdit);
-    setSelectedBranch(orderEdit.branch || (orderEdit as any).branch_id || '');
+    setSelectedBranch(getID(orderEdit.branch || (orderEdit as any).branch_id));
     setOrderType(orderEdit.order_type as any);
     if (orderEdit.order_type === 'dine_in') {
-      setSelectedTable(orderEdit.table || orderEdit.table_id || '');
+      setSelectedTable(getID(orderEdit.table || orderEdit.table_id));
     }
     if (orderEdit.order_type === 'delivery' && orderEdit.delivery_info) {
       setDeliveryInfo(orderEdit.delivery_info);
     }
     if (orderEdit.notes) setOrderNotes(orderEdit.notes);
-    if (orderEdit.customer) setSelectedCustomer(orderEdit.customer);
+    if (orderEdit.customer) setSelectedCustomer(getID(orderEdit.customer));
     if (orderEdit.items && orderEdit.items.length > 0) {
       const grouped: Record<string, any> = {};
       orderEdit.items.forEach((item: any) => {
-        const pId = String(item.product).trim();
+        const pId = getID(item.product);
+        if (!pId) return;
+
         if (!grouped[pId]) {
           const product = allProductsList.find((p: Product) => String(p.id) === pId) || {
             id: pId,
@@ -273,7 +284,7 @@ export default function POS() {
         }
       });
 
-      const mappedOrderCart = Object.values(grouped).filter(g => g.quantity > 0);
+      const mappedOrderCart = Object.values(grouped).filter((g: any) => g.quantity > 0);
       setCart(mappedOrderCart);
     }
     
