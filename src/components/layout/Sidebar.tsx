@@ -18,26 +18,28 @@ import {
   LogOut,
   History,
   Store,
-  Shield
+  Shield,
+  Bike
 } from "lucide-react"
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: ShoppingCart, label: "POS", href: "/dashboard/pos" },
-  { icon: ChefHat, label: "Kitchen Display", href: "/dashboard/kitchen-display" },
-  { icon: ClipboardList, label: "Orders", href: "/dashboard/orders" },
-  { icon: UtensilsCrossed, label: "Menu", href: "/dashboard/menu" },
-  { icon: Package, label: "Inventory", href: "/dashboard/inventory" },
-  { icon: History, label: "Stock Movements", href: "/dashboard/movements" },
-  { icon: Package, label: "Products", href: "/dashboard/products" },
-  { icon: UtensilsCrossed, label: "Categories", href: "/dashboard/categories" },
-  { icon: Store, label: "Branches", href: "/dashboard/branches" },
-  { icon: ClipboardList, label: "Tables", href: "/dashboard/tables" },
-  { icon: Users, label: "Customers", href: "/dashboard/customers" },
-  { icon: Users, label: "Staff", href: "/dashboard/staff" },
-  { icon: Shield, label: "Admin Users", href: "/dashboard/admin/users" },
-  { icon: BarChart3, label: "Reports", href: "/dashboard/reports" },
-  { icon: Settings, label: "Settings", href: "/dashboard/settings" },
+  { icon: ShoppingCart, label: "POS", href: "/dashboard/pos", permission: 'add_order' },
+  { icon: ChefHat, label: "Kitchen Display", href: "/dashboard/kitchen-display", permission: 'view_kd' },
+  { icon: ClipboardList, label: "Orders", href: "/dashboard/orders", permission: 'view_orders' },
+  { icon: UtensilsCrossed, label: "Menu", href: "/dashboard/menu", permission: 'manage_menu' },
+  { icon: Package, label: "Inventory", href: "/dashboard/inventory", permission: 'manage_inventory' },
+  { icon: History, label: "Stock Movements", href: "/dashboard/movements", permission: 'manage_inventory' },
+  { icon: Package, label: "Products", href: "/dashboard/products", permission: 'manage_menu' },
+  { icon: UtensilsCrossed, label: "Categories", href: "/dashboard/categories", permission: 'manage_menu' },
+  { icon: Store, label: "Branches", href: "/dashboard/branches", permission: 'manage_branches' },
+  { icon: ClipboardList, label: "Tables", href: "/dashboard/tables", permission: 'manage_tables' },
+  { icon: Users, label: "Customers", href: "/dashboard/customers", permission: 'view_customers' },
+  { icon: Users, label: "Staff", href: "/dashboard/staff", permission: 'manage_staff' },
+  { icon: Bike, label: "Delivery Persons", href: "/dashboard/delivery-persons", permission: 'manage_delivery' },
+  { icon: Shield, label: "Admin Users", href: "/dashboard/admin/users", permission: 'manage_staff' },
+  { icon: BarChart3, label: "Reports", href: "/dashboard/reports", permission: 'view_reports' },
+  { icon: Settings, label: "Settings", href: "/dashboard/settings", permission: 'manage_settings' },
 ]
 
 interface SidebarProps {
@@ -49,7 +51,7 @@ import { useAuth } from "@/src/context/AuthContext"
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
-  const { logout, user } = useAuth()
+  const { logout, user, hasPermission } = useAuth()
   const [collapsed, setCollapsed] = React.useState(false)
   
   // No longer strictly managing isMobile here for classes, using tailwind breakpoints instead
@@ -93,7 +95,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         <div className="flex-1 overflow-y-auto py-6 scrollbar-hide">
           <nav className="grid gap-2 px-3">
-            {sidebarItems.map((item, index) => {
+            {sidebarItems.filter(item => !item.permission || hasPermission(item.permission)).map((item, index) => {
               const isActive = pathname === item.href
               return (
                 <Link

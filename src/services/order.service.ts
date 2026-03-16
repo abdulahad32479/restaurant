@@ -95,6 +95,17 @@ export const orderService = {
       payload.customer = getID(order.customer);
     }
 
+    if (order.delivery_person) {
+      payload.delivery_person = getID(order.delivery_person);
+    }
+
+    if (order.items) {
+      payload.items = order.items.map((item: any) => ({
+        product: getID(item.product),
+        quantity: item.quantity
+      }));
+    }
+
     return payload;
   },
 
@@ -141,6 +152,17 @@ export const orderService = {
 
   refund: async (id: string, paymentData: { method: string; amount: string; notes?: string; idempotency_key?: string }) => {
     const response = await apiClient.post<Order>(`v1/orders/${id}/refund/`, paymentData);
+    return response.data;
+  },
+
+  changeTable: async (id: string, table_id: string | number) => {
+    const response = await apiClient.post<Order>(`v1/orders/${id}/change_table/`, { table_id });
+    return response.data;
+  },
+
+  assignDeliveryPerson: async (id: string, person_id: string | number) => {
+    // Note: Backend uses 'asign_delivery' (single s) and 'person_id' as per Swagger
+    const response = await apiClient.post<Order>(`v1/orders/${id}/asign_delivery/`, { person_id });
     return response.data;
   },
 

@@ -10,10 +10,24 @@ import { reportService } from '@/src/services/report.service';
 import { branchService } from '@/src/services/branch.service';
 import { SalesByBranchReport, SalesByProductReport, SalesSummary, PaymentSummaryReport, LowStockReport, ZReport, Branch } from '@/src/types';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/src/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 const PIE_COLORS = ['#8B0000', '#D4AF37', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6'];
 
 export default function Reports() {
+  const { hasPermission } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!hasPermission('view_reports')) {
+      toast.error('Access Denied: You do not have permission to view reports');
+      router.push('/dashboard');
+    }
+  }, [hasPermission, router]);
+
+  if (!hasPermission('view_reports')) return null;
+
   const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [byBranch, setByBranch] = useState<SalesByBranchReport[]>([]);
   const [byProduct, setByProduct] = useState<SalesByProductReport[]>([]);
@@ -22,24 +36,31 @@ export default function Reports() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Filters
+  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+
   // Z-Report state
   const [zReport, setZReport] = useState<ZReport | null>(null);
   const [isGeneratingZ, setIsGeneratingZ] = useState(false);
   const [zForm, setZForm] = useState({
     date: new Date().toISOString().split('T')[0],
     counted_cash: '', // Sent as string for backend Decimal field
-    branch: ''
+    branch: '',
+    custom_start: '',
+    custom_end: ''
   });
 
   useEffect(() => {
     const fetch = async () => {
       setIsLoading(true);
       try {
+        const filters = { start_date: startDate, end_date: endDate };
         const [s, bb, bp, ps, ls, bData] = await Promise.all([
-          reportService.getSalesSummary(),
-          reportService.getSalesByBranch(),
-          reportService.getSalesByProduct(),
-          reportService.getPaymentSummary(),
+          reportService.getSalesSummary(filters),
+          reportService.getSalesByBranch(filters),
+          reportService.getSalesByProduct(filters),
+          reportService.getPaymentSummary(filters),
           reportService.getLowStock(),
           branchService.getAll()
         ]);
@@ -49,7 +70,7 @@ export default function Reports() {
         setPaymentSummary(ps);
         setLowStock(ls);
         setBranches(bData);
-        if (bData.length > 0) setZForm(f => ({ ...f, branch: bData[0].id }));
+        if (bData.length > 0 && !zForm.branch) setZForm(f => ({ ...f, branch: bData[0].id }));
       } catch (e) {
         console.error('Failed to load reports', e);
         toast.error('Failed to load reports');
@@ -58,16 +79,21 @@ export default function Reports() {
       }
     };
     fetch();
-  }, []);
+  }, [startDate, endDate]);
 
   const handleGenerateZReport = async () => {
-    if (!zForm.branch || !zForm.counted_cash || !zForm.date) {
-      toast.error('Please fill in all Z-Report fields');
+    if (!zForm.counted_cash) {
+      toast.error('Please enter the counted cash amount');
       return;
     }
     setIsGeneratingZ(true);
     try {
-      const report = await reportService.generateZReport(zForm);
+      // Strictly follow Swagger schema: counted_cash, custom_start, custom_end
+      const report = await reportService.generateZReport({
+        counted_cash: zForm.counted_cash,
+        custom_start: zForm.custom_start || undefined,
+        custom_end: zForm.custom_end || undefined
+      });
       setZReport(report);
       toast.success('Z-Report generated successfully!');
     } catch (e: any) {
@@ -91,9 +117,16 @@ export default function Reports() {
             Deep Analytics & Financial Insights
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="secondary" size="sm" icon={<Calendar className="w-4 h-4" />} className="bg-[#1A1A1A] border-[#2A2A2A] text-[#808080] font-black uppercase tracking-widest text-[10px]">Last 7 Days</Button>
-          <Button variant="primary" size="sm" icon={<Download className="w-4 h-4" />} className="font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">Export Data</Button>
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="space-y-1">
+             <label className="text-[8px] font-black uppercase tracking-widest text-tertiary">From</label>
+             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-10 bg-[#1A1A1A] border-base text-xs" />
+          </div>
+          <div className="space-y-1">
+             <label className="text-[8px] font-black uppercase tracking-widest text-tertiary">To</label>
+             <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-10 bg-[#1A1A1A] border-base text-xs" />
+          </div>
+          <Button variant="primary" size="sm" icon={<Download className="w-4 h-4" />} className="h-10 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">Export</Button>
         </div>
       </div>
 
@@ -264,6 +297,20 @@ export default function Reports() {
             ]}
           />
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+           <Input
+            label="Custom Start Time (Optional)"
+            type="datetime-local"
+            value={zForm.custom_start}
+            onChange={(e) => setZForm({ ...zForm, custom_start: e.target.value })}
+          />
+          <Input
+            label="Custom End Time (Optional)"
+            type="datetime-local"
+            value={zForm.custom_end}
+            onChange={(e) => setZForm({ ...zForm, custom_end: e.target.value })}
+          />
+        </div>
         <Button variant="primary" onClick={handleGenerateZReport} isLoading={isGeneratingZ}>
           Generate Z-Report
         </Button>
@@ -278,9 +325,12 @@ export default function Reports() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { label: 'Total Orders', value: zReport.total_orders },
+                { label: 'Total Items', value: zReport.total_items },
                 { label: 'Total Sales', value: `Rs. ${parseFloat(zReport.total_sales || '0').toFixed(2)}` },
-                { label: 'Cash Sales', value: `Rs. ${parseFloat(zReport.total_cash || '0').toFixed(2)}` },
-                { label: 'Card Sales', value: `Rs. ${parseFloat(zReport.total_card || '0').toFixed(2)}` },
+                { label: 'Total Tax', value: `Rs. ${parseFloat(zReport.total_tax || '0').toFixed(2)}` },
+                { label: 'Total Discount', value: `Rs. ${parseFloat(zReport.total_discount || '0').toFixed(2)}` },
+                { label: 'Cash Transactions', value: `Rs. ${parseFloat(zReport.total_cash || '0').toFixed(2)}` },
+                { label: 'Card Transactions', value: `Rs. ${parseFloat(zReport.total_card || '0').toFixed(2)}` },
                 { label: 'Counted Cash', value: `Rs. ${parseFloat(zReport.counted_cash || '0').toFixed(2)}` },
                 { label: 'Cash Difference', value: `Rs. ${parseFloat(zReport.cash_difference || '0').toFixed(2)}` },
                 { label: 'Other Payments', value: `Rs. ${parseFloat(zReport.total_other || '0').toFixed(2)}` },

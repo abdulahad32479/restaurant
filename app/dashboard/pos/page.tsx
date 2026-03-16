@@ -6,7 +6,7 @@ import { Input, Select, TextArea } from '@/src/components/Input';
 import { Badge } from '@/src/components/Badge';
 import { 
   Search, Plus, Minus, CreditCard, Banknote, 
-  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User, Phone, AlertTriangle, ListOrdered, Clock, ChefHat
+  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User as UserIcon, Phone, AlertTriangle, ListOrdered, Clock, ChefHat
 } from 'lucide-react';
 import { productService } from '@/src/services/product.service';
 import { categoryService } from '@/src/services/category.service';
@@ -15,7 +15,7 @@ import { tableService } from '@/src/services/table.service';
 import { orderService } from '@/src/services/order.service';
 import { customerService } from '@/src/services/customer.service';
 import { userService } from '@/src/services/user.service';
-import { Product, Category, Branch, Table, OrderType, Order, Customer } from '@/src/types';
+import { Product, Category, Branch, Table, OrderType, Order, Customer, DeliveryPerson, User } from '@/src/types';
 import { Modal } from '@/src/components/Modal';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useReactToPrint } from 'react-to-print';
@@ -23,6 +23,7 @@ import { Receipt } from '@/src/components/Receipt';
 import { KitchenReceipt } from '@/src/components/KitchenReceipt';
 import { useRef } from 'react';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/src/context/AuthContext';
 import { getImageUrl, cn } from '@/src/lib/utils';
 import apiClient, { printerClient } from '@/src/lib/axios';
 import { localSettingsService } from '@/src/services/local-settings.service';
@@ -32,6 +33,7 @@ import { formatOrderToReceiptText, formatOrderToKitchenText } from '@/src/lib/pr
 export default function POS() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { hasPermission } = useAuth();
   const editOrderId = searchParams.get('edit');
 
   const [isLoading, setIsLoading] = useState(true);
@@ -58,6 +60,7 @@ export default function POS() {
   const [tables, setTables] = useState<Table[]>([]);
   const [users, setUsers] = useState<Record<string, string>>({});
   const [allProductsMap, setAllProductsMap] = useState<Record<string, string>>({});
+  const [orderToChangeTable, setOrderToChangeTable] = useState<Order | null>(null);
   
   // Selection state
   const [activeCategory, setActiveCategory] = useState('all');
@@ -68,9 +71,14 @@ export default function POS() {
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [pendingOccupiedTable, setPendingOccupiedTable] = useState<Table | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [pendingAction, setPendingAction] = useState<'checkout' | 'draft' | null>(null);
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
   const [isClearCartModalOpen, setIsClearCartModalOpen] = useState(false);
+  
+  // Delivery Person state
+  const [deliveryPersons, setDeliveryPersons] = useState<DeliveryPerson[]>([]);
+  const [activeOrdersTypeFilter, setActiveOrdersTypeFilter] = useState<'all' | OrderType>('all');
   
   // Delivery Info state
   const [deliveryInfo, setDeliveryInfo] = useState({
@@ -119,7 +127,6 @@ export default function POS() {
 
   // Edit Order State
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-  const [initialCartItems, setInitialCartItems] = useState<{ id?: string, product: string, quantity: number }[]>([]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -157,24 +164,44 @@ export default function POS() {
     else setIsRefreshing(true);
     
     try {
-      const [pData, cData, bData, tData, oData, custData, userData] = await Promise.all([
+      const results = await Promise.all([
         productService.getAll(1000),
         categoryService.getAll(),
         branchService.getAll(),
         tableService.getAll(),
         orderService.getAll(undefined, 1000),
         customerService.getAll().catch(() => []),
-        userService.getAll().catch(() => [])
+        userService.getAll().catch(() => []),
+        apiClient.get('v1/delivery-persons/').then(res => res.data).catch(() => [])
       ]);
+      
+      const pData = results[0];
+      const cData = results[1];
+      const bData = results[2];
+      const tData = results[3];
+      const oData = results[4];
+      const custData = results[5];
+      const userData = results[6];
+      const deliveryPersonsData = results[7] || [];
       
       const activeProducts = pData.filter((p: Product) => p.is_active);
       setProducts(activeProducts);
       setAllProductsList(pData);
       setCategories(cData);
       setBranches(bData);
-      setTables(tData.filter((t: Table) => t.is_active));
+      setDeliveryPersons(deliveryPersonsData.filter((dp: any) => dp.is_active));
+      // Sort tables by name/number ascending
+      setTables(tData.filter((t: Table) => t.is_active).sort((a: Table, b: Table) => {
+        const nameA = a.name.toLowerCase();
+        const nameB = b.name.toLowerCase();
+        const numA = parseInt(nameA.replace(/\D/g, ''));
+        const numB = parseInt(nameB.replace(/\D/g, ''));
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return nameA.localeCompare(nameB);
+      }));
       setActiveOrders(oData.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
       setCustomers(custData);
+      
       
       const uMap: Record<string, string> = {};
       userData.forEach((u: any) => { uMap[u.id] = u.name || u.username; });
@@ -186,6 +213,9 @@ export default function POS() {
         if (p.sku) pMap[String(p.sku).trim()] = p.name;
       });
       setAllProductsMap(pMap);
+
+      const userRes = await userService.getCurrentUser().catch(() => null);
+      setCurrentUser(userRes);
 
       if (!selectedBranch && bData.length > 0) setSelectedBranch(bData[0].id);
 
@@ -265,9 +295,6 @@ export default function POS() {
     });
     setCart(mappedOrderCart);
     
-    setInitialCartItems(orderEdit.items.map((i: any) => ({ 
-       id: i.id, product: i.product, quantity: Number(i.quantity) 
-    })));
     if (shouldCloseModal) setIsActiveOrdersModalOpen(false);
     toast.success(`Loaded Order ${orderEdit.id.substring(0,8)}`);
   };
@@ -290,6 +317,10 @@ export default function POS() {
         await orderService.confirm(order.id, payload);
         // Auto-print to kitchen on confirmation
         await triggerDirectPrint(order, 'kitchen');
+        // Auto-print to counter ONLY for delivery orders
+        if (order.order_type === 'delivery') {
+          await triggerDirectPrint(order, 'main');
+        }
       }
       else if (action === 'prepare') await orderService.markPreparing(order.id, payload);
       else if (action === 'ready') await orderService.markReady(order.id, payload);
@@ -314,6 +345,35 @@ export default function POS() {
       }
       
       toast.error(errorMessage);
+    } finally {
+      setIsUpdatingStatus(null);
+    }
+  };
+
+  const handleAssignDeliveryPerson = async (orderId: string, deliveryPersonId: string) => {
+    setIsUpdatingStatus(orderId);
+    try {
+      await orderService.assignDeliveryPerson(orderId, deliveryPersonId);
+      toast.success('Delivery person assigned successfully');
+      await refreshAllData(true);
+    } catch (e: any) {
+      console.error('Assign delivery person failed', e);
+      handleError(e);
+    } finally {
+      setIsUpdatingStatus(null);
+    }
+  };
+
+  const handleChangeTable = async (orderId: string, tableId: string) => {
+    setIsUpdatingStatus(orderId);
+    try {
+      await orderService.changeTable(orderId, tableId);
+      toast.success('Table changed successfully');
+      setOrderToChangeTable(null);
+      await refreshAllData(true);
+    } catch (e: any) {
+      console.error('Change table failed', e);
+      toast.error('Failed to change table');
     } finally {
       setIsUpdatingStatus(null);
     }
@@ -402,14 +462,16 @@ export default function POS() {
   const handleError = (error: any) => {
     console.error('Operation failed', error);
     const errorData = error.response?.data;
-    let errorMessage = 'Failed to complete operation';
+    const status = error.response?.status;
+    let errorMessage = `Failed to complete operation (${status || 'Network Error'})`;
     
     if (typeof errorData === 'string' && !errorData.includes('<!doctype html>')) {
       errorMessage = errorData;
     } else if (typeof errorData === 'object' && errorData !== null) {
-      errorMessage = Object.entries(errorData)
-        .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
-        .join(', ');
+      if (errorData.detail) errorMessage = errorData.detail;
+      else errorMessage = Object.entries(errorData)
+        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : JSON.stringify(v)}`)
+        .join(' | ');
     }
     
     toast.error(errorMessage);
@@ -442,6 +504,7 @@ export default function POS() {
       
       const printJobs = [];
       
+      // ALWAYS JSON payload, no PDF
       if (printerType === 'main' || printerType === 'both') {
         printJobs.push(
           printerClient.post('print/counter', {
@@ -454,11 +517,10 @@ export default function POS() {
       }
       
       if (printerType === 'kitchen' || printerType === 'both') {
-        const kitchenText = formatOrderToKitchenText(targetOrder, activeBranch?.name);
-        
         printJobs.push(
           printerClient.post('print/kitchen', {
-            text: kitchenText
+            order: targetOrder,
+            businessName: activeBranch?.name
           })
         );
       }
@@ -475,43 +537,15 @@ export default function POS() {
     }
   };
 
-  const syncEditedOrderCart = async (orderId: string) => {
-    // Determine diff
-    const currentItemsMap = new Map(cart.map(i => [i.product.id, i.quantity]));
-    const initialItemsMap = new Map(initialCartItems.map(i => [i.product, i.quantity]));
-
-    const promises: Promise<any>[] = [];
-
-    // Check updates & removals
-    for (const initialItem of initialCartItems) {
-      if (!currentItemsMap.has(initialItem.product)) {
-         // removed
-         promises.push(orderService.removeItem(orderId, initialItem.product));
-      } else if (currentItemsMap.get(initialItem.product) !== initialItem.quantity) {
-         // quantity changed
-         promises.push(orderService.updateItem(orderId, { 
-             product: initialItem.product, 
-             quantity: currentItemsMap.get(initialItem.product)! 
-         }));
-      }
-    }
-
-    // Check additions
-    for (const currentItem of cart) {
-       if (!initialItemsMap.has(currentItem.product.id)) {
-          // new item
-          promises.push(orderService.addItem(orderId, {
-            product: currentItem.product.id,
-            quantity: currentItem.quantity
-          }));
-       }
-    }
-
-    await Promise.all(promises);
-  };
-
   const clearCart = () => {
-    setIsClearCartModalOpen(true);
+    setCart([]);
+    setOrderType('');
+    setSelectedTable('');
+    setDeliveryInfo({ name: '', phone: '', address: '' });
+    setOrderNotes('');
+    setSelectedCustomer('');
+    setEditingOrder(null);
+    setIsClearCartModalOpen(false);
   };
 
   const handleSaveDraft = async () => {
@@ -525,16 +559,22 @@ export default function POS() {
 
   setIsProcessing(true);
   try {
+    let orderId = editingOrder?.id;
     if (editingOrder) {
-      // Sync item changes via action endpoints, then update metadata via PATCH
-      await syncEditedOrderCart(editingOrder.id);
       const updateData = getOrderData();
-      try { await orderService.update(editingOrder.id, updateData); } catch (e) {
-        console.warn('Metadata update failed (order may be locked), items still synced', e);
+      const updated = await orderService.update(editingOrder.id, updateData);
+      orderId = updated.id;
+      
+      // Kitchen always trigger on update
+      await triggerDirectPrint(updated, 'kitchen');
+      // Counter ONLY for delivery (Requirement 3.3)
+      if (updated.order_type === 'delivery') {
+        await triggerDirectPrint(updated, 'main');
       }
     } else {
       const orderData = getOrderData();
-      await orderService.create(orderData);
+      const newOrder = await orderService.create(orderData);
+      orderId = newOrder.id;
     }
     
     toast.success(editingOrder ? 'Order updated successfully!' : 'Order saved as draft!');
@@ -568,11 +608,8 @@ const handleConfirmOrder = async () => {
     let orderId = editingOrder?.id;
 
     if (editingOrder) {
-      await syncEditedOrderCart(editingOrder.id);
       const updateData = getOrderData();
-      try { await orderService.update(editingOrder.id, updateData); } catch (e) {
-        console.warn('Metadata update failed (order may be locked), items still synced', e);
-      }
+      await orderService.update(editingOrder.id, updateData);
     } else {
       const orderData = getOrderData();
       const newOrder = await orderService.create(orderData);
@@ -590,12 +627,17 @@ const handleConfirmOrder = async () => {
     
     toast.success('Order confirmed successfully!');
     
-    // Auto-print to kitchen on confirmation
+    // Auto-print on confirmation
     try {
       const confirmedOrder = await orderService.getById(orderId!);
+      // Kitchen always on confirmation/update
       await triggerDirectPrint(confirmedOrder, 'kitchen');
+      // Counter ONLY for delivery
+      if (confirmedOrder.order_type === 'delivery') {
+        await triggerDirectPrint(confirmedOrder, 'main');
+      }
     } catch (printErr) {
-      console.error('Auto kitchen print failed', printErr);
+      console.error('Auto print failed', printErr);
     }
 
     await refreshAllData(true);
@@ -633,8 +675,6 @@ const handleProcessPayment = async () => {
       let orderId = editingOrder?.id;
 
       if (editingOrder) {
-         // Sync items via action endpoints + update metadata via PATCH
-         await syncEditedOrderCart(editingOrder.id);
          const updateData = getOrderData();
          try { await orderService.update(editingOrder.id, updateData); } catch (e) {
            console.warn('Metadata update failed, continuing with payment', e);
@@ -681,12 +721,22 @@ const handleProcessPayment = async () => {
 
       toast.success(isFinalizingFromModal ? 'Order paid and completed successfully!' : (editingOrder ? 'Edited order paid successfully!' : 'Order paid and confirmed successfully!'));
       
-      // Auto-print to kitchen on payment/confirmation
+      // Auto-print on payment/confirmation
       try {
         const confirmedOrder = await orderService.getById(orderId!);
-        await triggerDirectPrint(confirmedOrder, 'kitchen');
+        const isCompleted = isFinalizingFromModal || finalPayAmount >= remainingToPay;
+        
+        // Kitchen print: ONLY if not completed (Requirement 3.4)
+        if (!isCompleted) {
+          await triggerDirectPrint(confirmedOrder, 'kitchen');
+        }
+        
+        // Counter print: ALWAYS for delivery on confirm/update/pay (Requirement 3.3)
+        if (confirmedOrder.order_type === 'delivery') {
+          await triggerDirectPrint(confirmedOrder, 'main');
+        }
       } catch (printErr) {
-        console.error('Auto kitchen print failed', printErr);
+        console.error('Auto print failed', printErr);
       }
 
       await refreshAllData(true);
@@ -744,7 +794,7 @@ const handleProcessPayment = async () => {
         <div className="lg:hidden fixed bottom-6 left-6 right-6 z-40 animate-slide-up">
            <button 
              onClick={() => setIsCartOpen(true)}
-             className="w-full bg-primary text-white h-16 rounded-2xl shadow-[0_10px_30px_rgba(212,175,55,0.4)] flex items-center justify-between px-6 font-black uppercase tracking-widest border border-white/20 active:scale-95 transition-all"
+             className="w-full bg-primary text-white h-16 rounded-2xl shadow-[0_10px_30px_rgba(212,175,55,0.4)] flex items-center justify-between px-6 font-bold uppercase tracking-widest border border-white/20 active:scale-95 transition-all"
            >
              <div className="flex items-center gap-3">
                <div className="bg-white/20 w-8 h-8 rounded-lg flex items-center justify-center text-xs">
@@ -758,23 +808,19 @@ const handleProcessPayment = async () => {
       )}
 
       {/* Product Section (Left) */}
-      <div className="flex-1 flex flex-col gap-4 min-w-0">
+      <div className="flex-1 flex flex-col gap-4 min-w-0 bg-white/[0.01] rounded-3xl p-4 md:p-6 border border-white/[0.03]">
         <div className="flex items-center justify-between mb-0">
           <div>
-            <h1 className="text-lg font-black uppercase tracking-tighter text-white drop-shadow-xl">
-              POS <span className="text-primary text-[0.8em] opacity-80 underline decoration-primary/20 decoration-2 underline-offset-4">Terminal</span>
+            <h1 className="text-lg font-bold uppercase tracking-tight text-white">
+              POS <span className="text-primary text-[0.8em]">Terminal</span>
             </h1>
-            <p className="text-[7px] font-black uppercase tracking-[0.2em] text-[#666] flex items-center gap-1.5">
-              <span className="w-3 h-[1px] bg-primary/20"></span>
-              Executive Sales Registry
-            </p>
           </div>
           <button 
             onClick={() => setIsActiveOrdersModalOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-lg hover:bg-primary/20 transition-all active:scale-95"
           >
             <ListOrdered className="w-4 h-4 text-primary" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-primary hidden md:inline">Active Orders</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-primary hidden md:inline">Active Orders</span>
             <Badge variant="default" size="sm" className="bg-primary text-white text-[9px] px-1.5 py-0 min-w-[1.25rem] flex items-center justify-center">
               {activeOrders.length}
             </Badge>
@@ -802,7 +848,7 @@ const handleProcessPayment = async () => {
                 setOrderType('dine_in');
                 if (!selectedTable) setIsTableModalOpen(true);
               }}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-0.5 text-[8px] md:text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all ${orderType === 'dine_in' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-[#666] hover:text-[#888]'}`}
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-tighter rounded-lg transition-all ${orderType === 'dine_in' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-[#666] hover:text-[#888]'}`}
             >
               <Store className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
               <span className="truncate">DINE IN</span>
@@ -812,7 +858,7 @@ const handleProcessPayment = async () => {
                 setOrderType('takeaway');
                 setSelectedTable('');
               }}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-0.5 text-[8px] md:text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all ${orderType === 'takeaway' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-[#666] hover:text-[#888]'}`}
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-tighter rounded-lg transition-all ${orderType === 'takeaway' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-[#666] hover:text-[#888]'}`}
             >
               <LayoutGrid className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
               <span className="truncate">TAKEAWAY</span>
@@ -823,7 +869,7 @@ const handleProcessPayment = async () => {
                 setSelectedTable('');
                 setIsDeliveryModalOpen(true);
               }}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-0.5 text-[8px] md:text-[10px] font-black uppercase tracking-tighter rounded-lg transition-all ${orderType === 'delivery' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-[#666] hover:text-[#888]'}`}
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-tighter rounded-lg transition-all ${orderType === 'delivery' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-[#666] hover:text-[#888]'}`}
             >
               <Bike className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
               <span className="truncate">DELIVERY</span>
@@ -840,7 +886,7 @@ const handleProcessPayment = async () => {
               }`}
             >
               <LayoutGrid className="w-4 h-4 shrink-0" />
-              <span className="text-[11px] font-black uppercase tracking-wider flex-1 truncate">
+              <span className="text-[11px] font-bold uppercase tracking-wider flex-1 truncate">
                 {selectedTable 
                   ? `Table ${tables.find(t => t.id === selectedTable)?.name || '?'} · Cap. ${tables.find(t => t.id === selectedTable)?.capacity || '?'}` 
                   : 'Choose Table'}
@@ -848,7 +894,7 @@ const handleProcessPayment = async () => {
               {selectedTable && (
                 <span
                   onClick={e => { e.stopPropagation(); setSelectedTable(''); }}
-                  className="text-[#606060] hover:text-white text-[9px] font-black uppercase tracking-widest shrink-0 cursor-pointer"
+                  className="text-[#606060] hover:text-white text-[9px] font-bold uppercase tracking-widest shrink-0 cursor-pointer"
                 >
                   ✕
                 </span>
@@ -857,7 +903,7 @@ const handleProcessPayment = async () => {
           )}
 
           {orderType === 'delivery' && deliveryInfo.name && (
-            <div className="col-span-full flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-xl px-4 py-2 text-[10px] font-black text-primary uppercase tracking-widest animate-fade-in cursor-pointer hover:bg-primary/10 transition-colors" onClick={() => setIsDeliveryModalOpen(true)}>
+            <div className="col-span-full flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-xl px-4 py-2 text-[10px] font-bold text-primary uppercase tracking-widest animate-fade-in cursor-pointer hover:bg-primary/10 transition-colors" onClick={() => setIsDeliveryModalOpen(true)}>
               <Bike className="w-4 h-4" />
               <span>Deliver to: {deliveryInfo.name} • {deliveryInfo.phone} • {deliveryInfo.address.slice(0, 30)}...</span>
               <span className="ml-auto text-[8px] opacity-60">Click to edit</span>
@@ -875,13 +921,13 @@ const handleProcessPayment = async () => {
             icon={<Search className="w-5 h-5 text-[#808080] group-focus-within:text-primary transition-colors" />}
             className="bg-[#1A1A1A] border-[#2A2A2A] focus:border-primary/50"
           />
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-[#444] border border-[#2A2A2A] px-1.5 py-0.5 rounded uppercase tracking-tighter pointer-events-none group-focus-within:opacity-0 transition-opacity">
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-bold text-[#444] border border-[#2A2A2A] px-1.5 py-0.5 rounded uppercase tracking-tighter pointer-events-none group-focus-within:opacity-0 transition-opacity">
             / Show
           </div>
         </div>
 
         {/* Categories */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1.5 no-scrollbar">
+        <div className="flex gap-1.5 overflow-x-auto pb-1.5 no-scrollbar bg-black/20 p-2 rounded-xl border border-white/5">
           <button
             onClick={() => setActiveCategory('all')}
             className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-bold transition-all border ${
@@ -925,10 +971,12 @@ const handleProcessPayment = async () => {
                     </div>
                   )}
                 </div>
-                <h3 className="font-bold text-[11px] md:text-xs mb-1.5 truncate text-white uppercase tracking-tight">{product.name}</h3>
-                <div className="flex items-center justify-between gap-2 mt-auto">
-                  <p className="text-[#666] text-[9px] font-mono truncate">SKU: {product.sku}</p>
-                  <p className="text-primary font-black text-xs md:text-sm shrink-0 font-mono">Rs. {parseFloat(product.price).toFixed(2)}</p>
+                <h3 className="font-bold text-sm md:text-base mb-1 text-white uppercase tracking-tight leading-tight min-h-[2.5rem] md:min-h-[3rem] whitespace-normal">
+                  {product.name}
+                </h3>
+                <div className="flex items-center justify-between gap-2 mt-auto pt-1">
+                  <p className="text-[#666] text-[9px] md:text-[11px] font-mono truncate">SKU: {product.sku}</p>
+                  <p className="text-primary font-bold text-base md:text-lg shrink-0 font-mono">Rs. {parseFloat(product.price).toFixed(2)}</p>
                 </div>
               </div>
             ))}
@@ -943,38 +991,35 @@ const handleProcessPayment = async () => {
         ${isCartOpen ? 'translate-y-0 opacity-100' : 'translate-y-full lg:translate-y-0 opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto'}
       `}>
         <div className={`
-          absolute bottom-0 lg:static w-full lg:w-[410px] bg-[#1A1A1A]/80 border border-white/5 lg:rounded-3xl 
-          flex flex-col shadow-[0_20px_50px_rgba(0,0,0,0.5)] h-[90vh] lg:h-[calc(100vh-140px)] sticky top-24
-          backdrop-blur-2xl transition-transform duration-500 overflow-hidden
+          absolute bottom-0 lg:static w-full lg:w-[380px] bg-secondary border border-base lg:rounded-3xl 
+          flex flex-col shadow-2xl h-[90vh] lg:h-[calc(100vh-140px)] sticky top-24
+          transition-transform duration-500 overflow-hidden
           ${isCartOpen ? 'translate-y-0' : 'translate-y-[20%] lg:translate-y-0'}
         `}>
           {/* Animated Gradient Border Overlay */}
           <div className="absolute inset-0 pointer-events-none border border-white/5 rounded-[inherit]"></div>
           
           {/* Header */}
-          <div className="p-5 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
-            <div className="min-w-0">
-              <h2 className="text-lg font-black uppercase tracking-tighter text-white leading-none mb-1">Live Bill</h2>
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-[8px] text-primary font-black uppercase tracking-[0.3em] flex items-center gap-1.5">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
-                  </span>
+          <div className="p-4 border-b border-base bg-white/[0.02] flex items-center justify-between shrink-0">
+            <div>
+              <h2 className="text-base font-bold uppercase tracking-tight text-white mb-0.5">Live Bill</h2>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] text-primary font-bold uppercase tracking-widest flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                   {orderType ? orderType.replace('_', ' ') : 'No Type'}
                 </p>
                 {orderType === 'dine_in' && selectedTable && (
-                  <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">
+                  <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">
                     • Table {tables.find(t => t.id === selectedTable)?.name || selectedTable}
                   </span>
                 )}
                 {selectedCustomer && customers.length > 0 && (
-                  <span className="text-[8px] font-black text-accent/70 uppercase tracking-widest truncate max-w-[120px]">
+                  <span className="text-[8px] font-bold text-accent/70 uppercase tracking-widest truncate max-w-[120px]">
                     • {customers.find(c => c.id === selectedCustomer)?.name || 'Customer'}
                   </span>
                 )}
                 {editingOrder && (
-                  <span className="text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full text-primary">
+                  <span className="text-[8px] font-bold uppercase tracking-[0.2em] px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full text-primary">
                     EDITING
                   </span>
                 )}
@@ -1004,7 +1049,7 @@ const handleProcessPayment = async () => {
               {/* Customer Selector */}
               {customers.length > 0 && (
                 <div className="flex items-center gap-2">
-                  <User className="w-3.5 h-3.5 text-[#505050] shrink-0" />
+                  <UserIcon className="w-3.5 h-3.5 text-[#505050] shrink-0" />
                   <select
                     value={selectedCustomer}
                     onChange={e => setSelectedCustomer(e.target.value)}
@@ -1013,7 +1058,7 @@ const handleProcessPayment = async () => {
                     <option value="" className="bg-[#1A1A1A]">Walk-in (no customer)</option>
                     {customers.map(c => (
                       <option key={c.id} value={c.id} className="bg-[#1A1A1A]">
-                        {c.name}{c.phone || c.phone_number ? ` · ${c.phone || c.phone_number}` : ''}
+                        {c.name}{c.phone ? ` · ${c.phone}` : ''}
                       </option>
                     ))}
                   </select>
@@ -1021,7 +1066,7 @@ const handleProcessPayment = async () => {
               )}
               {/* Notes inline */}
               <div className="flex items-start gap-2">
-                <span className="text-[#505050] mt-1.5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Notes:</span>
+                <span className="text-[#505050] mt-1.5 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">Notes:</span>
                 <textarea
                   value={orderNotes}
                   onChange={e => setOrderNotes(e.target.value)}
@@ -1044,13 +1089,13 @@ const handleProcessPayment = async () => {
                   <div className="w-20 h-20 bg-white/5 rounded-[2rem] flex items-center justify-center mb-4 animate-pulse">
                     <ShoppingCart className="w-9 h-9" />
                   </div>
-                  <p className="font-black uppercase tracking-[0.4em] text-[10px]">Empty Basket</p>
+                  <p className="font-bold uppercase tracking-[0.4em] text-[10px]">Empty Basket</p>
                 </div>
               ) : (
                 cart.map((item, idx) => (
                   <div key={item.product.id} className="flex items-center gap-2.5 p-2.5 bg-white/[0.03] rounded-2xl border border-white/[0.05] hover:bg-white/[0.06] group/item transition-all">
                     {/* Index */}
-                    <span className="text-[10px] font-black text-[#404040] w-4 text-center shrink-0">{idx + 1}</span>
+                    <span className="text-[10px] font-bold text-[#404040] w-4 text-center shrink-0">{idx + 1}</span>
                     {/* Image */}
                     <div className="w-9 h-9 bg-black rounded-lg shrink-0 border border-white/10 overflow-hidden">
                       {item.product.image ? (
@@ -1062,9 +1107,9 @@ const handleProcessPayment = async () => {
                       )}
                     </div>
                     {/* Name + Price */}
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-[10px] truncate uppercase tracking-tight text-white leading-none mb-0.5">{item.product.name}</h4>
-                      <p className="text-primary text-[9px] font-black font-mono">Rs. {(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p>
+                    <div className="flex-1 min-w-0 pr-2">
+                      <h4 className="font-bold text-sm uppercase tracking-tight text-white leading-tight mb-0.5 whitespace-normal">{item.product.name}</h4>
+                      <p className="text-primary text-xs font-bold font-mono">Rs. {(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p>
                     </div>
                     {/* Qty Controls */}
                     <div className="flex items-center gap-1">
@@ -1074,7 +1119,7 @@ const handleProcessPayment = async () => {
                       >
                         <Minus className="w-2.5 h-2.5" />
                       </button>
-                      <span className="w-5 text-center text-[11px] font-black tabular-nums">{item.quantity}</span>
+                      <span className="w-5 text-center text-[11px] font-bold tabular-nums">{item.quantity}</span>
                       <button 
                         onClick={() => updateQuantity(item.product.id, 1)}
                         className="w-6 h-6 rounded-lg bg-primary text-white flex items-center justify-center transition-all active:scale-95 shadow-sm shadow-primary/20"
@@ -1091,29 +1136,29 @@ const handleProcessPayment = async () => {
           {/* Fixed Footer: Totals + Actions */}
           <div className="shrink-0 border-t border-[#2A2A2A] bg-[#0F0F0F] rounded-b-3xl">
             <div className="px-5 pt-4 pb-2 space-y-2">
-              <div className="flex justify-between items-center text-[#606060] text-[10px] font-black uppercase tracking-[0.15em]">
+              <div className="flex justify-between items-center text-[#606060] text-[10px] font-bold uppercase tracking-[0.15em]">
                 <span>Subtotal</span>
                 <span className="text-white font-mono">Rs. {subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center text-[#606060] text-[10px] font-black uppercase tracking-[0.15em]">
+              <div className="flex justify-between items-center text-[#606060] text-[10px] font-bold uppercase tracking-[0.15em]">
                 <span className="flex items-center gap-1.5">Tax <span className="bg-white/5 px-1.5 py-0.5 rounded text-[9px] border border-white/5">16%</span></span>
                 <span className="text-white font-mono">Rs. {totalTax.toFixed(2)}</span>
               </div>
               
               <div className="flex justify-between items-center pt-2 border-t border-[#2A2A2A]">
-                <span className="text-xl font-black text-white tracking-tight uppercase">TOTAL</span>
-                <span className="text-2xl font-black text-primary tabular-nums">Rs. {total.toFixed(2)}</span>
+                <span className="text-xl font-bold text-white tracking-tight uppercase">TOTAL</span>
+                <span className="text-2xl font-bold text-primary tabular-nums">Rs. {total.toFixed(2)}</span>
               </div>
 
               {editingOrder && (
                 <div className="flex gap-4 pt-1">
                   <div className="flex-1 text-center bg-success/5 rounded-xl py-1.5 border border-success/10">
-                    <p className="text-[8px] font-black text-success/60 uppercase tracking-widest">Paid</p>
-                    <p className="text-sm font-black text-success">Rs. {parseFloat(editingOrder.paid_amount || '0').toFixed(2)}</p>
+                    <p className="text-[8px] font-bold text-success/60 uppercase tracking-widest">Paid</p>
+                    <p className="text-sm font-bold text-success">Rs. {parseFloat(editingOrder.paid_amount || '0').toFixed(2)}</p>
                   </div>
                   <div className="flex-1 text-center bg-primary/5 rounded-xl py-1.5 border border-primary/10">
-                    <p className="text-[8px] font-black text-primary/60 uppercase tracking-widest">Balance</p>
-                    <p className="text-sm font-black text-primary animate-pulse">Rs. {(total - parseFloat(editingOrder.paid_amount || '0')).toFixed(2)}</p>
+                    <p className="text-[8px] font-bold text-primary/60 uppercase tracking-widest">Balance</p>
+                    <p className="text-sm font-bold text-primary animate-pulse">Rs. {(total - parseFloat(editingOrder.paid_amount || '0')).toFixed(2)}</p>
                   </div>
                 </div>
               )}
@@ -1122,8 +1167,8 @@ const handleProcessPayment = async () => {
             <div className="p-4 grid grid-cols-3 gap-2">
               <Button 
                 variant={editingOrder && editingOrder.status !== 'draft' ? "primary" : "outline"}
-                className={`${editingOrder && editingOrder.status !== 'draft' ? 'text-white' : 'text-[#808080] border-[#2A2A2A]'} hover:bg-[#2A2A2A] hover:text-white font-black h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2 flex-1`}
-                disabled={cart.length === 0 || !!isProcessing}
+                className={`${editingOrder && editingOrder.status !== 'draft' ? 'text-white' : 'text-[#808080] border-[#2A2A2A]'} hover:bg-[#2A2A2A] hover:text-white font-bold h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2 flex-1`}
+                disabled={cart.length === 0 || !!isProcessing || !hasPermission('add_order')}
                 onClick={handleSaveDraft}
                 isLoading={!!isProcessing}
               >
@@ -1131,8 +1176,8 @@ const handleProcessPayment = async () => {
               </Button>
               <Button 
                 variant="outline" 
-                className="text-primary border-primary/20 hover:bg-primary/10 font-black h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2 flex-1"
-                disabled={cart.length === 0 || !!isProcessing || !!(editingOrder && editingOrder.status !== 'draft')}
+                className="text-primary border-primary/20 hover:bg-primary/10 font-bold h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2 flex-1"
+                disabled={cart.length === 0 || !!isProcessing || !!(editingOrder && editingOrder.status !== 'draft') || !hasPermission('add_order')}
                 onClick={handleConfirmOrder}
                 isLoading={!!isProcessing}
               >
@@ -1140,8 +1185,8 @@ const handleProcessPayment = async () => {
               </Button>
               <Button 
                 variant="primary" 
-                className="text-white font-black h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] shadow-xl shadow-primary/20 rounded-xl px-2"
-                disabled={cart.length === 0 || !!isProcessing}
+                className="text-white font-bold h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] shadow-xl shadow-primary/20 rounded-xl px-2"
+                disabled={cart.length === 0 || !!isProcessing || !hasPermission('add_order')}
                 onClick={handleCheckoutClick}
               >
                 Checkout
@@ -1176,7 +1221,7 @@ const handleProcessPayment = async () => {
         <div className="space-y-6">
           <div className="bg-[#0A0A0A] p-6 rounded-2xl border border-[#2A2A2A] text-center">
             <p className="text-[#808080] text-sm uppercase tracking-widest font-bold mb-2">Total Amount Due</p>
-            <p className="text-4xl font-black text-primary">Rs. {total.toFixed(2)}</p>
+            <p className="text-4xl font-bold text-primary">Rs. {total.toFixed(2)}</p>
           </div>
 
           <div>
@@ -1222,7 +1267,7 @@ const handleProcessPayment = async () => {
               {parseFloat(amountTendered || '0') >= total && (
                 <div className="mt-4 p-4 bg-[#0A0A0A] rounded-xl border border-[#2A2A2A] flex justify-between items-center">
                   <span className="text-[#808080] text-sm uppercase font-bold tracking-widest">Change Due</span>
-                  <span className="text-2xl font-black text-white">
+                  <span className="text-2xl font-bold text-white">
                     Rs. {(parseFloat(amountTendered || '0') - total).toFixed(2)}
                   </span>
                 </div>
@@ -1259,13 +1304,13 @@ const handleProcessPayment = async () => {
           </div>
           
           <div>
-            <h3 className="text-xl md:text-2xl font-black text-white  uppercase tracking-tighter mb-2 drop-shadow-2xl">Transaction Verified</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-white  uppercase tracking-tighter mb-2 drop-shadow-2xl">Transaction Verified</h3>
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/5 rounded-full border border-white/10 shadow-inner">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-success shadow-[0_0_10px_#10B981]"></span>
               </span>
-              <p className="text-[10px] font-black text-tertiary uppercase tracking-[0.3em] leading-none">
+              <p className="text-[10px] font-bold text-tertiary uppercase tracking-[0.3em] leading-none">
                 Order Registry #{completedOrder?.order_number || completedOrder?.id?.slice(-8).toUpperCase()}
               </p>
             </div>
@@ -1273,26 +1318,26 @@ const handleProcessPayment = async () => {
 
           <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
             <div className="bg-[#0A0A0A] p-5 rounded-2xl border border-white/5 shadow-inner group">
-              <p className="text-[9px] font-black text-[#666] uppercase tracking-widest mb-1 group-hover:text-primary transition-colors">Total Settlement</p>
-              <p className="text-2xl font-black text-primary font-mono tracking-tighter">Rs. {Number(completedOrder?.total || 0).toFixed(2)}</p>
+              <p className="text-[9px] font-bold text-[#666] uppercase tracking-widest mb-1 group-hover:text-primary transition-colors">Total Settlement</p>
+              <p className="text-2xl font-bold text-primary font-mono tracking-tighter">Rs. {Number(completedOrder?.total || 0).toFixed(2)}</p>
             </div>
             <div className="bg-[#0A0A0A] p-5 rounded-2xl border border-white/5 shadow-inner group">
-              <p className="text-[9px] font-black text-[#666] uppercase tracking-widest mb-1 group-hover:text-white transition-colors">Asset Count</p>
-              <p className="text-2xl font-black text-white font-mono tracking-tighter">{completedOrder?.items?.length || 0}</p>
+              <p className="text-[9px] font-bold text-[#666] uppercase tracking-widest mb-1 group-hover:text-white transition-colors">Asset Count</p>
+              <p className="text-2xl font-bold text-white font-mono tracking-tighter">{completedOrder?.items?.length || 0}</p>
             </div>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-10">
             <Button 
               variant="outline" 
-              className="flex-1 py-7 h-auto font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl border-white/10 hover:bg-white/5"
+              className="flex-1 py-7 h-auto font-bold uppercase tracking-[0.2em] text-[10px] rounded-2xl border-white/10 hover:bg-white/5"
               onClick={() => { setIsReceiptModalOpen(false); setCompletedOrder(null); }}
             >
               New Transaction
             </Button>
             <Button 
               variant="outline" 
-              className="flex-1 py-7 h-auto font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl border-white/10 hover:bg-orange-500/10 hover:text-orange-500"
+              className="flex-1 py-7 h-auto font-bold uppercase tracking-[0.2em] text-[10px] rounded-2xl border-white/10 hover:bg-orange-500/10 hover:text-orange-500"
               icon={<ChefHat className="w-4 h-4" />}
               onClick={() => {
                 if (completedOrder) triggerDirectPrint(completedOrder, 'kitchen');
@@ -1302,7 +1347,7 @@ const handleProcessPayment = async () => {
             </Button>
             <Button 
               variant="primary" 
-              className="flex-1 py-7 h-auto font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl shadow-primary/30 rounded-2xl"
+              className="flex-1 py-7 h-auto font-bold uppercase tracking-[0.2em] text-[10px] shadow-2xl shadow-primary/30 rounded-2xl"
               icon={<Printer className="w-4 h-4" />}
               onClick={() => {
                 setOrderToPrint(completedOrder);
@@ -1337,7 +1382,7 @@ const handleProcessPayment = async () => {
                 </div>
                 <div>
                   <p className={cn("font-bold text-sm uppercase tracking-wider", printKitchen ? "text-primary" : "text-white")}>Kitchen Thermal 1</p>
-                  <p className="text-[10px] text-tertiary uppercase tracking-widest font-black">LAN Connection • Online</p>
+                  <p className="text-[10px] text-tertiary uppercase tracking-widest font-bold">LAN Connection • Online</p>
                 </div>
               </div>
               <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all", printKitchen ? "border-primary bg-primary" : "border-[#404040]")}>
@@ -1358,7 +1403,7 @@ const handleProcessPayment = async () => {
                 </div>
                 <div>
                   <p className={cn("font-bold text-sm uppercase tracking-wider", printMain ? "text-emerald-500" : "text-white")}>Receipt Printer (Main)</p>
-                  <p className="text-[10px] text-tertiary uppercase tracking-widest font-black">USB Connection • Online</p>
+                  <p className="text-[10px] text-tertiary uppercase tracking-widest font-bold">USB Connection • Online</p>
                 </div>
               </div>
               <div className={cn("w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all", printMain ? "border-emerald-500 bg-emerald-500" : "border-[#404040]")}>
@@ -1368,7 +1413,7 @@ const handleProcessPayment = async () => {
           </div>
 
           <div className="flex gap-3 pt-4 border-t border-[#2A2A2A]">
-            <Button variant="outline" fullWidth onClick={() => setIsPrintOptionsModalOpen(false)} className="h-12 uppercase tracking-widest text-[10px] font-black rounded-xl">
+            <Button variant="outline" fullWidth onClick={() => setIsPrintOptionsModalOpen(false)} className="h-12 uppercase tracking-widest text-[10px] font-bold rounded-xl">
               Cancel
             </Button>
             <Button 
@@ -1381,7 +1426,7 @@ const handleProcessPayment = async () => {
                 }
                 setIsPrintOptionsModalOpen(false);
               }}
-              className="h-12 uppercase tracking-widest text-[10px] font-black rounded-xl shadow-xl shadow-primary/20"
+              className="h-12 uppercase tracking-widest text-[10px] font-bold rounded-xl shadow-xl shadow-primary/20"
             >
               Start Print Job
             </Button>
@@ -1396,52 +1441,66 @@ const handleProcessPayment = async () => {
         title="Delivery Details"
       >
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Customer Name"
-              placeholder="Enter name to search..."
-              value={deliveryInfo.name}
-              list="delivery-customer-names"
-              autoComplete="off"
-              onChange={(e) => {
-                const newName = e.target.value;
-                const match = deliveryDict[newName.trim().toLowerCase()];
-                if (match) {
-                  setDeliveryInfo({ name: newName, phone: match.phone, address: match.address });
-                  if (match.id) setSelectedCustomer(match.id);
-                } else {
-                  setDeliveryInfo({ ...deliveryInfo, name: newName });
-                  // Clear customer association if name is changed and doesn't match
+          <div className="space-y-4">
+            <div className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#666]">Search Customer</p>
+              <Input
+                placeholder="Search by Phone Number..."
+                icon={<Phone className="w-4 h-4 text-[#444]" />}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const match = customers.find(c => (c.phone || c.phone_number || '').includes(val));
+                  if (match && val.length >= 3) {
+                    setDeliveryInfo({ name: match.name, phone: match.phone || match.phone_number || '', address: match.address || '' });
+                    setSelectedCustomer(match.id);
+                  }
+                }}
+                className="bg-black/20 border-white/5"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Customer Name"
+                placeholder="Enter name..."
+                value={deliveryInfo.name}
+                list="delivery-customer-names"
+                autoComplete="off"
+                onChange={(e) => {
+                  setDeliveryInfo({ ...deliveryInfo, name: e.target.value });
                   setSelectedCustomer('');
-                }
-              }}
-              className="bg-[#0A0A0A] border-[#2A2A2A]"
-              icon={<User className="w-4 h-4" />}
-            />
-            <datalist id="delivery-customer-names">
-              {Object.entries(deliveryDict).map(([nameKey, info]) => (
-                <option key={nameKey} value={nameKey.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}>
-                  {info.phone ? `${info.phone}` : ''}
-                </option>
-              ))}
-            </datalist>
+                }}
+                className="bg-[#0A0A0A] border-[#2A2A2A]"
+                icon={<UserIcon className="w-4 h-4" />}
+              />
+              <datalist id="delivery-customer-names">
+                {Object.entries(deliveryDict).map(([nameKey, info]) => (
+                  <option key={nameKey} value={nameKey.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}>
+                    {info.phone ? `${info.phone}` : ''}
+                  </option>
+                ))}
+              </datalist>
             <Input
               label="Phone Number"
               placeholder="e.g. 03001234567"
               value={deliveryInfo.phone}
               onChange={(e) => {
                 const newPhone = e.target.value;
-                const match = customers.find(c => c.phone === newPhone);
-                if (match) {
-                  setDeliveryInfo({ name: match.name, phone: newPhone, address: match.address || '' });
-                  if (match.id) setSelectedCustomer(match.id);
-                } else {
-                  setDeliveryInfo({ ...deliveryInfo, phone: newPhone });
+                setDeliveryInfo({ ...deliveryInfo, phone: newPhone });
+                
+                // Lookup customer by phone
+                if (newPhone.length >= 7) {
+                  const match = customers.find(c => (c.phone || c.phone_number) === newPhone);
+                  if (match) {
+                    setDeliveryInfo({ name: match.name, phone: newPhone, address: match.address || '' });
+                    setSelectedCustomer(match.id);
+                  }
                 }
               }}
               className="bg-[#0A0A0A] border-[#2A2A2A]"
               icon={<Phone className="w-4 h-4" />}
             />
+            </div>
           </div>
           <TextArea
             label="Delivery Address"
@@ -1532,7 +1591,7 @@ const handleProcessPayment = async () => {
           </div>
 
           <div className="pt-4 border-t border-[#2A2A2A] flex justify-center">
-            <Button variant="outline" onClick={() => setIsTypeModalOpen(false)} className="w-full max-w-xs h-12 uppercase tracking-widest text-[10px] font-black rounded-xl">
+            <Button variant="outline" onClick={() => setIsTypeModalOpen(false)} className="w-full max-w-xs h-12 uppercase tracking-widest text-[10px] font-bold rounded-xl">
               Cancel
             </Button>
           </div>
@@ -1551,11 +1610,11 @@ const handleProcessPayment = async () => {
           <div className="flex items-center justify-between bg-[#0A0A0A] px-4 py-3 rounded-xl border border-[#2A2A2A]">
             <div className="flex items-center gap-2">
               <Store className="w-4 h-4 text-primary" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-tertiary">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-tertiary">
                 {branches.find(b => b.id === selectedBranch)?.name || 'All Branches'}
               </span>
             </div>
-            <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-widest">
+            <div className="flex items-center gap-3 text-[9px] font-bold uppercase tracking-widest">
               <span className="flex items-center gap-1.5 text-emerald-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 AVAILABLE
@@ -1569,12 +1628,20 @@ const handleProcessPayment = async () => {
 
           {/* Table Grid */}
           {(() => {
-            const branchTables = tables.filter(t => !selectedBranch || t.branch === selectedBranch);
+            const branchTables = tables
+              .filter(t => !selectedBranch || t.branch === selectedBranch)
+              .sort((a, b) => {
+                const numA = parseInt(a.name.replace(/\D/g, '')) || 0;
+                const numB = parseInt(b.name.replace(/\D/g, '')) || 0;
+                if (numA && numB) return numA - numB;
+                return a.name.localeCompare(b.name);
+              });
+
             if (branchTables.length === 0) {
               return (
                 <div className="text-center py-12">
                   <LayoutGrid className="w-10 h-10 text-[#2A2A2A] mx-auto mb-3" />
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#505050]">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#505050]">
                     No tables found for this branch
                   </p>
                   <p className="text-[9px] text-[#404040] mt-1">Create tables from the Tables page first</p>
@@ -1610,7 +1677,7 @@ const handleProcessPayment = async () => {
                       <span className={`absolute top-2 right-2 w-2.5 h-2.5 rounded-full ${isOccupied ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'} ${!isOccupied && !isSelected ? 'animate-pulse' : ''}`} />
 
                       {/* Table icon/number */}
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black transition-all
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold transition-all
                         ${isSelected 
                           ? 'bg-primary/30 text-primary' 
                           : isOccupied 
@@ -1622,7 +1689,7 @@ const handleProcessPayment = async () => {
                       </div>
 
                       {/* Table name */}
-                      <span className={`text-[11px] font-black uppercase tracking-wider truncate w-full text-center
+                      <span className={`text-[11px] font-bold uppercase tracking-wider truncate w-full text-center
                         ${isSelected ? 'text-primary' : isOccupied ? 'text-white' : 'text-emerald-400'}
                       `}>
                         {table.name}
@@ -1630,11 +1697,11 @@ const handleProcessPayment = async () => {
 
                       {/* Occupied badge or Capacity */}
                       {isOccupied ? (
-                        <span className="text-[9px] font-black uppercase tracking-widest bg-white/20 text-white px-3 py-1 rounded-full border border-white/30">
+                        <span className="text-[9px] font-bold uppercase tracking-widest bg-white/20 text-white px-3 py-1 rounded-full border border-white/30">
                           ● OCCUPIED
                         </span>
                       ) : (
-                        <span className="text-[9px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-500 px-3 py-1 rounded-full border border-emerald-500/30">
+                        <span className="text-[9px] font-bold uppercase tracking-widest bg-emerald-500/20 text-emerald-500 px-3 py-1 rounded-full border border-emerald-500/30">
                           ● AVAILABLE
                         </span>
                       )}
@@ -1642,7 +1709,7 @@ const handleProcessPayment = async () => {
                       {/* Selected check */}
                       {isSelected && (
                         <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                          <UserIcon className="w-3.5 h-3.5 text-white/40" />
                         </div>
                       )}
                     </button>
@@ -1657,13 +1724,13 @@ const handleProcessPayment = async () => {
             {selectedTable && (
               <button
                 onClick={() => { setSelectedTable(''); }}
-                className="text-[10px] font-black uppercase tracking-widest text-error/60 hover:text-error transition-colors"
+                className="text-[10px] font-bold uppercase tracking-widest text-error/60 hover:text-error transition-colors"
               >
                 Clear Selection
               </button>
             )}
             <div className="ml-auto">
-              <Button variant="outline" onClick={() => setIsTableModalOpen(false)} className="h-10 uppercase tracking-widest text-[10px] font-black rounded-xl">
+              <Button variant="outline" onClick={() => setIsTableModalOpen(false)} className="h-10 uppercase tracking-widest text-[10px] font-bold rounded-xl">
                 {selectedTable ? 'Done' : 'Cancel'}
               </Button>
             </div>
@@ -1684,11 +1751,11 @@ const handleProcessPayment = async () => {
               <div className="w-20 h-20 bg-error/10 rounded-full flex items-center justify-center mb-5 border border-error/20 shadow-[0_0_30px_rgba(239,68,68,0.15)]">
                 <AlertTriangle className="w-10 h-10 text-error" />
               </div>
-              <h3 className="text-lg font-black text-white uppercase tracking-tight mb-2">
+              <h3 className="text-lg font-bold text-white uppercase tracking-tight mb-2">
                 This Table is Occupied
               </h3>
               <p className="text-sm text-[#808080] max-w-xs">
-                <span className="text-error font-black">{pendingOccupiedTable.name}</span> currently has an active order. Assigning it to this order may cause conflicts.
+                <span className="text-error font-bold">{pendingOccupiedTable.name}</span> currently has an active order. Assigning it to this order may cause conflicts.
               </p>
             </div>
 
@@ -1698,7 +1765,7 @@ const handleProcessPayment = async () => {
                 <Store className="w-7 h-7 text-error" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-black text-white text-sm uppercase tracking-wider">{pendingOccupiedTable.name}</p>
+                <p className="font-bold text-white text-sm uppercase tracking-wider">{pendingOccupiedTable.name}</p>
                 <p className="text-[10px] text-[#808080] font-bold uppercase tracking-widest mt-0.5">
                   {pendingOccupiedTable.capacity} Seats · <span className="text-error">Currently Occupied</span>
                 </p>
@@ -1712,7 +1779,7 @@ const handleProcessPayment = async () => {
                 variant="outline" 
                 fullWidth
                 onClick={() => setPendingOccupiedTable(null)}
-                className="font-black text-[10px] uppercase tracking-widest h-12 rounded-xl"
+                className="font-bold text-[10px] uppercase tracking-widest h-12 rounded-xl"
               >
                 Go Back
               </Button>
@@ -1724,7 +1791,7 @@ const handleProcessPayment = async () => {
                   setPendingOccupiedTable(null);
                   setIsTableModalOpen(false);
                 }}
-                className="font-black text-[10px] uppercase tracking-widest h-12 rounded-xl bg-error hover:bg-error/90 shadow-xl shadow-error/20"
+                className="font-bold text-[10px] uppercase tracking-widest h-12 rounded-xl bg-error hover:bg-error/90 shadow-xl shadow-error/20"
               >
                 Assign Anyway
               </Button>
@@ -1746,6 +1813,39 @@ const handleProcessPayment = async () => {
         variant="danger"
         icon={Trash2}
       />
+
+      {/* Change Table Modal */}
+      <Modal
+        isOpen={!!orderToChangeTable}
+        onClose={() => setOrderToChangeTable(null)}
+        title="Change Table"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-tertiary uppercase tracking-widest">Select new table for Order <span className="text-white font-bold">{orderToChangeTable?.order_number || orderToChangeTable?.id.substring(0,6)}</span></p>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
+            {tables
+              .filter(t => !t.is_occupied || t.id === orderToChangeTable?.table)
+              .map(table => (
+              <button
+                key={table.id}
+                onClick={() => handleChangeTable(orderToChangeTable!.id, table.id)}
+                className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
+                  orderToChangeTable?.table === table.id 
+                    ? 'border-primary bg-primary/10 text-primary' 
+                    : 'border-white/5 bg-white/5 text-tertiary hover:border-white/20'
+                }`}
+              >
+                <Store className="w-5 h-5" />
+                <span className="text-[10px] font-bold uppercase tracking-widest">{table.name}</span>
+              </button>
+            ))}
+          </div>
+          <div className="pt-4 border-t border-[#2A2A2A] flex justify-end">
+            <Button variant="outline" onClick={() => setOrderToChangeTable(null)}>Cancel</Button>
+          </div>
+        </div>
+      </Modal>
       {/* Active Orders Modal */}
       <Modal
         isOpen={isActiveOrdersModalOpen}
@@ -1757,63 +1857,142 @@ const handleProcessPayment = async () => {
           {activeOrders.length === 0 ? (
             <div className="text-center py-12">
               <ListOrdered className="w-12 h-12 text-[#2A2A2A] mx-auto mb-4" />
-              <p className="font-black uppercase tracking-widest text-[#505050]">No active orders found</p>
+              <p className="font-bold uppercase tracking-widest text-[#505050]">No active orders found</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {activeOrders.map(order => (
-                <div key={order.id} className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl p-4 flex flex-col gap-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-wider text-white">Order {order.order_number || order.id.substring(0,6)}</p>
-                      <p className="text-[10px] text-tertiary mt-0.5">{order.order_type.replace('_', ' ').toUpperCase()} • {
-                        order.order_type === 'dine_in' ? `Table ${order.table_no || order.table}` : (order.delivery_info?.name || 'Walk-in')
-                      }</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <Badge variant={
-                        order.status === 'draft' ? 'secondary' :
-                        order.status === 'ready' ? 'accent' as any : 'warning'
-                      } className="text-[9px] px-2 py-0.5 uppercase tracking-widest border border-white/5">{order.status.replace('_', ' ')}</Badge>
-                      <Badge variant={order.is_paid ? 'success' : 'warning'} className="text-[8px] px-1.5 py-0 uppercase tracking-tighter shadow-sm border border-white/5">
-                        {order.is_paid ? 'Paid' : 'Unpaid'}
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-tertiary">{order.items?.length || 0} Items</span>
-                    <span className="font-black text-primary text-sm">Rs. {Number(order.total).toFixed(2)}</span>
-                  </div>
+            <div className="flex flex-col gap-4">
+              {/* Filter Tabs */}
+              <div className="flex gap-2 bg-[#0A0A0A] p-1 rounded-xl border border-[#2A2A2A]">
+                {(['all', 'dine_in', 'takeaway', 'delivery'] as const).map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setActiveOrdersTypeFilter(type)}
+                    className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${
+                      activeOrdersTypeFilter === type 
+                        ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                        : 'text-[#666] hover:text-[#888]'
+                    }`}
+                  >
+                    {type.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
 
-                  <div className="bg-[#0A0A0A] p-2 rounded-xl space-y-1 max-h-24 overflow-y-auto">
-                    {order.items?.map((item: any, i: number) => {
-                      const pId = String(item.product || '').trim();
-                      const name = allProductsMap[pId] || 
-                                   (item.product_name && item.product_name.toLowerCase().trim() !== 'string' ? item.product_name : null) || 
-                                   (typeof item.product === 'object' ? (item.product as any)?.name || (item.product as any)?.product_name : null) || 
-                                   'Product';
-                      return (
-                        <div key={i} className="flex justify-between text-[9px] uppercase tracking-tighter">
-                           <span className="text-white font-bold">{item.quantity}x {name}</span>
-                           <span className="text-tertiary">Rs. {Number(item.total_price || 0).toFixed(0)}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {activeOrders
+                  .filter(o => activeOrdersTypeFilter === 'all' || o.order_type === activeOrdersTypeFilter)
+                  .map(order => (
+                  <div key={order.id} className={`bg-[#1A1A1A] border-l-4 rounded-2xl p-4 flex flex-col gap-3 group/order transition-all shadow-xl ${
+                    order.status === 'ready' ? 'border-accent' : 
+                    order.status === 'preparing' ? 'border-warning' : 
+                    order.status === 'confirmed' ? 'border-primary' : 'border-[#2A2A2A]'
+                  } hover:bg-[#202020]`}>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold uppercase tracking-tight text-white">Order #{order.order_number || order.id.substring(0,6)}</p>
+                          <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded text-tertiary font-mono border border-white/5">
+                            {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
                         </div>
-                      )
-                    })}
-                  </div>
+                        <p className="text-[10px] text-tertiary mt-1 flex items-center gap-1.5 uppercase font-bold tracking-widest bg-black/20 p-1.5 rounded-lg border border-white/5">
+                          {order.order_type === 'dine_in' ? <Store className="w-3 h-3 text-primary" /> : order.order_type === 'delivery' ? <Bike className="w-3 h-3 text-orange-400" /> : <LayoutGrid className="w-3 h-3 text-blue-400" />}
+                          {order.order_type.replace('_', ' ')} • {
+                            order.order_type === 'dine_in' ? `Table ${order.table_no || order.table}` : (order.delivery_info?.name || 'Walk-in')
+                          }
+                        </p>
+                        {order.delivery_person_name && (
+                          <p className="text-[9px] text-orange-300 font-bold uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
+                            <Bike className="w-3 h-3" /> Driver: {order.delivery_person_name}
+                          </p>
+                        )}
+                        {order.notes && (
+                           <div className="mt-2 p-2 bg-orange-400/5 border border-orange-400/10 rounded-lg">
+                             <p className="text-[9px] text-orange-400/80 font-bold uppercase tracking-widest leading-normal">
+                               <span className="opacity-50 mr-1">Note:</span> {order.notes}
+                             </p>
+                           </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5">
+                        <Badge variant={
+                          order.status === 'draft' ? 'secondary' :
+                          order.status === 'ready' ? 'accent' as any : 'warning'
+                        } className="text-[9px] px-3 py-1 uppercase tracking-widest border border-white/5 shadow-inner">{order.status.replace('_', ' ')}</Badge>
+                        <Badge variant={order.is_paid ? 'success' : 'warning'} className="text-[8px] px-2 py-0.5 uppercase tracking-tighter shadow-sm border border-white/5">
+                          {order.is_paid ? 'Fully Paid' : 'Payment Due'}
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    {/* Delivery Person Assignment */}
+                    {order.order_type === 'delivery' && hasPermission('manage_delivery') && (
+                      <div className="flex items-center gap-2 bg-[#0A0A0A] p-2 rounded-xl border border-white/5">
+                        <UserIcon className="w-3 h-3 text-tertiary" />
+                        <select
+                          value={order.delivery_person || ''}
+                          onChange={(e) => handleAssignDeliveryPerson(order.id, e.target.value)}
+                          disabled={isUpdatingStatus === order.id}
+                          className="bg-transparent border-0 text-[10px] font-bold uppercase tracking-widest text-orange-300 focus:outline-none cursor-pointer flex-1 appearance-none"
+                        >
+                          <option value="" className="bg-[#1A1A1A]">Assign Driver</option>
+                          {deliveryPersons.map(dp => (
+                            <option key={dp.id} value={dp.id} className="bg-[#1A1A1A]">{dp.name}</option>
+                          ))}
+                        </select>
+                        {order.delivery_person_name && (
+                          <span className="text-[8px] text-white/40 uppercase tracking-widest">{order.delivery_person_name}</span>
+                        )}
+                      </div>
+                    )}
+                    {order.order_type === 'delivery' && !hasPermission('manage_delivery') && order.delivery_person_name && (
+                       <div className="flex items-center gap-2 bg-[#0A0A0A] p-2 rounded-xl border border-white/5">
+                         <UserIcon className="w-3 h-3 text-tertiary" />
+                         <span className="text-[10px] font-bold uppercase tracking-widest text-orange-300">{order.delivery_person_name}</span>
+                       </div>
+                    )}
+
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-tertiary font-bold uppercase tracking-widest text-[9px]">{order.items?.length || 0} Assets</span>
+                      <span className="font-bold text-primary text-sm font-mono">Rs. {Number(order.total).toFixed(2)}</span>
+                    </div>
+
+                    <div className="bg-[#0A0A0A] p-2 rounded-xl space-y-1 max-h-24 overflow-y-auto custom-scrollbar border border-white/5">
+                      {order.items?.map((item: any, i: number) => {
+                        const pId = String(item.product || '').trim();
+                        const name = allProductsMap[pId] || 
+                                     (item.product_name && item.product_name.toLowerCase().trim() !== 'string' ? item.product_name : null) || 
+                                     (typeof item.product === 'object' ? (item.product as any)?.name || (item.product as any)?.product_name : null) || 
+                                     'Product';
+                        return (
+                          <div key={i} className="flex justify-between text-[9px] uppercase tracking-tighter items-center">
+                             <div className="flex items-center gap-1.5 min-w-0">
+                               <span className="w-4 h-4 rounded bg-white/5 flex items-center justify-center text-[7px] text-tertiary shrink-0">{item.quantity}</span>
+                               <span className="text-white font-bold truncate max-w-[100px]">{name}</span>
+                               <Badge variant={item.action === 'void' ? 'error' : item.action === 'addition' ? 'accent' as any : 'secondary'} size="sm" className="text-[6px] h-3 px-1 py-0 border-0 opacity-80 uppercase leading-none">
+                                 {item.action || 'original'}
+                               </Badge>
+                             </div>
+                             <span className="text-tertiary font-mono shrink-0">Rs. {Number(item.total_price || 0).toFixed(0)}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
 
                   <div className="flex flex-wrap gap-2 pt-3 border-t border-[#2A2A2A]">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => loadOrderForEditing(order)}
-                      className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest bg-white/5 border-white/10"
-                    >
-                      Edit 
-                    </Button>
+                    {hasPermission('change_order') && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => loadOrderForEditing(order)}
+                        className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest bg-white/5 border-white/10"
+                      >
+                        Edit 
+                      </Button>
+                    )}
                       <Button 
                         variant="outline" 
                         onClick={() => triggerDirectPrint(order, 'kitchen')}
-                        className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest hover:text-orange-500 border-white/10"
+                        className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest hover:text-orange-500 border-white/10"
                         icon={<ChefHat className="w-4 h-4" />}
                       >
                         Kitchen
@@ -1821,34 +2000,45 @@ const handleProcessPayment = async () => {
                       <Button 
                         variant="outline" 
                         onClick={() => triggerDirectPrint(order, 'main')}
-                        className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest hover:text-primary border-white/10"
+                        className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest hover:text-primary border-white/10"
                         icon={<Printer className="w-4 h-4" />}
                       >
                         Receipt
                       </Button>
+                      
+                      {order.order_type === 'dine_in' && !['completed', 'cancelled'].includes(order.status) && (
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setOrderToChangeTable(order)}
+                          className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest hover:text-accent border-white/10"
+                          icon={<Store className="w-4 h-4" />}
+                        >
+                          Table
+                        </Button>
+                      )}
                     
                     <div className="flex flex-wrap gap-2 w-full pt-1">
-                      {order.status === 'draft' && (
-                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'confirm')} disabled={isUpdatingStatus===order.id}>Send to Kitchen</Button>
+                      {order.status === 'draft' && hasPermission('change_order') && (
+                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'confirm')} disabled={isUpdatingStatus===order.id}>Send to Kitchen</Button>
                       )}
-                      {order.status === 'confirmed' && (
-                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'prepare')} disabled={isUpdatingStatus===order.id}>Start Cooking</Button>
+                      {order.status === 'confirmed' && hasPermission('change_order') && (
+                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'prepare')} disabled={isUpdatingStatus===order.id}>Start Cooking</Button>
                       )}
-                      {order.status === 'preparing' && (
-                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'ready')} disabled={isUpdatingStatus===order.id}>Mark Ready</Button>
+                      {order.status === 'preparing' && hasPermission('change_order') && (
+                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'ready')} disabled={isUpdatingStatus===order.id}>Mark Ready</Button>
                       )}
-                      {order.status === 'ready' && (
-                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'serve')} disabled={isUpdatingStatus===order.id}>Mark Served</Button>
+                      {order.status === 'ready' && hasPermission('change_order') && (
+                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'serve')} disabled={isUpdatingStatus===order.id}>Mark Served</Button>
                       )}
-                      {order.status === 'served' && (
-                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest hover:bg-success hover:border-success/50 bg-success border-success text-white shadow-lg shadow-success/20" onClick={() => executeStatusUpdate(order, 'complete')} disabled={isUpdatingStatus===order.id}>Finalize Order</Button>
+                      {order.status === 'served' && hasPermission('change_order') && (
+                        <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest hover:bg-success hover:border-success/50 bg-success border-success text-white shadow-lg shadow-success/20" onClick={() => executeStatusUpdate(order, 'complete')} disabled={isUpdatingStatus===order.id}>Finalize Order</Button>
                       )}
                       
                       {/* Checkout Button: Available for all non-draft/non-complete statuses */}
-                      {order.status !== 'draft' && (
+                      {order.status !== 'draft' && hasPermission('add_payment') && (
                         <Button 
                           variant="primary" 
-                          className="flex-1 text-[10px] h-8 font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/10" 
+                          className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/10" 
                           onClick={() => {
                             setIsFinalizingFromModal(true);
                             loadOrderForEditing(order, false);
@@ -1858,10 +2048,11 @@ const handleProcessPayment = async () => {
                           Checkout
                         </Button>
                       )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>

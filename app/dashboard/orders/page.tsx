@@ -306,8 +306,8 @@ export default function Orders() {
         </span>
       )
     },
-    { 
-      key: 'created_at', 
+    {
+      key: 'created_at',
       header: 'Date & Time',
       render: (value: string) => (
         <div>
@@ -316,55 +316,27 @@ export default function Orders() {
         </div>
       )
     },
-    { 
-      key: 'branch_name', 
-      header: 'Branch',
+    {
+      key: 'created_by_name',
+      header: 'Created By',
       render: (value: string, row: Order) => (
-        <span className="text-tertiary text-sm">{value || row.branch || '-'}</span>
+        <span className="text-tertiary text-xs bg-white/5 px-2 py-1 rounded border border-white/5">{row.created_by || 'System'}</span>
       )
     },
-    { 
-      key: 'table', 
-      header: 'Table / Type',
-      render: (value: string, row: Order) => {
-        const isActive = ['confirmed', 'preparing', 'ready', 'served'].includes(row.status);
-        return (
-          <span className={`font-bold ${isActive ? 'text-error flex items-center gap-1.5' : 'text-white'}`}>
-            {row.order_type === 'dine_in' 
-              ? (
-                <>
-                  {isActive && <Store className="w-3.5 h-3.5" />}
-                  Table {tables[value] || row.table_no || '?'}
-                </>
-              )
-              : row.order_type.toUpperCase()}
-          </span>
-        );
-      }
-    },
     {
-      key: 'items',
-      header: 'Items',
-      render: (value: any, row: Order) => (
-        <Badge variant="secondary" size="sm" className="font-bold">
-          {row.items?.length || 0} PCS
+      key: 'status',
+      header: 'Status',
+      render: (value: OrderStatus) => (
+        <Badge variant={getStatusBadgeVariant(value)} size="sm" className="uppercase tracking-[0.2em] text-[9px] font-black  px-3 border border-white/5 shadow-sm">
+          {value.replace('_', ' ')}
         </Badge>
       )
     },
     { 
       key: 'total', 
-      header: 'Gross Total',
+      header: 'Total Amount',
       render: (value: string) => (
         <span className="font-black text-accent drop-shadow-glow-accent">Rs. {Number(value).toFixed(2)}</span>
-      )
-    },
-    { 
-      key: 'status', 
-      header: 'Fulfillment Status',
-      render: (value: OrderStatus) => (
-        <Badge variant={getStatusBadgeVariant(value)} size="sm" className="uppercase tracking-[0.2em] text-[9px] font-black  px-3 border border-white/5 shadow-sm">
-          {value.replace('_', ' ')}
-        </Badge>
       )
     },
     {
@@ -640,11 +612,56 @@ export default function Orders() {
                     : selectedOrder.order_type.toUpperCase()}
                 </p>
               </div>
-              <div className="bg-white/5 p-4 rounded-xl border border-base">
+               <div className="bg-white/5 p-4 rounded-xl border border-base">
                 <p className="text-xs text-tertiary uppercase tracking-widest mb-1">Status</p>
                 <Badge variant={getStatusBadgeVariant(selectedOrder.status)}>
                   {selectedOrder.status.toUpperCase()}
                 </Badge>
+              </div>
+            </div>
+
+            {/* Order Timeline */}
+            <div className="bg-white/5 p-4 rounded-xl border border-base">
+              <h4 className="font-bold text-white mb-4 uppercase tracking-widest text-[10px]">Order Timeline</h4>
+              <div className="flex flex-wrap gap-4 text-[9px] uppercase tracking-tighter">
+                <div className="flex flex-col gap-1">
+                  <span className="text-tertiary">Created</span>
+                  <span className="text-white font-bold">{new Date(selectedOrder.created_at).toLocaleString()}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[#606060]">Updated</span>
+                  <span className="text-white font-bold">{new Date(selectedOrder.updated_at).toLocaleString()}</span>
+                </div>
+                {selectedOrder.confirmed_at && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-primary">Confirmed</span>
+                    <span className="text-white font-bold">{new Date(selectedOrder.confirmed_at).toLocaleString()}</span>
+                  </div>
+                )}
+                {selectedOrder.preparing_at && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-orange-400">Preparing</span>
+                    <span className="text-white font-bold">{new Date(selectedOrder.preparing_at).toLocaleString()}</span>
+                  </div>
+                )}
+                {selectedOrder.ready_at && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-accent">Ready</span>
+                    <span className="text-white font-bold">{new Date(selectedOrder.ready_at).toLocaleString()}</span>
+                  </div>
+                )}
+                {selectedOrder.served_at && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-indigo-400">Served</span>
+                    <span className="text-white font-bold">{new Date(selectedOrder.served_at).toLocaleString()}</span>
+                  </div>
+                )}
+                {selectedOrder.completed_at && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-success">Completed</span>
+                    <span className="text-white font-bold">{new Date(selectedOrder.completed_at).toLocaleString()}</span>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -656,6 +673,7 @@ export default function Orders() {
                     <tr>
                       <th className="px-4 py-3 text-xs font-bold text-tertiary">Item</th>
                       <th className="px-4 py-3 text-xs font-bold text-tertiary text-center">Qty</th>
+                      <th className="px-4 py-3 text-xs font-bold text-tertiary text-center">History</th>
                       <th className="px-4 py-3 text-xs font-bold text-tertiary text-right">Price</th>
                       <th className="px-4 py-3 text-xs font-bold text-tertiary text-right">Total</th>
                     </tr>
@@ -669,8 +687,13 @@ export default function Orders() {
                            (typeof item.product === 'object' ? (item.product as any)?.name || (item.product as any)?.product_name : null) || 
                            'Product'}
                         </td>
-                        <td className="px-4 py-3 text-sm font-bold text-center">{item.quantity}</td>
-                        <td className="px-4 py-3 text-sm text-right text-tertiary">Rs. {Number(item.unit_price || 0).toFixed(2)}</td>
+                         <td className="px-4 py-3 text-sm font-bold text-center">{item.quantity}</td>
+                         <td className="px-4 py-3 text-center">
+                           <Badge variant={item.action === 'void' ? 'error' : item.action === 'addition' ? 'accent' as any : 'secondary'} size="sm" className="text-[8px] uppercase">
+                             {item.action === 'addition' ? 'Added' : item.action === 'void' ? 'Voided' : 'Original'}
+                           </Badge>
+                         </td>
+                         <td className="px-4 py-3 text-sm text-right text-tertiary">Rs. {Number(item.unit_price || 0).toFixed(2)}</td>
                         <td className="px-4 py-3 text-sm text-right font-black text-accent whitespace-nowrap">
                           Rs. {Number(item.total_price || (Number(item.unit_price || 0) * Number(item.quantity || 0))).toFixed(2)}
                         </td>

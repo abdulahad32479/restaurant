@@ -8,6 +8,7 @@ export interface User {
   branch_name?: string;
   is_active?: boolean;
   created_at?: string;
+  permissions?: string[];
 }
 
 export interface AuthResponse {
@@ -91,6 +92,7 @@ export interface OrderItem {
   discount_amount?: string;
   total_price?: string;
   notes?: string;
+  action?: 'original' | 'addition' | 'void';
   created_at?: string;
   updated_at?: string;
 }
@@ -110,6 +112,8 @@ export interface Order {
   table_no?: string;
   customer?: string;
   created_by?: string;
+  delivery_person?: string;
+  delivery_person_name?: string;
   delivery_info?: {
     id?: string;
     name: string;
@@ -167,8 +171,8 @@ export interface StockMovement {
   branch_name: string;
   product_name: string;
   by: string;
-  movement_types: 'incoming' | 'outgoing' | 'order' | 'adjustment' | 'return'; // Based on schema enum
-  reference_type: string;
+  movement_types: 'incoming' | 'outgoing' | 'adjustment' | 'purchase' | 'sale' | 'return' | 'transfer';
+  reference_type: 'order' | 'manual' | 'adjustment' | 'transfer';
   reference_id: string;
   quantity: string;
   quantity_before: string;
@@ -188,12 +192,17 @@ export interface ZReport {
   id: number;
   date: string;
   total_orders: number;
+  total_items: number;
   total_sales: string;
   total_cash: string;
   total_card: string;
+  total_tax: string;
+  total_discount: string;
   total_other: string;
   counted_cash: string;
   cash_difference: string;
+  start_time: string;
+  end_time: string;
   is_locked: boolean;
   branch: string;
   closed_by: string;
@@ -224,6 +233,15 @@ export interface SalesByProductReport {
 export interface PaymentSummaryReport {
   method: string;
   total: string;
+}
+
+export interface DeliveryPerson {
+  id: string;
+  name: string;
+  phone: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ApiResponse<T> {

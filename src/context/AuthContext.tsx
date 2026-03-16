@@ -10,6 +10,7 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   loading: boolean;
+  hasPermission: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,8 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('user');
   };
 
+  const hasPermission = (permission: string): boolean => {
+    if (user?.role === 'admin') return true;
+    return user?.permissions?.includes(permission) || false;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, loading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, loading, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );
