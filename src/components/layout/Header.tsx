@@ -3,6 +3,7 @@
 import { Bell, Search, LogOut, Command, Menu } from "lucide-react"
 import { Button } from "@/src/components/ui/button"
 import { useAuth } from "@/src/context/AuthContext"
+import { getRoleLabel, getRoleColor } from "@/src/lib/rbac"
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -56,7 +57,9 @@ export function Header({ onMenuClick }: HeaderProps) {
         <div className="flex items-center gap-2 md:gap-4 md:pl-2">
           <div className="flex flex-col items-end hidden lg:flex">
             <p className="text-sm font-bold text-white leading-none">{user?.username || 'Admin User'}</p>
-            <p className="text-[11px] font-medium text-accent mt-1">{user?.role || 'Staff'}</p>
+            <span className={`text-[10px] font-bold uppercase tracking-widest mt-1 border rounded-md px-2 py-0.5 ${getRoleColor(user?.role || '')}`}>
+              {getRoleLabel(user?.role || '')}
+            </span>
           </div>
           <div className="group relative cursor-pointer">
             <div className="flex h-9 w-9 md:h-11 md:w-11 items-center justify-center rounded-xl md:rounded-2xl bg-gradient-to-br from-accent to-accent-active text-bg-main font-black shadow-glow-accent group-hover:scale-105 transition-transform duration-300">

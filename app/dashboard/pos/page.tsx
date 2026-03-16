@@ -87,6 +87,9 @@ export default function POS() {
     address: ''
   });
   const [deliveryDict, setDeliveryDict] = useState<Record<string, {phone: string, address: string, id?: string}>>({});
+  const [deliveryPhoneSearch, setDeliveryPhoneSearch] = useState('');
+  const [deliveryNameSearch, setDeliveryNameSearch] = useState('');
+  const [matchedCustomer, setMatchedCustomer] = useState<Customer | null>(null);
 
   // Notes & Customer state  
   const [orderNotes, setOrderNotes] = useState('');
@@ -1437,49 +1440,114 @@ const handleProcessPayment = async () => {
       {/* Delivery Details Modal */}
       <Modal
         isOpen={isDeliveryModalOpen}
-        onClose={() => setIsDeliveryModalOpen(false)}
+        onClose={() => {
+          setIsDeliveryModalOpen(false);
+          setDeliveryPhoneSearch('');
+          setDeliveryNameSearch('');
+          setMatchedCustomer(null);
+        }}
         title="Delivery Details"
       >
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <div className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#666]">Search Customer</p>
+        <div className="space-y-5">
+          {/* Search Section */}
+          <div className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#666]">Search Customer</p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Phone Search */}
               <Input
                 placeholder="Search by Phone Number..."
+                value={deliveryPhoneSearch}
                 icon={<Phone className="w-4 h-4 text-[#444]" />}
                 onChange={(e) => {
                   const val = e.target.value;
-                  const match = customers.find(c => (c.phone || c.phone_number || '').includes(val));
-                  if (match && val.length >= 3) {
-                    setDeliveryInfo({ name: match.name, phone: match.phone || match.phone_number || '', address: match.address || '' });
-                    setSelectedCustomer(match.id);
+                  setDeliveryPhoneSearch(val);
+                  setDeliveryNameSearch('');
+                  if (val.length >= 3) {
+                    const match = customers.find(c =>
+                      (c.phone || c.phone_number || '').includes(val)
+                    );
+                    if (match) {
+                      setMatchedCustomer(match);
+                      setDeliveryInfo({ name: match.name, phone: match.phone || match.phone_number || '', address: match.address || '' });
+                      setSelectedCustomer(match.id);
+                    } else {
+                      setMatchedCustomer(null);
+                    }
+                  } else {
+                    setMatchedCustomer(null);
+                  }
+                }}
+                className="bg-black/20 border-white/5"
+              />
+              {/* Name Search */}
+              <Input
+                placeholder="Search by Name..."
+                value={deliveryNameSearch}
+                icon={<UserIcon className="w-4 h-4 text-[#444]" />}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDeliveryNameSearch(val);
+                  setDeliveryPhoneSearch('');
+                  if (val.length >= 2) {
+                    const match = customers.find(c =>
+                      c.name.toLowerCase().includes(val.toLowerCase())
+                    );
+                    if (match) {
+                      setMatchedCustomer(match);
+                      setDeliveryInfo({ name: match.name, phone: match.phone || match.phone_number || '', address: match.address || '' });
+                      setSelectedCustomer(match.id);
+                    } else {
+                      setMatchedCustomer(null);
+                    }
+                  } else {
+                    setMatchedCustomer(null);
                   }
                 }}
                 className="bg-black/20 border-white/5"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Customer Name"
-                placeholder="Enter name..."
-                value={deliveryInfo.name}
-                list="delivery-customer-names"
-                autoComplete="off"
-                onChange={(e) => {
-                  setDeliveryInfo({ ...deliveryInfo, name: e.target.value });
-                  setSelectedCustomer('');
-                }}
-                className="bg-[#0A0A0A] border-[#2A2A2A]"
-                icon={<UserIcon className="w-4 h-4" />}
-              />
-              <datalist id="delivery-customer-names">
-                {Object.entries(deliveryDict).map(([nameKey, info]) => (
-                  <option key={nameKey} value={nameKey.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}>
-                    {info.phone ? `${info.phone}` : ''}
-                  </option>
-                ))}
-              </datalist>
+            {/* Match found card */}
+            {matchedCustomer && (
+              <div className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                  <UserIcon className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-emerald-300 uppercase tracking-wide truncate">{matchedCustomer.name}</p>
+                  <p className="text-[10px] text-emerald-400/70 font-mono">{matchedCustomer.phone || matchedCustomer.phone_number}</p>
+                  {matchedCustomer.address && (
+                    <p className="text-[10px] text-emerald-400/60 truncate">{matchedCustomer.address}</p>
+                  )}
+                </div>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-lg">Auto-filled</span>
+              </div>
+            )}
+
+            {/* No match hint when searching */}
+            {(deliveryPhoneSearch.length >= 3 || deliveryNameSearch.length >= 2) && !matchedCustomer && (
+              <p className="text-[10px] text-[#555] font-bold uppercase tracking-widest text-center py-1">
+                No existing customer found · Enter details manually below
+              </p>
+            )}
+          </div>
+
+          {/* Manual Entry / Auto-filled Fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Customer Name"
+              placeholder="Enter name..."
+              value={deliveryInfo.name}
+              autoComplete="off"
+              onChange={(e) => {
+                setDeliveryInfo({ ...deliveryInfo, name: e.target.value });
+                if (matchedCustomer) setMatchedCustomer(null);
+                setSelectedCustomer('');
+              }}
+              className="bg-[#0A0A0A] border-[#2A2A2A]"
+              icon={<UserIcon className="w-4 h-4" />}
+            />
             <Input
               label="Phone Number"
               placeholder="e.g. 03001234567"
@@ -1487,11 +1555,11 @@ const handleProcessPayment = async () => {
               onChange={(e) => {
                 const newPhone = e.target.value;
                 setDeliveryInfo({ ...deliveryInfo, phone: newPhone });
-                
-                // Lookup customer by phone
+                // Also auto-fill if typed directly in this field
                 if (newPhone.length >= 7) {
                   const match = customers.find(c => (c.phone || c.phone_number) === newPhone);
                   if (match) {
+                    setMatchedCustomer(match);
                     setDeliveryInfo({ name: match.name, phone: newPhone, address: match.address || '' });
                     setSelectedCustomer(match.id);
                   }
@@ -1500,8 +1568,8 @@ const handleProcessPayment = async () => {
               className="bg-[#0A0A0A] border-[#2A2A2A]"
               icon={<Phone className="w-4 h-4" />}
             />
-            </div>
           </div>
+
           <TextArea
             label="Delivery Address"
             placeholder="Enter full delivery address..."
@@ -1511,15 +1579,23 @@ const handleProcessPayment = async () => {
           />
           
           <div className="pt-4 border-t border-[#2A2A2A] flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setIsDeliveryModalOpen(false)}>Discard</Button>
+            <Button variant="outline" onClick={() => {
+              setIsDeliveryModalOpen(false);
+              setDeliveryPhoneSearch('');
+              setDeliveryNameSearch('');
+              setMatchedCustomer(null);
+            }}>Discard</Button>
             <Button 
               variant="primary" 
               onClick={() => {
                 if (!deliveryInfo.name || !deliveryInfo.phone || !deliveryInfo.address) {
-                  toast.error('All fields are required');
+                  toast.error('Name, phone, and address are required');
                   return;
                 }
                 setIsDeliveryModalOpen(false);
+                setDeliveryPhoneSearch('');
+                setDeliveryNameSearch('');
+                setMatchedCustomer(null);
               }}
             >
               Save Details

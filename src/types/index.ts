@@ -3,12 +3,14 @@ export interface User {
   username: string;
   email: string;
   password?: string; // Only for creation/update
-  role: 'admin' | 'manager' | 'chef' | 'waiter' | 'cashier';
+  role: string | 'admin' | 'manager' | 'chef' | 'waiter' | 'cashier';
   branch: string; // Branch ID
   branch_name?: string;
   is_active?: boolean;
   created_at?: string;
+  updated_at?: string;
   permissions?: string[];
+  permissions_list?: string; // String from backend e.g. "view_orders,add_order"
 }
 
 export interface AuthResponse {

@@ -48,6 +48,7 @@ interface SidebarProps {
 }
 
 import { useAuth } from "@/src/context/AuthContext"
+import { getRoleLabel, getRoleColor } from "@/src/lib/rbac"
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
@@ -169,7 +170,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
               <div className="flex flex-col overflow-hidden">
                 <span className="text-xs font-black text-white truncate uppercase tracking-tight">{user?.username || 'Admin User'}</span>
-                <span className="text-[9px] font-black text-accent uppercase tracking-widest">{user?.role || 'Manager'}</span>
+                <span className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 border rounded px-1.5 py-0.5 ${getRoleColor(user?.role || '')}`}>
+                  {getRoleLabel(user?.role || '')}
+                </span>
               </div>
             </div>
           ) : (

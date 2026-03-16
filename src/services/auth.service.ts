@@ -12,6 +12,11 @@ export const authService = {
     return response.data;
   },
 
+  getCurrentUser: async () => {
+    const response = await apiClient.get('v1/me/');
+    return response.data;
+  },
+
   logout: async () => {
     const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
     if (refreshToken) {

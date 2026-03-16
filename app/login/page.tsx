@@ -21,14 +21,30 @@ export default function LoginPage() {
     try {
       const data = await authService.login({ username, password });
       
-      // The backend returns { access, refresh }. We'll mock a user object if not provided
-      const user = data.user || { id: '1', username, email: '', role: 'admin' as const, branch: '00000000-0000-0000-0000-000000000000' };
-      
-      login(data.access, data.refresh, user);
-      toast.success('Login successful!');
+      // Store token first so the axios interceptor can use it for the next call
+      localStorage.setItem('access_token', data.access);
+      localStorage.setItem('refresh_token', data.refresh);
+
+      // Fetch real user profile with actual role + permissions from /api/v1/me/
+      let realUser = data.user;
+      if (!realUser) {
+        try {
+          realUser = await authService.getCurrentUser();
+        } catch {
+          // Fallback if /me/ fails - AuthContext will retry on mount
+        }
+      }
+      // Ensure we always have a valid user object
+      const finalUser = realUser || { id: '', username, email: '', role: 'staff', branch: '' };
+
+      login(data.access, data.refresh, finalUser);
+      toast.success(`Welcome back, ${finalUser.username || username}!`);
       router.push('/dashboard');
     } catch (error: any) {
       console.error('Login failed', error);
+      // Clean up any partially stored tokens on failure
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
       const message = error.response?.data?.detail || 'Invalid credentials. Please try again.';
       toast.error(message);
     } finally {

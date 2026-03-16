@@ -11,6 +11,7 @@ import { Card } from '@/src/components/Card';
 import { userService } from '@/src/services/user.service';
 import { branchService } from '@/src/services/branch.service';
 import { Branch, User } from '@/src/types';
+import { getRoleLabel, getRoleColor } from '@/src/lib/rbac';
 import toast from 'react-hot-toast';
 
 export default function AdminUserManagement() {
@@ -21,11 +22,19 @@ export default function AdminUserManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
+  const ROLES = [
+    { value: 'admin', label: 'Administrator' },
+    { value: 'manager', label: 'Manager' },
+    { value: 'cashier', label: 'Cashier' },
+    { value: 'waiter', label: 'Waiter' },
+    { value: 'chef', label: 'Chef' },
+  ];
+
   const [newUser, setNewUser] = useState({
     username: '',
     email: '',
     password: '',
-    role: 'admin' as any,
+    role: 'cashier' as string,
     branch: '',
     is_active: true,
   });
@@ -72,7 +81,7 @@ export default function AdminUserManagement() {
       }
       setIsModalOpen(false);
       setEditingUserId(null);
-      setNewUser({ username: '', email: '', password: '', role: 'admin' as any, branch: '', is_active: true });
+      setNewUser({ username: '', email: '', password: '', role: 'cashier', branch: '', is_active: true });
       fetchData();
     } catch (e: any) {
       console.error('Failed to save user', e);
@@ -114,9 +123,9 @@ export default function AdminUserManagement() {
       key: 'role',
       header: 'Access Level',
       render: (value: string) => (
-        <Badge variant="secondary" className="bg-white/5 text-tertiary border-0 font-bold uppercase tracking-widest text-[10px]">
-          {value}
-        </Badge>
+        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border ${getRoleColor(value)}`}>
+          {getRoleLabel(value)}
+        </span>
       ),
     },
     {
@@ -212,7 +221,7 @@ export default function AdminUserManagement() {
           
           <div className="grid grid-cols-2 gap-4">
             <Select label="Assigned Branch" value={newUser.branch} onChange={e => setNewUser({ ...newUser, branch: e.target.value })} options={[{ value: '', label: 'Select Location' }, ...branches.map((b: Branch) => ({ value: b.id, label: b.name }))]} />
-            <Select label="System Role" value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value as any })} options={[{ value: 'admin', label: 'Administrator' }, { value: 'manager', label: 'Manager' }, { value: 'staff', label: 'Service Staff' }]} />
+            <Select label="System Role" value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })} options={ROLES} />
           </div>
 
           <div className="bg-white/5 p-4 rounded-xl border border-base flex items-center justify-between mt-2">

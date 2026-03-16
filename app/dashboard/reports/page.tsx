@@ -19,15 +19,6 @@ export default function Reports() {
   const { hasPermission } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!hasPermission('view_reports')) {
-      toast.error('Access Denied: You do not have permission to view reports');
-      router.push('/dashboard');
-    }
-  }, [hasPermission, router]);
-
-  if (!hasPermission('view_reports')) return null;
-
   const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [byBranch, setByBranch] = useState<SalesByBranchReport[]>([]);
   const [byProduct, setByProduct] = useState<SalesByProductReport[]>([]);
@@ -52,6 +43,15 @@ export default function Reports() {
   });
 
   useEffect(() => {
+    if (!hasPermission('view_reports')) {
+      toast.error('Access Denied: You do not have permission to view reports');
+      router.push('/dashboard');
+    }
+  }, [hasPermission, router]);
+
+  useEffect(() => {
+    if (!hasPermission('view_reports')) return;
+
     const fetch = async () => {
       setIsLoading(true);
       try {
@@ -80,6 +80,8 @@ export default function Reports() {
     };
     fetch();
   }, [startDate, endDate]);
+
+  if (!hasPermission('view_reports')) return null;
 
   const handleGenerateZReport = async () => {
     if (!zForm.counted_cash) {
