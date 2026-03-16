@@ -6,12 +6,13 @@ import { Table, Pagination } from '@/src/components/Table';
 import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
-import { Search, Calendar, Download, Eye, Store, Printer, MoreVertical, PlayCircle, CheckCircle2, PackageCheck, CheckCheck, Edit, CreditCard, X, Banknote, RotateCcw, ChefHat } from 'lucide-react';
+import { Search, Calendar, Download, Eye, Store, Printer, MoreVertical, PlayCircle, CheckCircle2, PackageCheck, CheckCheck, Edit, CreditCard, X, Banknote, RotateCcw, ChefHat, History } from 'lucide-react';
 import { Card } from '@/src/components/Card';
 import { orderService } from '@/src/services/order.service';
 import { branchService } from '@/src/services/branch.service';
 import { tableService } from '@/src/services/table.service';
 import { productService } from '@/src/services/product.service';
+import { userService } from '@/src/services/user.service';
 import { Order, Branch, OrderStatus } from '@/src/types';
 import apiClient, { printerClient } from '@/src/lib/axios';
 import toast from 'react-hot-toast';
@@ -31,6 +32,7 @@ export default function Orders() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [tables, setTables] = useState<Record<string, string>>({});
   const [productsMap, setProductsMap] = useState<Record<string, string>>({});
+  const [usersMap, setUsersMap] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -40,6 +42,7 @@ export default function Orders() {
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [modalViewMode, setModalViewMode] = useState<'simplified' | 'history'>('simplified');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   
   // Payment states
@@ -146,11 +149,12 @@ export default function Orders() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [orderData, productData, tableData, branchData] = await Promise.all([
+      const [orderData, productData, tableData, branchData, userData] = await Promise.all([
         orderService.getAll(), // Fetch all to be safe and filter on frontend
         productService.getAll(1000),
         tableService.getAll(),
-        branchService.getAll()
+        branchService.getAll(),
+        userService.getAll()
       ]);
       
       const tMap: Record<string, string> = {};
@@ -160,6 +164,10 @@ export default function Orders() {
       const pMap: Record<string, string> = {};
       productData.forEach((p: any) => { pMap[p.id] = p.name; });
       setProductsMap(pMap);
+      
+      const uMap: Record<string, string> = {};
+      userData.forEach((u: any) => { uMap[u.id] = u.username; });
+      setUsersMap(uMap);
       
       setOrders(orderData);
       setBranches(branchData);
@@ -319,9 +327,13 @@ export default function Orders() {
     {
       key: 'created_by_name',
       header: 'Created By',
-      render: (value: string, row: Order) => (
-        <span className="text-tertiary text-xs bg-white/5 px-2 py-1 rounded border border-white/5">{row.created_by || 'System'}</span>
-      )
+      render: (value: string, row: Order) => {
+        const creatorId = row.created_by;
+        const creatorName = creatorId ? (usersMap[creatorId] || creatorId) : 'System';
+        return (
+          <span className="text-tertiary text-xs bg-white/5 px-2 py-1 rounded border border-white/5">{creatorName}</span>
+        );
+      }
     },
     {
       key: 'status',
@@ -467,10 +479,24 @@ export default function Orders() {
             title="View Details"
             onClick={() => {
               setSelectedOrder(row);
+              setModalViewMode('simplified');
               setIsDetailsModalOpen(true);
             }}
           >
             <Eye className="w-4 h-4 text-tertiary group-hover:text-accent" />
+          </button>
+
+          {/* Audit History View */}
+          <button 
+            className="p-2.5 hover:bg-white/5 rounded-xl transition-all group" 
+            title="View Edit History"
+            onClick={() => {
+              setSelectedOrder(row);
+              setModalViewMode('history');
+              setIsDetailsModalOpen(true);
+            }}
+          >
+            <History className="w-4 h-4 text-tertiary group-hover:text-amber-400" />
           </button>
         </div>
       )
@@ -594,11 +620,10 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* Order Details Modal */}
       <Modal
         isOpen={isDetailsModalOpen}
         onClose={() => { setIsDetailsModalOpen(false); setSelectedOrder(null); }}
-        title={`Order - ${selectedOrder?.id.substring(0, 8).toUpperCase()}`}
+        title={`${modalViewMode === 'history' ? 'Order Edit History' : 'Order Details'} - ${selectedOrder?.id.substring(0, 8).toUpperCase()}`}
         size="lg"
       >
         {selectedOrder && (
@@ -666,39 +691,116 @@ export default function Orders() {
             </div>
             
             <div>
-              <h4 className="font-bold text-white mb-3 uppercase tracking-widest text-xs">Order Items</h4>
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="font-bold text-white uppercase tracking-widest text-xs">
+                  {modalViewMode === 'history' ? 'Transaction Audit Log' : 'Order Items'}
+                </h4>
+                {modalViewMode === 'history' && (
+                  <Badge variant="accent" size="sm" className="text-[9px] uppercase tracking-widest px-3 border border-accent/20">Audit Trail Active</Badge>
+                )}
+              </div>
               <div className="bg-bg-main border border-base rounded-xl overflow-hidden">
                 <table className="w-full text-left">
                   <thead className="bg-white/5">
                     <tr>
                       <th className="px-4 py-3 text-xs font-bold text-tertiary">Item</th>
                       <th className="px-4 py-3 text-xs font-bold text-tertiary text-center">Qty</th>
-                      <th className="px-4 py-3 text-xs font-bold text-tertiary text-center">History</th>
+                      <th className="px-4 py-3 text-xs font-bold text-tertiary text-center">Status</th>
                       <th className="px-4 py-3 text-xs font-bold text-tertiary text-right">Price</th>
                       <th className="px-4 py-3 text-xs font-bold text-tertiary text-right">Total</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-base/50">
-                    {selectedOrder.items?.map((item: any, idx: number) => (
-                      <tr key={idx} className="hover:bg-white/5">
-                        <td className="px-4 py-3 text-sm text-white font-medium">
-                          {productsMap[String(item.product || '').trim()] || 
-                           (item.product_name && item.product_name.toLowerCase().trim() !== 'string' ? item.product_name : null) || 
-                           (typeof item.product === 'object' ? (item.product as any)?.name || (item.product as any)?.product_name : null) || 
-                           'Product'}
-                        </td>
-                         <td className="px-4 py-3 text-sm font-bold text-center">{item.quantity}</td>
-                         <td className="px-4 py-3 text-center">
-                           <Badge variant={item.action === 'void' ? 'error' : item.action === 'addition' ? 'accent' as any : 'secondary'} size="sm" className="text-[8px] uppercase">
-                             {item.action === 'addition' ? 'Added' : item.action === 'void' ? 'Voided' : 'Original'}
-                           </Badge>
-                         </td>
-                         <td className="px-4 py-3 text-sm text-right text-tertiary">Rs. {Number(item.unit_price || 0).toFixed(2)}</td>
-                        <td className="px-4 py-3 text-sm text-right font-black text-accent whitespace-nowrap">
-                          Rs. {Number(item.total_price || (Number(item.unit_price || 0) * Number(item.quantity || 0))).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
+                    {(() => {
+                      const items = selectedOrder.items || [];
+                      
+                      if (modalViewMode === 'simplified') {
+                        // INTEGRATED AGGREGATION LOGIC
+                        const grouped: Record<string, any> = {};
+                        items.forEach((item: any) => {
+                          const pId = String(item.product || '').trim();
+                          if (!grouped[pId]) {
+                            grouped[pId] = { 
+                              ...item, 
+                              originalQty: 0, 
+                              addedQty: 0, 
+                              voidedQty: 0, 
+                              finalQty: 0,
+                              finalTotal: 0 
+                            };
+                          }
+                          const qty = Number(item.quantity || 0);
+                          const price = Number(item.total_price || (Number(item.unit_price || 0) * qty));
+                          const action = item.action || 'original';
+                          
+                          if (action === 'original') grouped[pId].originalQty += qty;
+                          else if (action === 'addition') grouped[pId].addedQty += qty;
+                          else if (action === 'void') grouped[pId].voidedQty += qty;
+
+                          if (action === 'void') {
+                            grouped[pId].finalQty -= qty;
+                            grouped[pId].finalTotal -= price;
+                          } else {
+                            grouped[pId].finalQty += qty;
+                            grouped[pId].finalTotal += price;
+                          }
+                        });
+
+                        return Object.values(grouped).filter(g => g.finalQty > 0 || g.voidedQty > 0).map((item: any, idx: number) => (
+                           <tr key={idx} className="hover:bg-white/5 group/row">
+                            <td className="px-4 py-3">
+                              <div className="flex flex-col">
+                                <span className="text-sm text-white font-medium">
+                                  {productsMap[String(item.product || '').trim()] || 
+                                   (item.product_name && item.product_name.toLowerCase().trim() !== 'string' ? item.product_name : null) || 
+                                   'Product'}
+                                </span>
+                                {(item.addedQty > 0 || item.voidedQty > 0) && (
+                                  <div className="flex gap-2 mt-1">
+                                    {item.originalQty > 0 && <span className="text-[8px] text-tertiary uppercase font-bold">Orig: {item.originalQty}</span>}
+                                    {item.addedQty > 0 && <span className="text-[8px] text-accent font-bold uppercase">+{item.addedQty} Added</span>}
+                                    {item.voidedQty > 0 && <span className="text-[8px] text-error font-bold uppercase">-{item.voidedQty} Voided</span>}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                             <td className="px-4 py-3 text-sm font-black text-center text-white">x{item.finalQty}</td>
+                             <td className="px-4 py-3 text-center">
+                               {item.finalQty > 0 ? (
+                                 <Badge variant="secondary" size="sm" className="text-[8px] uppercase">Current</Badge>
+                               ) : (
+                                 <Badge variant="error" size="sm" className="text-[8px] uppercase">Removed</Badge>
+                               )}
+                             </td>
+                             <td className="px-4 py-3 text-sm text-right text-tertiary">Rs. {Number(item.unit_price || 0).toFixed(2)}</td>
+                            <td className="px-4 py-3 text-sm text-right font-black text-accent whitespace-nowrap">
+                              Rs. {Number(item.finalTotal).toFixed(2)}
+                            </td>
+                          </tr>
+                        ));
+                      }
+
+                      // DETAILED LOG VIEW (Showing additions and voids)
+                      return items.map((item: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-white/5">
+                          <td className="px-4 py-3 text-sm text-white font-medium">
+                            {productsMap[String(item.product || '').trim()] || 
+                             (item.product_name && item.product_name.toLowerCase().trim() !== 'string' ? item.product_name : null) || 
+                             'Product'}
+                          </td>
+                           <td className="px-4 py-3 text-sm font-bold text-center">{item.quantity}</td>
+                           <td className="px-4 py-3 text-center">
+                             <Badge variant={item.action === 'void' ? 'error' : item.action === 'addition' ? 'accent' as any : 'secondary'} size="sm" className="text-[8px] uppercase">
+                               {item.action === 'addition' ? 'Added' : item.action === 'void' ? 'Voided' : 'Original'}
+                             </Badge>
+                           </td>
+                           <td className="px-4 py-3 text-sm text-right text-tertiary">Rs. {Number(item.unit_price || 0).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm text-right font-black text-accent whitespace-nowrap">
+                            Rs. {Number(item.total_price || (Number(item.unit_price || 0) * Number(item.quantity || 0))).toFixed(2)}
+                          </td>
+                        </tr>
+                      ));
+                    })()}
                   </tbody>
                 </table>
               </div>

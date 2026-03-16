@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import escpos from 'escpos';
 import escposNetwork from 'escpos-network';
-
-// Ensure the Network adapter is injected into the escpos scope
-escpos.Network = escposNetwork;
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
+  // Ensure the Network adapter is injected into the escpos scope inside the handler
+  if (!(escpos as any).Network) {
+    (escpos as any).Network = escposNetwork;
+  }
   try {
     const { order, printerIp, printerRole, businessName, businessAddress, businessPhone } = await req.json();
 

@@ -741,17 +741,15 @@ const handleProcessPayment = async () => {
           idempotency_key: `POS-${Date.now()}`,
         });
 
-        // 4. AUTO-FINALIZE: If full payment is made, complete the order
-        isCompleted = isFinalizingFromModal || finalPayAmount >= remainingToPay;
-        if (isCompleted) {
-          await orderService.complete(orderId!, { id: orderId });
-        }
+        // 4. Record payment (Removing auto-finalize logic)
+        // We no longer call orderService.complete automatically.
+        // Status remains unchanged so the workflow can continue.
       } catch (paymentError) {
         console.error('Payment recording failed', paymentError);
         toast.error('Order confirmed but payment recording failed');
       }
 
-      toast.success(isFinalizingFromModal ? 'Order paid and completed successfully!' : (editingOrder ? 'Edited order paid successfully!' : 'Order paid and confirmed successfully!'));
+      toast.success(editingOrder ? 'Payment recorded successfully!' : 'Order paid and confirmed successfully!');
       
       // Auto-print on payment/confirmation
       try {
@@ -1187,9 +1185,9 @@ const handleProcessPayment = async () => {
                     <p className="text-[8px] font-bold text-success/60 uppercase tracking-widest">Paid</p>
                     <p className="text-sm font-bold text-success">Rs. {parseFloat(editingOrder.paid_amount || '0').toFixed(2)}</p>
                   </div>
-                  <div className="flex-1 text-center bg-primary/5 rounded-xl py-1.5 border border-primary/10">
-                    <p className="text-[8px] font-bold text-primary/60 uppercase tracking-widest">Balance</p>
-                    <p className="text-sm font-bold text-primary animate-pulse">Rs. {(total - parseFloat(editingOrder.paid_amount || '0')).toFixed(2)}</p>
+                  <div className="flex-1 text-center bg-error/5 rounded-xl py-1.5 border border-error/10">
+                    <p className="text-[8px] font-bold text-error/60 uppercase tracking-widest">Dues</p>
+                    <p className="text-sm font-bold text-error animate-pulse">Rs. {Math.max(0, total - parseFloat(editingOrder.paid_amount || '0')).toFixed(2)}</p>
                   </div>
                 </div>
               )}
@@ -2056,9 +2054,21 @@ const handleProcessPayment = async () => {
                        </div>
                     )}
 
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-tertiary font-bold uppercase tracking-widest text-[9px]">{order.items?.length || 0} Assets</span>
-                      <span className="font-bold text-primary text-sm font-mono">Rs. {Number(order.total).toFixed(2)}</span>
+                    <div className="flex flex-col gap-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-tertiary font-bold uppercase tracking-widest text-[9px]">{order.items?.length || 0} Assets</span>
+                        <span className="font-bold text-white text-sm font-mono">Total: Rs. {Number(order.total).toFixed(2)}</span>
+                      </div>
+                      {(parseFloat(order.paid_amount || '0') > 0 || !order.is_paid) && (
+                        <div className="flex justify-between items-center text-[10px] border-t border-white/5 pt-2 mt-1">
+                          <span className="font-bold text-success font-mono uppercase tracking-widest">
+                            Paid: Rs. {Number(order.paid_amount || 0).toFixed(2)}
+                          </span>
+                          <span className="font-bold text-error font-mono uppercase tracking-widest">
+                            Due: Rs. {Math.max(0, Number(order.total) - Number(order.paid_amount || 0)).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="bg-[#1A1A1A] p-3 rounded-xl space-y-2 max-h-32 overflow-y-auto custom-scrollbar border border-[#333] shadow-inner">
@@ -2144,6 +2154,21 @@ const handleProcessPayment = async () => {
                           Table
                         </Button>
                       )}
+
+                      {/* Add Payment Button */}
+                      {order.status !== 'draft' && hasPermission('add_payment') && !order.is_paid && (
+                        <Button 
+                          variant="primary" 
+                          className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/10" 
+                          onClick={() => {
+                            setIsFinalizingFromModal(true);
+                            loadOrderForEditing(order, false);
+                            setTimeout(() => setIsPaymentModalOpen(true), 100);
+                          }}
+                        >
+                          Add Payment
+                        </Button>
+                      )}
                     
                     <div className="flex flex-wrap gap-2 w-full pt-1">
                       {order.status === 'draft' && hasPermission('change_order') && (
@@ -2162,8 +2187,8 @@ const handleProcessPayment = async () => {
                         <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest hover:bg-success hover:border-success/50 bg-success border-success text-white shadow-lg shadow-success/20" onClick={() => executeStatusUpdate(order, 'complete')} disabled={isUpdatingStatus===order.id}>Finalize Order</Button>
                       )}
                       
-                      {/* Checkout Button: Available for all non-draft/non-complete statuses */}
-                      {order.status !== 'draft' && hasPermission('add_payment') && (
+                      {/* Restore Checkout Button */}
+                      {order.status !== 'draft' && hasPermission('add_payment') && !order.is_paid && (
                         <Button 
                           variant="primary" 
                           className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/10" 

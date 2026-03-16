@@ -117,7 +117,7 @@ export function getRoleLabel(role: string): string {
  * Role badge colors for UI
  */
 export const ROLE_COLORS: Record<string, string> = {
-  admin: 'text-red-400 bg-red-400/10 border-red-400/20',
+  admin: 'text-green-400 bg-green-400/10 border-green-400/20',
   manager: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20',
   cashier: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
   waiter: 'text-green-400 bg-green-400/10 border-green-400/20',
