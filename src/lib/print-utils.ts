@@ -65,10 +65,11 @@ export const formatOrderToKitchenText = (order: Order, businessName?: string, ta
   text += `${line}\n`;
   
   order.items.forEach((item: any) => {
-    const productName = (item.product_name && item.product_name !== 'string') ? item.product_name : 'Item';
+    const objName = typeof item.product === 'object' ? (item.product?.name || item.product?.product_name) : null;
+    const productName = (item.product_name && item.product_name !== 'string') ? item.product_name : (objName || 'Item');
     text += `[${item.quantity}]  ${productName.toUpperCase()}\n`;
-    if (order.notes) {
-      text += `      * NOTE: ${order.notes}\n`;
+    if (item.notes) {
+      text += `      * NOTE: ${item.notes}\n`;
     }
   });
   

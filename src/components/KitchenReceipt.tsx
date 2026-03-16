@@ -100,7 +100,16 @@ export const KitchenReceipt = forwardRef<HTMLDivElement, KitchenReceiptProps>(
           <div className="space-y-2">
             {order.items.map((item, idx) => {
               // ULTIMATE PRODUCT NAME RESOLUTION
-              const productId = String(item.product || '').trim();
+              const getPID = (val: any): string => {
+                if (!val) return '';
+                if (typeof val === 'string') return val.trim();
+                if (typeof val === 'object' && val !== null) {
+                  return (val.id || val.product || '').toString().trim();
+                }
+                return String(val).trim();
+              };
+
+              const productId = getPID(item.product);
               const mapName = products?.[productId];
               
               const cleanSnapshot = (item.product_name && item.product_name.toLowerCase().trim() !== 'string') ? item.product_name : null;

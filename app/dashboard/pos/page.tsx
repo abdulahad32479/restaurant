@@ -565,7 +565,12 @@ export default function POS() {
       const finalOrder = await orderService.getById(orderId!);
 
       // Kitchen always trigger on update
-      await triggerDirectPrint(finalOrder, 'kitchen');
+      await triggerDirectPrint(finalOrder, 'kitchen').then(printed => {
+        if (!printed) {
+          setKitchenPrintOrder(finalOrder);
+          setTimeout(() => handleKitchenPrint(), 200);
+        }
+      });
       // Counter ONLY for delivery
       if (finalOrder.order_type === 'delivery') {
         await triggerDirectPrint(finalOrder, 'main');
@@ -635,7 +640,12 @@ const handleConfirmOrder = async () => {
     try {
       const confirmedOrder = await orderService.getById(orderId!);
       // Kitchen always on confirmation/update
-      await triggerDirectPrint(confirmedOrder, 'kitchen');
+      await triggerDirectPrint(confirmedOrder, 'kitchen').then(printed => {
+        if (!printed) {
+          setKitchenPrintOrder(confirmedOrder);
+          setTimeout(() => handleKitchenPrint(), 200);
+        }
+      });
       // Counter ONLY for delivery
       if (confirmedOrder.order_type === 'delivery') {
         await triggerDirectPrint(confirmedOrder, 'main');
@@ -768,7 +778,12 @@ const handleProcessPayment = async () => {
         
         // Kitchen print: ONLY if not completed (Requirement 3.4)
         if (!isCompleted) {
-          await triggerDirectPrint(confirmedOrder, 'kitchen');
+          await triggerDirectPrint(confirmedOrder, 'kitchen').then(printed => {
+            if (!printed) {
+              setKitchenPrintOrder(confirmedOrder);
+              setTimeout(() => handleKitchenPrint(), 200);
+            }
+          });
         }
         
         // Counter print: ALWAYS for delivery on confirm/update/pay (Requirement 3.3)
