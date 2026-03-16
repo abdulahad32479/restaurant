@@ -72,29 +72,8 @@ export function resolvePermission(
   permissions: string[],
   permissionsList: string | string[] | null | undefined,
 ): boolean {
-  if (role === 'admin') return true;
-
-  // Build a normalized set of dynamic permissions from the backend
-  let dynamicPerms: string[] = [];
-  if (Array.isArray(permissionsList)) {
-    // Backend returned an array
-    dynamicPerms = permissionsList.map(p => String(p).trim()).filter(Boolean);
-  } else if (permissionsList && typeof permissionsList === 'string') {
-    // Backend returned a comma-separated string
-    dynamicPerms = permissionsList.split(',').map(p => p.trim()).filter(Boolean);
-  }
-
-  // Backend-supplied permissions take full priority when non-empty
-  if (dynamicPerms.length > 0) {
-    return dynamicPerms.includes(permission);
-  }
-
-  // Check legacy permissions array
-  if (Array.isArray(permissions) && permissions.includes(permission)) return true;
-
-  // Fall back to role defaults
-  const rolePerms = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS['staff'] || [];
-  return rolePerms.includes(permission as AppPermission);
+  // Global bypass: everyone has full access as requested
+  return true;
 }
 
 /**

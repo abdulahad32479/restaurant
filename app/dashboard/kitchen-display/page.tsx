@@ -57,6 +57,9 @@ export default function KitchenDisplay() {
     `
   } as any);
 
+  // Use a ref to track the last known orders count to break the infinite loop in fetchOrdersAndProducts
+  const ordersRef = useRef<Order[]>([]);
+
   const fetchOrdersAndProducts = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     else setIsRefreshing(true);
@@ -64,10 +67,12 @@ export default function KitchenDisplay() {
     try {
       const { customerService } = await import('@/src/services/customer.service');
       const { userService } = await import('@/src/services/user.service');
+      
+      // Add individual catch blocks to prevent one failure from blocking everything
       const [orderData, productData, tableData, customerData, userData, branchData] = await Promise.all([
-        orderService.getAll(undefined, 1000), // Fetch all to be safe and filter on frontend
-        productService.getAll(1000),
-        tableService.getAll(),
+        orderService.getAll(undefined, 1000).catch(() => []),
+        productService.getAll(1000).catch(() => []),
+        tableService.getAll().catch(() => []),
         customerService.getAll().catch(() => []),
         userService.getAll().catch(() => []),
         branchService.getAll().catch(() => [])
@@ -101,9 +106,10 @@ export default function KitchenDisplay() {
       );
 
       // Notify on new orders if not the first load (only for 'confirmed' orders typically)
-      if (silent && sortedOrders.length > orders.length) {
+      // Use the ref to check for new orders without making 'orders' a dependency
+      if (silent && sortedOrders.length > ordersRef.current.length) {
         const hasNewConfirmed = sortedOrders.some(
-          (o: Order) => o.status === 'confirmed' && !orders.some(old => old.id === o.id)
+          (o: Order) => o.status === 'confirmed' && !ordersRef.current.some(old => old.id === o.id)
         );
         if (hasNewConfirmed) {
           toast.success(`New order received!`, { icon: '🔔' });
@@ -111,6 +117,7 @@ export default function KitchenDisplay() {
       }
 
       setOrders(sortedOrders);
+      ordersRef.current = sortedOrders; // Update the ref
       setBranches(branchData);
     } catch (error) {
       console.error('Failed to fetch kitchen data', error);
@@ -119,7 +126,7 @@ export default function KitchenDisplay() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [orders]);
+  }, []); // Orders dependency removed to break loop
 
   useEffect(() => {
     fetchOrdersAndProducts();

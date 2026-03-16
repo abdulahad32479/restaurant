@@ -33,7 +33,7 @@ import { formatOrderToReceiptText, formatOrderToKitchenText } from '@/src/lib/pr
 export default function POS() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { hasPermission } = useAuth();
+  const { user } = useAuth();
   const editOrderId = searchParams.get('edit');
 
   const [isLoading, setIsLoading] = useState(true);
@@ -756,11 +756,13 @@ const handleProcessPayment = async () => {
           finalPayAmount = remainingToPay;
         }
 
-        await orderService.addPayment(orderId!, {
-          method: paymentMethod,
-          amount: finalPayAmount.toFixed(2),
-          idempotency_key: `POS-${Date.now()}`,
-        });
+        if (finalPayAmount > 0) {
+          await orderService.addPayment(orderId!, {
+            method: paymentMethod,
+            amount: finalPayAmount.toFixed(2),
+            idempotency_key: `POS-${Date.now()}`,
+          });
+        }
 
         // 4. Record payment (Removing auto-finalize logic)
         // We no longer call orderService.complete automatically.
@@ -1223,7 +1225,7 @@ const handleProcessPayment = async () => {
               <Button 
                 variant={editingOrder && editingOrder.status !== 'draft' ? "primary" : "outline"}
                 className={`${editingOrder && editingOrder.status !== 'draft' ? 'text-white' : 'text-[#808080] border-[#2A2A2A]'} hover:bg-[#2A2A2A] hover:text-white font-bold h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2 flex-1`}
-                disabled={cart.length === 0 || !!isProcessing || !hasPermission('add_order')}
+                disabled={cart.length === 0 || !!isProcessing}
                 onClick={handleSaveDraft}
                 isLoading={!!isProcessing}
               >
@@ -1232,7 +1234,7 @@ const handleProcessPayment = async () => {
               <Button 
                 variant="outline" 
                 className="text-primary border-primary/20 hover:bg-primary/10 font-bold h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2 flex-1"
-                disabled={cart.length === 0 || !!isProcessing || !!(editingOrder && editingOrder.status !== 'draft') || !hasPermission('add_order')}
+                disabled={cart.length === 0 || !!isProcessing || !!(editingOrder && editingOrder.status !== 'draft')}
                 onClick={handleConfirmOrder}
                 isLoading={!!isProcessing}
               >
@@ -1241,7 +1243,7 @@ const handleProcessPayment = async () => {
               <Button 
                 variant="primary" 
                 className="text-white font-bold h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] shadow-xl shadow-primary/20 rounded-xl px-2"
-                disabled={cart.length === 0 || !!isProcessing || !hasPermission('add_order')}
+                disabled={cart.length === 0 || !!isProcessing}
                 onClick={handleCheckoutClick}
               >
                 Checkout
@@ -1275,8 +1277,14 @@ const handleProcessPayment = async () => {
       >
         <div className="space-y-6">
           <div className="bg-[#0A0A0A] p-6 rounded-2xl border border-[#2A2A2A] text-center">
-            <p className="text-[#808080] text-sm uppercase tracking-widest font-bold mb-2">Total Amount Due</p>
-            <p className="text-4xl font-bold text-primary">Rs. {total.toFixed(2)}</p>
+            <p className="text-[#808080] text-sm uppercase tracking-widest font-bold mb-2">
+              {editingOrder && Number(editingOrder.paid_amount || 0) > total ? 'Return Amount' : 'Total Amount Due'}
+            </p>
+            <p className={`text-4xl font-bold ${editingOrder && Number(editingOrder.paid_amount || 0) > total ? 'text-emerald-400' : 'text-primary'}`}>
+              Rs. {editingOrder && Number(editingOrder.paid_amount || 0) > total 
+                ? (Number(editingOrder.paid_amount || 0) - total).toFixed(2) 
+                : (total - Number(editingOrder?.paid_amount || 0)).toFixed(2)}
+            </p>
           </div>
 
           <div>
@@ -1336,9 +1344,9 @@ const handleProcessPayment = async () => {
               variant="primary" 
               onClick={handleProcessPayment}
               isLoading={isProcessing}
-              disabled={paymentMethod === 'cash' && (parseFloat(amountTendered || '0') < total && amountTendered !== '')}
+              disabled={paymentMethod === 'cash' && (editingOrder && Number(editingOrder.paid_amount || 0) < total && parseFloat(amountTendered || '0') < (total - Number(editingOrder.paid_amount || 0)) && amountTendered !== '')}
             >
-              Confirm & Pay Rs. {total.toFixed(2)}
+              {editingOrder && Number(editingOrder.paid_amount || 0) > total ? 'Confirm & Return Change' : `Confirm & Pay Rs. ${(total - Number(editingOrder?.paid_amount || 0)).toFixed(2)}`}
             </Button>
           </div>
         </div>
@@ -2054,7 +2062,7 @@ const handleProcessPayment = async () => {
                     </div>
                     
                     {/* Delivery Person Assignment */}
-                    {order.order_type === 'delivery' && hasPermission('manage_delivery') && (
+                    {order.order_type === 'delivery' && (
                       <div className="flex items-center gap-2 bg-[#0A0A0A] p-2 rounded-xl border border-white/5">
                         <UserIcon className="w-3 h-3 text-tertiary" />
                         <select
@@ -2073,28 +2081,26 @@ const handleProcessPayment = async () => {
                         )}
                       </div>
                     )}
-                    {order.order_type === 'delivery' && !hasPermission('manage_delivery') && order.delivery_person_name && (
-                       <div className="flex items-center gap-2 bg-[#0A0A0A] p-2 rounded-xl border border-white/5">
-                         <UserIcon className="w-3 h-3 text-tertiary" />
-                         <span className="text-[10px] font-bold uppercase tracking-widest text-orange-300">{order.delivery_person_name}</span>
-                       </div>
-                    )}
 
                     <div className="flex flex-col gap-2 bg-black/20 p-3 rounded-xl border border-white/5">
                       <div className="flex justify-between items-center">
                         <span className="text-tertiary font-bold uppercase tracking-widest text-[9px]">{order.items?.length || 0} Assets</span>
                         <span className="font-bold text-white text-sm font-mono">Total: Rs. {Number(order.total).toFixed(2)}</span>
                       </div>
-                      {(parseFloat(order.paid_amount || '0') > 0 || !order.is_paid) && (
-                        <div className="flex justify-between items-center text-[10px] border-t border-white/5 pt-2 mt-1">
-                          <span className="font-bold text-success font-mono uppercase tracking-widest">
-                            Paid: Rs. {Number(order.paid_amount || 0).toFixed(2)}
+                      <div className="flex justify-between items-center text-[10px] border-t border-white/5 pt-2 mt-1">
+                        <span className="font-bold text-success font-mono uppercase tracking-widest">
+                          Paid: Rs. {Number(order.paid_amount || 0).toFixed(2)}
+                        </span>
+                        {Number(order.paid_amount || 0) > Number(order.total) ? (
+                          <span className="font-bold text-emerald-400 font-mono uppercase tracking-widest bg-emerald-500/10 px-2 rounded-lg border border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.1)]">
+                            Return: Rs. {(Number(order.paid_amount || 0) - Number(order.total)).toFixed(2)}
                           </span>
+                        ) : (
                           <span className="font-bold text-error font-mono uppercase tracking-widest">
                             Due: Rs. {Math.max(0, Number(order.total) - Number(order.paid_amount || 0)).toFixed(2)}
                           </span>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
 
                     <div className="bg-[#1A1A1A] p-3 rounded-xl space-y-2 max-h-32 overflow-y-auto custom-scrollbar border border-[#333] shadow-inner">
@@ -2144,7 +2150,6 @@ const handleProcessPayment = async () => {
                     </div>
 
                   <div className="flex flex-wrap gap-2 pt-3 border-t border-[#2A2A2A]">
-                    {hasPermission('change_order') && (
                       <Button 
                         variant="outline" 
                         onClick={() => loadOrderForEditing(order)}
@@ -2152,7 +2157,6 @@ const handleProcessPayment = async () => {
                       >
                         Edit 
                       </Button>
-                    )}
                       <Button 
                         variant="outline" 
                         onClick={() => triggerDirectPrint(order, 'kitchen')}
@@ -2182,7 +2186,7 @@ const handleProcessPayment = async () => {
                       )}
 
                       {/* Add Payment Button */}
-                      {order.status !== 'draft' && hasPermission('add_payment') && !order.is_paid && (
+                      {order.status !== 'draft' && !order.is_paid && (
                         <Button 
                           variant="primary" 
                           className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/10" 
@@ -2197,24 +2201,24 @@ const handleProcessPayment = async () => {
                       )}
                     
                     <div className="flex flex-wrap gap-2 w-full pt-1">
-                      {order.status === 'draft' && hasPermission('change_order') && (
+                      {order.status === 'draft' && (
                         <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'confirm')} disabled={isUpdatingStatus===order.id}>Send to Kitchen</Button>
                       )}
-                      {order.status === 'confirmed' && hasPermission('change_order') && (
+                      {order.status === 'confirmed' && (
                         <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'prepare')} disabled={isUpdatingStatus===order.id}>Start Cooking</Button>
                       )}
-                      {order.status === 'preparing' && hasPermission('change_order') && (
+                      {order.status === 'preparing' && (
                         <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'ready')} disabled={isUpdatingStatus===order.id}>Mark Ready</Button>
                       )}
-                      {order.status === 'ready' && hasPermission('change_order') && (
+                      {order.status === 'ready' && (
                         <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest" onClick={() => executeStatusUpdate(order, 'serve')} disabled={isUpdatingStatus===order.id}>Mark Served</Button>
                       )}
-                      {order.status === 'served' && hasPermission('change_order') && (
+                      {order.status === 'served' && (
                         <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest hover:bg-success hover:border-success/50 bg-success border-success text-white shadow-lg shadow-success/20" onClick={() => executeStatusUpdate(order, 'complete')} disabled={isUpdatingStatus===order.id}>Finalize Order</Button>
                       )}
                       
                       {/* Unified Checkout/Finalize Button */}
-                      {order.status !== 'draft' && hasPermission('add_payment') && (
+                      {order.status !== 'draft' && (
                         (order.is_paid || Number(order.paid_amount || 0) > 0) ? (
                           <Button 
                             variant="primary" 
