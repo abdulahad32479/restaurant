@@ -2213,19 +2213,30 @@ const handleProcessPayment = async () => {
                         <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest hover:bg-success hover:border-success/50 bg-success border-success text-white shadow-lg shadow-success/20" onClick={() => executeStatusUpdate(order, 'complete')} disabled={isUpdatingStatus===order.id}>Finalize Order</Button>
                       )}
                       
-                      {/* Restore Checkout Button */}
-                      {order.status !== 'draft' && hasPermission('add_payment') && !order.is_paid && (
-                        <Button 
-                          variant="primary" 
-                          className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/10" 
-                          onClick={() => {
-                            setIsFinalizingFromModal(true);
-                            loadOrderForEditing(order, false);
-                            setTimeout(() => setIsPaymentModalOpen(true), 100);
-                          }}
-                        >
-                          Checkout
-                        </Button>
+                      {/* Unified Checkout/Finalize Button */}
+                      {order.status !== 'draft' && hasPermission('add_payment') && (
+                        (order.is_paid || Number(order.paid_amount || 0) > 0) ? (
+                          <Button 
+                            variant="primary" 
+                            className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest bg-success hover:bg-success/90 border-success shadow-lg shadow-success/20" 
+                            onClick={() => executeStatusUpdate(order, 'complete')}
+                            disabled={isUpdatingStatus === order.id}
+                          >
+                            Finalize
+                          </Button>
+                        ) : (
+                          <Button 
+                            variant="primary" 
+                            className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/10" 
+                            onClick={() => {
+                              setIsFinalizingFromModal(true);
+                              loadOrderForEditing(order, false);
+                              setTimeout(() => setIsPaymentModalOpen(true), 100);
+                            }}
+                          >
+                            Checkout
+                          </Button>
+                        )
                       )}
                       </div>
                     </div>
