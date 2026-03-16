@@ -119,7 +119,7 @@ export default function KitchenDisplay() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [orders.length]);
+  }, [orders]);
 
   useEffect(() => {
     fetchOrdersAndProducts();

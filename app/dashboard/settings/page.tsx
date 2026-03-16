@@ -919,7 +919,7 @@ export default function SettingsPage() {
                       <h4 className="text-sm font-bold text-accent uppercase tracking-wider mb-6">Visual Preview</h4>
                       <div className="bg-white p-6 rounded-xl max-w-[300px] mx-auto shadow-2xl scale-90 md:scale-100 origin-top">
                          <div className="text-center text-black font-mono text-xs">
-                            {generalForm.receipt_logo && <img src={generalForm.receipt_logo} className="h-8 mx-auto mb-2 opacity-50 grayscale" />}
+                            {generalForm.receipt_logo && <img src={generalForm.receipt_logo} alt="" className="h-8 mx-auto mb-2 opacity-50 grayscale" />}
                             <p className="font-bold text-sm uppercase">{generalForm.name || "RESTAURANT NAME"}</p>
                             <p className="text-[10px]">{generalForm.address || "123 Business Street"}</p>
                             <div className="my-4 border-y border-dashed border-gray-400 py-2">

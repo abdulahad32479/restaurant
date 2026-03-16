@@ -99,12 +99,8 @@ export const orderService = {
       payload.delivery_person = getID(order.delivery_person);
     }
 
-    if (order.items) {
-      payload.items = order.items.map((item: any) => ({
-        product: getID(item.product),
-        quantity: item.quantity
-      }));
-    }
+    // Item management must be done via separate endpoints (add_item, update_item, remove_item)
+    // Sending items in patch/put to v1/orders/{id}/ is disabled/read-only on backend.
 
     return payload;
   },
@@ -142,6 +138,41 @@ export const orderService = {
     const payload = orderService.sanitizeOrderForUpdate(data);
     const response = await apiClient.post<Order>(`v1/orders/${id}/complete/`, payload);
     return response.data;
+  },
+
+  syncOrderItems: async (orderId: string, currentCart: { product: any; quantity: number }[], originalItems: OrderItem[]) => {
+    // 1. Identify what to add, update, or remove
+    const originalItemsMap = new Map(originalItems.map(item => [String(item.product), item]));
+    const currentItemsMap = new Map(currentCart.map(item => [String(item.product.id), item]));
+
+    const promises: Promise<any>[] = [];
+
+    // Remove items not in current cart
+    Array.from(originalItemsMap.keys()).forEach(prodId => {
+      if (!currentItemsMap.has(prodId)) {
+        promises.push(orderService.removeItem(orderId, prodId));
+      }
+    });
+
+    // Add or Update items in current cart
+    Array.from(currentItemsMap.entries()).forEach(([prodId, item]) => {
+      const original = originalItemsMap.get(prodId);
+      if (!original) {
+        // New item
+        promises.push(orderService.addItem(orderId, { product: prodId, quantity: item.quantity }));
+      } else if (Number(original.quantity) !== Number(item.quantity)) {
+        // Updated quantity
+        promises.push(orderService.updateItem(orderId, { product: prodId, quantity: item.quantity }));
+      }
+    });
+
+    if (promises.length > 0) {
+      await Promise.all(promises);
+      // Return fresh order data after updates
+      return await orderService.getById(orderId);
+    }
+    
+    return null;
   },
 
   cancel: async (id: string, data: any) => {

@@ -79,7 +79,7 @@ export default function Reports() {
       }
     };
     fetch();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, hasPermission, zForm.branch]);
 
   if (!hasPermission('view_reports')) return null;
 

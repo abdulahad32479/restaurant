@@ -131,36 +131,6 @@ export default function POS() {
   // Edit Order State
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Focus Search (S or /)
-      if (e.key && (e.key.toLowerCase() === 's' || e.key === '/') && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        document.getElementById('pos-search-input')?.focus();
-      }
-      // F2 Checkout
-      if (e.key === 'F2') {
-        e.preventDefault();
-        handleCheckoutClick();
-      }
-      // F4 Kitchen Print
-      if (e.key === 'F4' && (completedOrder || editingOrder)) {
-        e.preventDefault();
-        const target = completedOrder || editingOrder;
-        if (target) {
-          triggerDirectPrint(target, 'kitchen').then(printed => {
-            if (!printed) {
-              setKitchenPrintOrder(target);
-              setTimeout(() => handleKitchenPrint(), 200);
-            }
-          });
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [completedOrder, cart.length, orderType]);
 
   const refreshAllData = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -417,7 +387,7 @@ export default function POS() {
     return matchesCategory && matchesSearch;
   });
 
-  const validateOrder = () => {
+  const validateOrder = useCallback(() => {
   if (cart.length === 0) {
     toast.error('Your cart is empty');
     return false;
@@ -439,7 +409,7 @@ export default function POS() {
     return false;
   }
   return true;
-};
+}, [cart.length, selectedBranch, orderType, selectedTable, deliveryInfo]);
 
   const getOrderData = () => {
     const orderData: any = {
@@ -480,7 +450,7 @@ export default function POS() {
     toast.error(errorMessage);
   };
 
-  const triggerDirectPrint = async (targetOrder: Order, printerType: 'main' | 'kitchen' | 'both' = 'both') => {
+  const triggerDirectPrint = useCallback(async (targetOrder: Order, printerType: 'main' | 'kitchen' | 'both' = 'both') => {
     // 1. Identify Branch ID robustly
     const rawBranch = targetOrder.branch || (targetOrder as any).branch_id;
     let branchId = '';
@@ -538,7 +508,7 @@ export default function POS() {
        toast.error(`Silent print failed: ${errorMsg}. Falling back to manual print.`, { id: 'print-job' });
        return false;
     }
-  };
+  }, [branches, selectedBranch]);
 
   const clearCart = () => {
     setCart([]);
@@ -568,11 +538,18 @@ export default function POS() {
       const updated = await orderService.update(editingOrder.id, updateData);
       orderId = updated.id;
       
+      // Sync items for existing orders
+      await orderService.syncOrderItems(orderId, cart, editingOrder.items);
+      
+      // Fresh fetch after sync if needed, or just use 'updated' from update call
+      // (orderService.update already returns updated order but without items sync)
+      const finalOrder = await orderService.getById(orderId);
+
       // Kitchen always trigger on update
-      await triggerDirectPrint(updated, 'kitchen');
+      await triggerDirectPrint(finalOrder, 'kitchen');
       // Counter ONLY for delivery (Requirement 3.3)
-      if (updated.order_type === 'delivery') {
-        await triggerDirectPrint(updated, 'main');
+      if (finalOrder.order_type === 'delivery') {
+        await triggerDirectPrint(finalOrder, 'main');
       }
     } else {
       const orderData = getOrderData();
@@ -613,6 +590,8 @@ const handleConfirmOrder = async () => {
     if (editingOrder) {
       const updateData = getOrderData();
       await orderService.update(editingOrder.id, updateData);
+      // Sync items
+      await orderService.syncOrderItems(editingOrder.id, cart, editingOrder.items);
     } else {
       const orderData = getOrderData();
       const newOrder = await orderService.create(orderData);
@@ -659,7 +638,7 @@ const handleConfirmOrder = async () => {
   }
 };
 
-  const handleCheckoutClick = () => {
+  const handleCheckoutClick = useCallback(() => {
   if (cart.length > 0 && !orderType) {
     setPendingAction('checkout');
     setIsTypeModalOpen(true);
@@ -668,7 +647,38 @@ const handleConfirmOrder = async () => {
   if (validateOrder()) {
     setIsPaymentModalOpen(true);
   }
-};
+}, [cart.length, orderType, validateOrder]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Focus Search (S or /)
+      if (e.key && (e.key.toLowerCase() === 's' || e.key === '/') && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        document.getElementById('pos-search-input')?.focus();
+      }
+      // F2 Checkout
+      if (e.key === 'F2') {
+        e.preventDefault();
+        handleCheckoutClick();
+      }
+      // F4 Kitchen Print
+      if (e.key === 'F4' && (completedOrder || editingOrder)) {
+        e.preventDefault();
+        const target = completedOrder || editingOrder;
+        if (target) {
+          triggerDirectPrint(target, 'kitchen').then(printed => {
+            if (!printed) {
+              setKitchenPrintOrder(target);
+              setTimeout(() => handleKitchenPrint(), 200);
+            }
+          });
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [completedOrder, cart.length, orderType, editingOrder, handleCheckoutClick, handleKitchenPrint, triggerDirectPrint]);
 
 const handleProcessPayment = async () => {
   if (!validateOrder()) return;
@@ -698,9 +708,13 @@ const handleProcessPayment = async () => {
       }
       
       // 3. Process payment
+      let remainingToPay = 0;
+      let finalPayAmount = 0;
+      let isCompleted = false;
+
       try {
-        const remainingToPay = total - parseFloat(editingOrder?.paid_amount || '0');
-        let finalPayAmount = parseFloat(amountTendered || '0');
+        remainingToPay = total - parseFloat(editingOrder?.paid_amount || '0');
+        finalPayAmount = parseFloat(amountTendered || '0');
         
         // For card payments or if user didn't enter amount for cash, pay the full remaining balance
         if (paymentMethod === 'card' || finalPayAmount === 0 || finalPayAmount > remainingToPay) {
@@ -714,7 +728,8 @@ const handleProcessPayment = async () => {
         });
 
         // 4. AUTO-FINALIZE: If full payment is made, complete the order
-        if (isFinalizingFromModal || finalPayAmount >= remainingToPay) {
+        isCompleted = isFinalizingFromModal || finalPayAmount >= remainingToPay;
+        if (isCompleted) {
           await orderService.complete(orderId!, { id: orderId });
         }
       } catch (paymentError) {
@@ -727,7 +742,6 @@ const handleProcessPayment = async () => {
       // Auto-print on payment/confirmation
       try {
         const confirmedOrder = await orderService.getById(orderId!);
-        const isCompleted = isFinalizingFromModal || finalPayAmount >= remainingToPay;
         
         // Kitchen print: ONLY if not completed (Requirement 3.4)
         if (!isCompleted) {
