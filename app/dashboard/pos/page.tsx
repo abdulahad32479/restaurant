@@ -1340,14 +1340,22 @@ const handleProcessPayment = async () => {
 
           <div className="pt-4 border-t border-[#2A2A2A] flex justify-end gap-3">
             <Button variant="outline" onClick={() => setIsPaymentModalOpen(false)}>Cancel</Button>
-            <Button 
-              variant="primary" 
-              onClick={handleProcessPayment}
-              isLoading={isProcessing}
-              disabled={paymentMethod === 'cash' && (editingOrder && Number(editingOrder.paid_amount || 0) < total && parseFloat(amountTendered || '0') < (total - Number(editingOrder.paid_amount || 0)) && amountTendered !== '')}
-            >
-              {editingOrder && Number(editingOrder.paid_amount || 0) > total ? 'Confirm & Return Change' : `Confirm & Pay Rs. ${(total - Number(editingOrder?.paid_amount || 0)).toFixed(2)}`}
-            </Button>
+            {(() => {
+              const alreadyPaid = Number(editingOrder?.paid_amount || 0);
+              const remaining = total - alreadyPaid;
+              const isOverpaid = alreadyPaid > total;
+              
+              return (
+                <Button 
+                  variant="primary" 
+                  onClick={handleProcessPayment}
+                  isLoading={isProcessing}
+                  disabled={paymentMethod === 'cash' && remaining > 0 && parseFloat(amountTendered || '0') < remaining && amountTendered !== ''}
+                >
+                  {isOverpaid ? 'Confirm & Return Change' : `Confirm & Pay Rs. ${Math.max(0, remaining).toFixed(2)}`}
+                </Button>
+              );
+            })()}
           </div>
         </div>
       </Modal>
