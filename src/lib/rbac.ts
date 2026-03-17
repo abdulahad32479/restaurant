@@ -44,18 +44,29 @@ export const ROLE_PERMISSIONS: Record<string, AppPermission[]> = {
     'manage_delivery', 'view_customers', 'view_kd',
   ],
   cashier: [
-    'add_order', 'view_orders', 'edit_order',
-    'process_payment', 'view_customers',
+    
+    'add_order', 'view_orders', 'edit_order', 'cancel_order',
+    'process_payment', 'apply_discount', 'view_reports',
+    'manage_menu', 'manage_inventory', 'manage_tables',
+    'manage_delivery', 'view_customers', 'view_kd',
   ],
   waiter: [
-    'add_order', 'view_orders', 'edit_order',
-    'view_customers', 'view_kd',
+'add_order', 'view_orders', 'edit_order', 'cancel_order',
+    'process_payment', 'apply_discount', 'view_reports',
+    'manage_menu', 'manage_inventory', 'manage_tables',
+    'manage_delivery', 'view_customers', 'view_kd',
   ],
   chef: [
-    'view_orders', 'view_kd',
+    'add_order', 'view_orders', 'edit_order', 'cancel_order',
+    'process_payment', 'apply_discount', 'view_reports',
+    'manage_menu', 'manage_inventory', 'manage_tables',
+    'manage_delivery', 'view_customers', 'view_kd',
   ],
   staff: [
-    'add_order', 'view_orders',
+   'add_order', 'view_orders', 'edit_order', 'cancel_order',
+    'process_payment', 'apply_discount', 'view_reports',
+    'manage_menu', 'manage_inventory', 'manage_tables',
+    'manage_delivery', 'view_customers', 'view_kd',
   ],
 };
 
