@@ -774,27 +774,9 @@ const handleProcessPayment = async () => {
 
       toast.success(editingOrder ? 'Payment recorded successfully!' : 'Order paid and confirmed successfully!');
       
-      // Auto-print on payment/confirmation
-      try {
-        const confirmedOrder = await orderService.getById(orderId!);
-        
-        // Kitchen print: ONLY if not completed (Requirement 3.4)
-        if (!isCompleted) {
-          await triggerDirectPrint(confirmedOrder, 'kitchen').then(printed => {
-            if (!printed) {
-              setKitchenPrintOrder(confirmedOrder);
-              setTimeout(() => handleKitchenPrint(), 200);
-            }
-          });
-        }
-        
-        // Counter print: ALWAYS for delivery on confirm/update/pay (Requirement 3.3)
-        if (confirmedOrder.order_type === 'delivery') {
-          await triggerDirectPrint(confirmedOrder, 'main');
-        }
-      } catch (printErr) {
-        console.error('Auto print failed', printErr);
-      }
+      // Note: Kitchen receipt is NOT sent on payment.
+      // It is only sent automatically on order confirmation or order update.
+      // Counter (main) receipt is NOT auto-printed here either — print manually from the receipt modal.
 
       await refreshAllData(true);
       // We don't reset isFinalizingFromModal here, we do it in the final cleanup code below
