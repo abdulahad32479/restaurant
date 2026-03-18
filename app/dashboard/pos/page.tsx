@@ -1800,19 +1800,19 @@ const handleProcessPayment = async () => {
                       <p className="text-primary text-xs font-bold font-mono">Rs. {(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p>
                     </div>
                     {/* Qty Controls */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
                       <button 
                         onClick={() => updateQuantity(item.product.id, -1)}
-                        className="w-6 h-6 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5"
+                        className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5"
                       >
-                        <Minus className="w-2.5 h-2.5" />
+                        <Minus className="w-5 h-5 text-[#808080]" />
                       </button>
-                      <span className="w-5 text-center text-[11px] font-bold tabular-nums">{item.quantity}</span>
+                      <span className="w-8 text-center text-lg font-black tabular-nums text-white">{item.quantity}</span>
                       <button 
                         onClick={() => updateQuantity(item.product.id, 1)}
-                        className="w-6 h-6 rounded-lg bg-primary text-white flex items-center justify-center transition-all active:scale-95 shadow-sm shadow-primary/20"
+                        className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-primary/20"
                       >
-                        <Plus className="w-2.5 h-2.5" />
+                        <Plus className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
