@@ -250,6 +250,11 @@ export const orderService = {
     return response.data;
   },
 
+  applyDiscount: async (id: string, discount_amount: string) => {
+    const response = await apiClient.post<Order>(`v1/orders/${id}/apply_discount/`, { discount_amount });
+    return response.data;
+  },
+
   getReceipt: async (id: string) => {
     const response = await apiClient.get(`v1/orders/${id}/receipt/`);
     return response.data;

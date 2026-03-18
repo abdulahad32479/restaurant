@@ -6,7 +6,7 @@ import { Input, Select, TextArea } from '@/src/components/Input';
 import { Badge } from '@/src/components/Badge';
 import { 
   Search, Plus, Minus, CreditCard, Banknote, 
-  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User as UserIcon, Phone, AlertTriangle, ListOrdered, Clock, ChefHat
+  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User as UserIcon, Phone, AlertTriangle, ListOrdered, Clock, ChefHat, Percent, Ban, MoreVertical
 } from 'lucide-react';
 import { productService } from '@/src/services/product.service';
 import { categoryService } from '@/src/services/category.service';
@@ -45,6 +45,14 @@ export default function POS() {
   const [isActiveOrdersModalOpen, setIsActiveOrdersModalOpen] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [isFinalizingFromModal, setIsFinalizingFromModal] = useState(false);
+
+  // Cancel & Discount State
+  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
+  const [orderToDiscount, setOrderToDiscount] = useState<Order | null>(null);
+  const [discountValue, setDiscountValue] = useState('');
+  const [discountType, setDiscountType] = useState<'amount' | 'percent'>('amount');
+  const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
+  const [openCardMenu, setOpenCardMenu] = useState<string | null>(null);
   
   // Printer state
   const [isPrintOptionsModalOpen, setIsPrintOptionsModalOpen] = useState(false);
@@ -340,6 +348,40 @@ export default function POS() {
       toast.error(errorMessage);
     } finally {
       setIsUpdatingStatus(null);
+    }
+  };
+
+  const handleCancelOrderFromModal = async (order: Order) => {
+    setOrderToCancel(null);
+    await executeStatusUpdate(order, 'cancel');
+  };
+
+  const handleApplyDiscount = async () => {
+    if (!orderToDiscount) return;
+    const val = parseFloat(discountValue);
+    if (isNaN(val) || val < 0) {
+      toast.error('Please enter a valid discount value');
+      return;
+    }
+    let amountToApply = val;
+    if (discountType === 'percent') {
+      amountToApply = (Number(orderToDiscount.total) * val) / 100;
+    }
+    if (amountToApply > Number(orderToDiscount.total)) {
+      toast.error('Discount cannot exceed the order total');
+      return;
+    }
+    setIsApplyingDiscount(true);
+    try {
+      await orderService.applyDiscount(orderToDiscount.id, amountToApply.toFixed(2));
+      toast.success('Discount applied successfully!');
+      setOrderToDiscount(null);
+      setDiscountValue('');
+      await refreshAllData(true);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setIsApplyingDiscount(false);
     }
   };
 
@@ -1972,6 +2014,121 @@ const handleProcessPayment = async () => {
           </div>
         </div>
       </Modal>
+
+      {/* Cancel Order Confirm Modal */}
+      <ConfirmModal
+        isOpen={!!orderToCancel}
+        onClose={() => setOrderToCancel(null)}
+        onConfirm={() => orderToCancel && handleCancelOrderFromModal(orderToCancel)}
+        title="Cancel Order"
+        message={`Cancel Order #${orderToCancel?.order_number || orderToCancel?.id?.substring(0,6)}?`}
+        description="This action cannot be undone. The order will be marked as cancelled."
+        confirmText="Yes, Cancel Order"
+        cancelText="Keep Order"
+        variant="danger"
+        icon={Ban}
+      />
+
+      {/* Discount Modal */}
+      <Modal
+        isOpen={!!orderToDiscount}
+        onClose={() => { setOrderToDiscount(null); setDiscountValue(''); }}
+        title="Apply Discount"
+        size="sm"
+      >
+        {orderToDiscount && (
+          <div className="space-y-5">
+            {/* Order Info */}
+            <div className="bg-[#0A0A0A] rounded-2xl p-4 border border-white/5 flex justify-between items-center">
+              <div>
+                <p className="text-[9px] font-bold text-tertiary uppercase tracking-widest">Order</p>
+                <p className="text-sm font-bold text-white mt-0.5">#{orderToDiscount.order_number || orderToDiscount.id.substring(0,6)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] font-bold text-tertiary uppercase tracking-widest">Order Total</p>
+                <p className="text-lg font-bold text-primary font-mono">Rs. {Number(orderToDiscount.total).toFixed(2)}</p>
+              </div>
+              {Number(orderToDiscount.discount_amount) > 0 && (
+                <div className="text-right">
+                  <p className="text-[9px] font-bold text-yellow-500/60 uppercase tracking-widest">Current Discount</p>
+                  <p className="text-sm font-bold text-yellow-400 font-mono">-Rs. {Number(orderToDiscount.discount_amount).toFixed(2)}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Type Toggle */}
+            <div className="grid grid-cols-2 bg-[#0A0A0A] rounded-xl p-1 border border-[#2A2A2A] gap-1">
+              <button
+                onClick={() => setDiscountType('amount')}
+                className={`flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${discountType === 'amount' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'text-[#666] hover:text-[#888]'}`}
+              >
+                <span className="text-xs">Rs.</span> Fixed Amount
+              </button>
+              <button
+                onClick={() => setDiscountType('percent')}
+                className={`flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${discountType === 'percent' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'text-[#666] hover:text-[#888]'}`}
+              >
+                <Percent className="w-3.5 h-3.5" /> Percentage
+              </button>
+            </div>
+
+            {/* Input */}
+            <div>
+              <Input
+                type="number"
+                placeholder={discountType === 'amount' ? 'Enter amount (Rs.)...' : 'Enter percentage (0-100)...'}
+                value={discountValue}
+                onChange={(e) => setDiscountValue(e.target.value)}
+                className="bg-[#0A0A0A] h-12 text-lg font-bold border-[#2A2A2A]"
+                icon={discountType === 'amount' ? <span className="text-[#808080] font-bold pl-2 text-sm">Rs.</span> : <Percent className="w-4 h-4 text-[#808080]" />}
+              />
+            </div>
+
+            {/* Preview */}
+            {discountValue && !isNaN(parseFloat(discountValue)) && parseFloat(discountValue) > 0 && (
+              <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4 animate-fade-in">
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest mb-2">
+                  <span className="text-tertiary">Order Total</span>
+                  <span className="text-white font-mono">Rs. {Number(orderToDiscount.total).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest mb-2">
+                  <span className="text-yellow-400">Discount</span>
+                  <span className="text-yellow-400 font-mono">
+                    -{discountType === 'percent'
+                      ? `Rs. ${((Number(orderToDiscount.total) * parseFloat(discountValue)) / 100).toFixed(2)} (${parseFloat(discountValue).toFixed(1)}%)`
+                      : `Rs. ${parseFloat(discountValue).toFixed(2)}`
+                    }
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-yellow-500/20">
+                  <span className="text-[11px] font-bold text-white uppercase tracking-widest">New Total</span>
+                  <span className="text-base font-bold text-primary font-mono">
+                    Rs. {Math.max(0, Number(orderToDiscount.total) - (discountType === 'percent' ? (Number(orderToDiscount.total) * parseFloat(discountValue)) / 100 : parseFloat(discountValue))).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2 border-t border-[#2A2A2A]">
+              <Button variant="outline" fullWidth onClick={() => { setOrderToDiscount(null); setDiscountValue(''); }} className="h-11 uppercase tracking-widest text-[10px] font-bold rounded-xl">
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                fullWidth
+                onClick={handleApplyDiscount}
+                isLoading={isApplyingDiscount}
+                disabled={!discountValue || isNaN(parseFloat(discountValue)) || parseFloat(discountValue) <= 0}
+                className="h-11 uppercase tracking-widest text-[10px] font-bold rounded-xl shadow-xl shadow-yellow-500/10 bg-yellow-500 hover:bg-yellow-400 border-yellow-500 text-black"
+              >
+                Apply Discount
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* Active Orders Modal */}
       <Modal
         isOpen={isActiveOrdersModalOpen}
@@ -2040,11 +2197,38 @@ const handleProcessPayment = async () => {
                            </div>
                         )}
                       </div>
-                      <div className="flex flex-col items-end gap-1.5">
-                        <Badge variant={
-                          order.status === 'draft' ? 'secondary' :
-                          order.status === 'ready' ? 'accent' as any : 'warning'
-                        } className="text-[9px] px-3 py-1 uppercase tracking-widest border border-white/5 shadow-inner">{order.status.replace('_', ' ')}</Badge>
+                      <div className="flex flex-col items-end gap-1.5 relative">
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant={
+                            order.status === 'draft' ? 'secondary' :
+                            order.status === 'ready' ? 'accent' as any : 'warning'
+                          } className="text-[9px] px-3 py-1 uppercase tracking-widest border border-white/5 shadow-inner">{order.status.replace('_', ' ')}</Badge>
+                          {/* 3-dot kebab menu */}
+                          <div className="relative">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setOpenCardMenu(openCardMenu === order.id ? null : order.id); }}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all active:scale-95"
+                            >
+                              <MoreVertical className="w-3.5 h-3.5 text-[#888]" />
+                            </button>
+                            {openCardMenu === order.id && (
+                              <div
+                                className="absolute right-0 top-full mt-1.5 z-50 bg-[#1E1E1E] border border-[#333] rounded-xl shadow-2xl py-1 min-w-[140px] animate-fade-in"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={() => { setOpenCardMenu(null); setOrderToCancel(order); }}
+                                  disabled={isUpdatingStatus === order.id}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-red-400 hover:bg-red-500/10 transition-all rounded-lg mx-auto disabled:opacity-40"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+                                  <Ban className="w-3.5 h-3.5 shrink-0" />
+                                  Cancel Order
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                         <Badge variant={order.is_paid ? 'success' : 'warning'} className="text-[8px] px-2 py-0.5 uppercase tracking-tighter shadow-sm border border-white/5">
                           {order.is_paid ? 'Fully Paid' : 'Payment Due'}
                         </Badge>
@@ -2163,7 +2347,17 @@ const handleProcessPayment = async () => {
                       >
                         Receipt
                       </Button>
-                      
+
+                      {/* Discount Button */}
+                      <Button
+                        variant="outline"
+                        onClick={() => { setOrderToDiscount(order); setDiscountValue(order.discount_amount || ''); setDiscountType('amount'); }}
+                        className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest hover:text-yellow-400 hover:border-yellow-400/30 border-white/10"
+                        icon={<Percent className="w-3.5 h-3.5" />}
+                      >
+                        Discount
+                      </Button>
+
                       {order.order_type === 'dine_in' && !['completed', 'cancelled'].includes(order.status) && (
                         <Button 
                           variant="outline" 
