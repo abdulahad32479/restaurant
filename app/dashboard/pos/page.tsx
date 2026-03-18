@@ -87,6 +87,7 @@ export default function POS() {
   // Delivery Person state
   const [deliveryPersons, setDeliveryPersons] = useState<DeliveryPerson[]>([]);
   const [activeOrdersTypeFilter, setActiveOrdersTypeFilter] = useState<'all' | OrderType>('all');
+  const [activeOrdersSearch, setActiveOrdersSearch] = useState('');
   
   // Delivery Info state
   const [deliveryInfo, setDeliveryInfo] = useState({
@@ -2144,6 +2145,26 @@ const handleProcessPayment = async () => {
             </div>
           ) : (
             <div className="flex flex-col gap-4">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#555] pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search by order #, table, name, status…"
+                  value={activeOrdersSearch}
+                  onChange={e => setActiveOrdersSearch(e.target.value)}
+                  className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl pl-8 pr-8 py-2.5 text-[11px] font-bold text-white placeholder:text-[#444] focus:outline-none focus:border-primary/40 uppercase tracking-wide transition-colors"
+                />
+                {activeOrdersSearch && (
+                  <button
+                    onClick={() => setActiveOrdersSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555] hover:text-white transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
               {/* Filter Tabs */}
               <div className="flex gap-2 bg-[#0A0A0A] p-1 rounded-xl border border-[#2A2A2A]">
                 {(['all', 'dine_in', 'takeaway', 'delivery'] as const).map(type => (
@@ -2163,7 +2184,20 @@ const handleProcessPayment = async () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {activeOrders
-                  .filter(o => activeOrdersTypeFilter === 'all' || o.order_type === activeOrdersTypeFilter)
+                  .filter(o => {
+                    const matchesType = activeOrdersTypeFilter === 'all' || o.order_type === activeOrdersTypeFilter;
+                    if (!activeOrdersSearch.trim()) return matchesType;
+                    const q = activeOrdersSearch.toLowerCase().trim();
+                    const matchesSearch =
+                      (o.order_number?.toString() || '').includes(q) ||
+                      o.id.toLowerCase().includes(q) ||
+                      o.status.toLowerCase().includes(q) ||
+                      (o.table_no?.toString() || o.table?.toString() || '').toLowerCase().includes(q) ||
+                      (o.delivery_info?.name || '').toLowerCase().includes(q) ||
+                      (o.delivery_info?.phone || '').toLowerCase().includes(q) ||
+                      (o.notes || '').toLowerCase().includes(q);
+                    return matchesType && matchesSearch;
+                  })
                   .map(order => (
                   <div key={order.id} className={`bg-[#1A1A1A] border-l-4 rounded-2xl p-4 flex flex-col gap-3 group/order transition-all shadow-xl ${
                     order.status === 'ready' ? 'border-accent' : 
