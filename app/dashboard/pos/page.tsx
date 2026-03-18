@@ -6,7 +6,7 @@ import { Input, Select, TextArea } from '@/src/components/Input';
 import { Badge } from '@/src/components/Badge';
 import { 
   Search, Plus, Minus, CreditCard, Banknote, 
-  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User as UserIcon, Phone, AlertTriangle, ListOrdered, Clock, ChefHat, Percent, Ban, MoreVertical
+  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User as UserIcon, Phone, AlertTriangle, ListOrdered, Clock, ChefHat, Percent, Ban, MoreVertical, Edit2
 } from 'lucide-react';
 import { productService } from '@/src/services/product.service';
 import { categoryService } from '@/src/services/category.service';
@@ -50,8 +50,10 @@ export default function POS() {
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [orderToDiscount, setOrderToDiscount] = useState<Order | null>(null);
   const [discountValue, setDiscountValue] = useState('');
-  const [discountType, setDiscountType] = useState<'amount' | 'percent'>('amount');
+  const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
+  const [discountReason, setDiscountReason] = useState('');
+  const [editingDiscountId, setEditingDiscountId] = useState<number | null>(null);
   const [openCardMenu, setOpenCardMenu] = useState<string | null>(null);
   
   // Printer state
@@ -89,6 +91,7 @@ export default function POS() {
   const [activeOrdersTypeFilter, setActiveOrdersTypeFilter] = useState<'all' | OrderType>('all');
   const [activeOrdersSearch, setActiveOrdersSearch] = useState('');
   const [expandedOrder, setExpandedOrder] = useState<Order | null>(null);
+  const [viewMode, setViewMode] = useState<'menu' | 'order_details'>('menu');
   
   // Delivery Info state
   const [deliveryInfo, setDeliveryInfo] = useState({
@@ -100,6 +103,9 @@ export default function POS() {
   const [deliveryPhoneSearch, setDeliveryPhoneSearch] = useState('');
   const [deliveryNameSearch, setDeliveryNameSearch] = useState('');
   const [matchedCustomer, setMatchedCustomer] = useState<Customer | null>(null);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [orderToAssign, setOrderToAssign] = useState<Order | null>(null);
+  const [selectedDeliveryPerson, setSelectedDeliveryPerson] = useState('');
 
   // Notes & Customer state  
   const [orderNotes, setOrderNotes] = useState('');
@@ -149,6 +155,29 @@ export default function POS() {
       return (val.id || val.product || '').toString().trim();
     }
     return String(val).trim();
+  };
+
+  const refreshOrder = async (orderId: string) => {
+    try {
+      const updatedOrder = await orderService.getById(orderId);
+      
+      // Update expandedOrder if this is the one being viewed
+      if (expandedOrder && String(expandedOrder.id) === String(orderId)) {
+        setExpandedOrder(updatedOrder);
+      }
+      
+      // Update activeOrders list
+      setActiveOrders(prev => prev.map(o => String(o.id) === String(orderId) ? updatedOrder : o));
+      
+      // Update orderToDiscount if modal is open for this order
+      if (orderToDiscount && String(orderToDiscount.id) === String(orderId)) {
+        setOrderToDiscount(updatedOrder);
+      }
+    } catch (error) {
+      console.error('Failed to refresh order', error);
+      // Fallback to full refresh if single refresh fails
+      refreshAllData(true);
+    }
   };
 
   const refreshAllData = useCallback(async (silent = false) => {
@@ -239,7 +268,12 @@ export default function POS() {
           // For now we just refresh the active order list and rely on initial load for full object
         }
       }
-
+      
+      // Sync expanded order if open
+      if (expandedOrder) {
+        const freshExp = oData.find((o: Order) => String(o.id) === String(expandedOrder.id));
+        if (freshExp) setExpandedOrder(freshExp);
+      }
     } catch (error) {
       console.error('Failed to fetch POS data', error);
       if (!silent) toast.error('Failed to load POS data');
@@ -332,7 +366,7 @@ export default function POS() {
       else if (action === 'cancel') await orderService.cancel(order.id, { ...payload, notes: 'Cancelled from POS' });
       
       toast.success(`Order ${action}ed successfully`);
-      await refreshAllData(true);
+      await refreshOrder(order.id);
     } catch (e: any) {
       console.error('Update status failed', e);
       const errorData = e.response?.data;
@@ -365,21 +399,72 @@ export default function POS() {
       toast.error('Please enter a valid discount value');
       return;
     }
-    let amountToApply = val;
-    if (discountType === 'percent') {
-      amountToApply = (Number(orderToDiscount.total) * val) / 100;
-    }
-    if (amountToApply > Number(orderToDiscount.total)) {
-      toast.error('Discount cannot exceed the order total');
+    
+    if (!discountReason.trim()) {
+      toast.error('Please provide a reason for the discount');
       return;
     }
+
     setIsApplyingDiscount(true);
     try {
-      await orderService.applyDiscount(orderToDiscount.id, amountToApply.toFixed(2));
+      await orderService.applyDiscount(orderToDiscount.id, {
+        type: discountType,
+        value: discountValue,
+        reason: discountReason.trim()
+      });
       toast.success('Discount applied successfully!');
       setOrderToDiscount(null);
       setDiscountValue('');
-      await refreshAllData(true);
+      setDiscountReason('');
+      setEditingDiscountId(null);
+      await refreshOrder(orderToDiscount.id);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setIsApplyingDiscount(false);
+    }
+  };
+
+  const handleRemoveDiscount = async (orderId: string, discountId: number) => {
+    setIsApplyingDiscount(true);
+    try {
+      await orderService.removeDiscount(orderId, discountId);
+      toast.success('Discount removed successfully!');
+      await refreshOrder(orderId);
+    } catch (e: any) {
+      handleError(e);
+    } finally {
+      setIsApplyingDiscount(false);
+    }
+  };
+
+  const handleUpdateDiscount = async (discountId: number) => {
+    if (!orderToDiscount) return;
+    const val = parseFloat(discountValue);
+    if (isNaN(val) || val < 0) {
+      toast.error('Please enter a valid discount value');
+      return;
+    }
+    
+    if (!discountReason.trim()) {
+      toast.error('Please provide a reason for the discount');
+      return;
+    }
+
+    setIsApplyingDiscount(true);
+    try {
+      await orderService.updateDiscount(orderToDiscount.id, {
+        discount_id: discountId,
+        type: discountType,
+        value: discountValue,
+        reason: discountReason.trim()
+      });
+      toast.success('Discount updated successfully!');
+      setOrderToDiscount(null);
+      setDiscountValue('');
+      setDiscountReason('');
+      setEditingDiscountId(null);
+      await refreshOrder(orderToDiscount.id);
     } catch (e: any) {
       handleError(e);
     } finally {
@@ -392,7 +477,7 @@ export default function POS() {
     try {
       await orderService.assignDeliveryPerson(orderId, deliveryPersonId);
       toast.success('Delivery person assigned successfully');
-      await refreshAllData(true);
+      await refreshOrder(orderId);
     } catch (e: any) {
       console.error('Assign delivery person failed', e);
       handleError(e);
@@ -512,6 +597,45 @@ export default function POS() {
     }
     
     toast.error(errorMessage);
+  };
+
+  const handleFinalizeOrder = async (order: Order) => {
+    setIsProcessing(true);
+    try {
+      await orderService.complete(order.id, order);
+      toast.success('Order finalized successfully!');
+      // Back to menu or clear view
+      if (expandedOrder?.id === order.id) {
+        setExpandedOrder(null);
+        setViewMode('menu');
+      }
+      if (editingOrder?.id === order.id) {
+        setEditingOrder(null);
+        setCart([]);
+      }
+      await refreshAllData(true);
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleAssignDelivery = async () => {
+    if (!orderToAssign || !selectedDeliveryPerson) return;
+    setIsProcessing(true);
+    try {
+      await orderService.assignDeliveryPerson(orderToAssign.id, selectedDeliveryPerson);
+      toast.success('Delivery person assigned successfully!');
+      setIsAssignModalOpen(false);
+      setOrderToAssign(null);
+      setSelectedDeliveryPerson('');
+      await refreshAllData(true);
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const triggerDirectPrint = useCallback(async (targetOrder: Order, printerType: 'main' | 'kitchen' | 'both' = 'both') => {
@@ -715,15 +839,19 @@ const handleConfirmOrder = async () => {
 };
 
   const handleCheckoutClick = useCallback(() => {
-  if (cart.length > 0 && !orderType) {
-    setPendingAction('checkout');
-    setIsTypeModalOpen(true);
-    return;
-  }
-  if (validateOrder()) {
-    setIsPaymentModalOpen(true);
-  }
-}, [cart.length, orderType, validateOrder]);
+    if (cart.length > 0 && !orderType) {
+      setPendingAction('checkout');
+      setIsTypeModalOpen(true);
+      return;
+    }
+    if (validateOrder()) {
+      if (editingOrder?.is_paid || (editingOrder && Number(editingOrder.paid_amount) >= total)) {
+        handleFinalizeOrder(editingOrder);
+      } else {
+        setIsPaymentModalOpen(true);
+      }
+    }
+  }, [cart.length, orderType, editingOrder, total, validateOrder, handleFinalizeOrder]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -834,7 +962,13 @@ const handleProcessPayment = async () => {
         console.error('Failed to get final order for receipt');
       }
       
-      if (finalOrderForReceipt) setCompletedOrder(finalOrderForReceipt);
+      if (finalOrderForReceipt) {
+        setCompletedOrder(finalOrderForReceipt);
+        // Update expandedOrder so the Checkout→Finalize button updates instantly
+        if (expandedOrder?.id === orderId) {
+          setExpandedOrder(finalOrderForReceipt);
+        }
+      }
       
       setEditingOrder(null);
       setCart([]);
@@ -871,44 +1005,421 @@ const handleProcessPayment = async () => {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-full gap-6 animate-fade-in text-white pb-8 relative">
-      {/* Mobile Cart Trigger - Floating Bottom Bar */}
-      {cart.length > 0 && (
-        <div className="lg:hidden fixed bottom-6 left-6 right-6 z-40 animate-slide-up">
-           <button 
-             onClick={() => setIsCartOpen(true)}
-             className="w-full bg-primary text-white h-16 rounded-2xl shadow-[0_10px_30px_rgba(212,175,55,0.4)] flex items-center justify-between px-6 font-bold uppercase tracking-widest border border-white/20 active:scale-95 transition-all"
-           >
-             <div className="flex items-center gap-3">
-               <div className="bg-white/20 w-8 h-8 rounded-lg flex items-center justify-center text-xs">
-                 {cart.reduce((s, i) => s + i.quantity, 0)}
-               </div>
-               <span>View Order</span>
-             </div>
-             <div className="text-lg">Rs. {total.toFixed(2)}</div>
-           </button>
-        </div>
-      )}
-
-      {/* Product Section (Left) */}
-      <div className="flex-1 flex flex-col gap-4 min-w-0 bg-white/[0.01] rounded-3xl p-4 md:p-6 border border-white/[0.03]">
-        <div className="flex items-center justify-between mb-0">
-          <div>
-            <h1 className="text-lg font-bold uppercase tracking-tight text-white">
-              POS <span className="text-primary text-[0.8em]">Terminal</span>
-            </h1>
-          </div>
+    <div className="flex flex-col lg:flex-row min-h-[calc(100vh-100px)] gap-4 animate-fade-in text-white pb-4 relative overflow-hidden">
+      {/* Pane 1: Active Orders Sidebar (Desktop Only) */}
+      <div className="hidden lg:flex w-[300px] flex-col gap-4 bg-white/[0.01] rounded-3xl p-4 border border-white/[0.03] shrink-0 overflow-hidden">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-[#808080]">Active Orders ({activeOrders.length})</h2>
           <button 
-            onClick={() => setIsActiveOrdersModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-lg hover:bg-primary/20 transition-all active:scale-95"
+            onClick={() => refreshAllData(true)}
+            className={`p-1.5 hover:bg-white/5 rounded-lg transition-all ${isRefreshing ? 'animate-spin' : ''}`}
           >
-            <ListOrdered className="w-4 h-4 text-primary" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-primary hidden md:inline">Active Orders</span>
-            <Badge variant="default" size="sm" className="bg-primary text-white text-[9px] px-1.5 py-0 min-w-[1.25rem] flex items-center justify-center">
-              {activeOrders.length}
-            </Badge>
+            <Clock className="w-3.5 h-3.5 text-[#505050]" />
           </button>
         </div>
+
+        {/* Sidebar Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-[#444]" />
+          <input
+            type="text"
+            placeholder="Search orders..."
+            value={activeOrdersSearch}
+            onChange={e => setActiveOrdersSearch(e.target.value)}
+            className="w-full bg-black/20 border border-white/5 rounded-xl pl-8 pr-3 py-2 text-[10px] font-bold text-white placeholder:text-[#333] focus:outline-none focus:border-primary/30 uppercase tracking-wider transition-all"
+          />
+        </div>
+
+        {/* Sidebar Filters */}
+        <div className="flex gap-1 p-0.5 bg-black/20 rounded-xl border border-white/5">
+          {(['all', 'dine_in', 'takeaway', 'delivery'] as const).map(type => (
+            <button
+              key={type}
+              onClick={() => setActiveOrdersTypeFilter(type)}
+              className={`flex-1 py-1.5 text-[8px] font-bold uppercase tracking-widest rounded-lg transition-all ${
+                activeOrdersTypeFilter === type 
+                  ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                  : 'text-[#505050] hover:text-[#808080]'
+              }`}
+            >
+              {type === 'dine_in' ? 'DINE' : type === 'takeaway' ? 'AWAY' : type === 'delivery' ? 'DLV' : 'ALL'}
+            </button>
+          ))}
+        </div>
+
+        {/* Sidebar Feed */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-3">
+          {activeOrders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 opacity-20">
+              <ListOrdered className="w-8 h-8 mb-2" />
+              <p className="text-[9px] font-bold uppercase tracking-widest text-center">No active orders</p>
+            </div>
+          ) : (
+            activeOrders
+              .filter(o => {
+                const matchesType = activeOrdersTypeFilter === 'all' || o.order_type === activeOrdersTypeFilter;
+                if (!activeOrdersSearch.trim()) return matchesType;
+                const q = activeOrdersSearch.toLowerCase().trim();
+                return matchesType && (
+                  (o.order_number?.toString() || '').includes(q) ||
+                  (o.table_no?.toString() || o.table?.toString() || '').toLowerCase().includes(q) ||
+                  (o.delivery_info?.name || '').toLowerCase().includes(q)
+                );
+              })
+              .map(order => (
+                <div 
+                  key={order.id} 
+                  onClick={() => {
+                    setExpandedOrder(order);
+                    setViewMode('order_details');
+                  }}
+                  className={`p-3 rounded-2xl border transition-all cursor-pointer group hover:scale-[1.02] active:scale-95 ${
+                    expandedOrder?.id === order.id
+                      ? 'bg-primary/20 border-primary shadow-[0_0_15px_rgba(212,175,55,0.2)]'
+                      : order.status === 'ready' ? 'bg-accent/5 border-accent/20 hover:bg-accent/10' : 
+                        order.status === 'preparing' ? 'bg-warning/5 border-warning/20 hover:bg-warning/10' : 
+                        'bg-white/[0.02] border-white/10 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-1.5">
+                    <span className="text-[11px] font-black text-white">
+                      #{order.order_number || order.id.substring(0,4)}
+                    </span>
+                    <Badge variant={order.is_paid ? 'success' : 'warning'} className="text-[7px] px-1.5 py-0 uppercase h-3.5">
+                      {order.is_paid ? 'PAID' : 'DUE'}
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-tertiary">
+                    {order.order_type === 'dine_in' ? (
+                      <span className="text-primary flex items-center gap-1"><Store className="w-2.5 h-2.5" /> T-{order.table_no || order.table || '?'}</span>
+                    ) : order.order_type === 'delivery' ? (
+                      <span className="text-orange-400 flex items-center gap-1"><Bike className="w-2.5 h-2.5" /> {order.delivery_info?.name?.split(' ')[0] || 'DLV'}</span>
+                    ) : (
+                      <span className="text-blue-400 flex items-center gap-1"><LayoutGrid className="w-2.5 h-2.5" /> AWAY</span>
+                    )}
+                    <span className="ml-auto text-[#666] font-mono">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className={`text-[8px] font-bold uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border ${
+                      order.status === 'ready' ? 'bg-accent/20 border-accent/30 text-accent' : 
+                      order.status === 'preparing' ? 'bg-warning/20 border-warning/30 text-warning' : 
+                      'bg-white/5 border-white/10 text-tertiary'
+                    }`}>
+                      {order.status}
+                    </span>
+                    <span className="text-[10px] font-bold text-white/50 tracking-widest">
+                      Rs. {Number(order.total).toFixed(0)}
+                    </span>
+                  </div>
+                </div>
+              ))
+          )}
+        </div>
+      </div>
+
+      {/* Pane 2: Content Section (Middle) */}
+      <div className="flex-1 flex flex-col min-w-0 bg-white/[0.01] rounded-3xl p-4 md:p-6 border border-white/[0.03] overflow-hidden">
+        {viewMode === 'order_details' && expandedOrder ? (
+          /* Order Details View */
+          <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-300">
+            {/* Details Header */}
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/5">
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setViewMode('menu')}
+                  className="p-2 hover:bg-white/5 rounded-xl border border-white/10 transition-all active:scale-95"
+                >
+                  <X className="w-5 h-5 text-tertiary" />
+                </button>
+                <div>
+                  <h2 className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-3">
+                    Order Details <span className="text-primary">#{expandedOrder.order_number || expandedOrder.id.substring(0,6)}</span>
+                  </h2>
+                  <div className="flex items-center gap-3 mt-1">
+                    <Badge variant={expandedOrder.status === 'ready' ? 'accent' as any : 'warning'} className="text-[9px] px-3 py-1 uppercase tracking-widest">
+                      {expandedOrder.status.replace('_', ' ')}
+                    </Badge>
+                    <span className="text-[10px] text-[#666] font-bold uppercase tracking-[0.2em]">{new Date(expandedOrder.created_at).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => { setViewMode('menu'); loadOrderForEditing(expandedOrder); }}
+                  className="h-10 px-6 text-[10px] font-bold uppercase tracking-widest bg-white/5 border-white/10 hover:bg-white/10 hover:text-white"
+                >
+                  Edit Order
+                </Button>
+                {/* Status Quick Actions */}
+                <div className="flex gap-2">
+                  {expandedOrder.status === 'draft' && (
+                    <Button variant="primary" className="h-10 px-6 text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-primary/20" onClick={() => executeStatusUpdate(expandedOrder, 'confirm')} disabled={isUpdatingStatus===expandedOrder.id}>Confirm</Button>
+                  )}
+                  {expandedOrder.status === 'confirmed' && (
+                    <Button variant="primary" className="h-10 px-6 text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-warning/20 bg-warning border-warning" onClick={() => executeStatusUpdate(expandedOrder, 'prepare')} disabled={isUpdatingStatus===expandedOrder.id}>Prepare</Button>
+                  )}
+                  {expandedOrder.status === 'preparing' && (
+                    <Button variant="primary" className="h-10 px-6 text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-accent/20 bg-accent border-accent" onClick={() => executeStatusUpdate(expandedOrder, 'ready')} disabled={isUpdatingStatus===expandedOrder.id}>Ready</Button>
+                  )}
+                  {expandedOrder.status === 'ready' && (
+                    <Button variant="primary" className="h-10 px-6 text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-emerald-500/20 bg-emerald-500 border-emerald-500" onClick={() => executeStatusUpdate(expandedOrder, 'serve')} disabled={isUpdatingStatus===expandedOrder.id}>Serve</Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-6">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                {/* Left Col: Items & Financials */}
+                <div className="space-y-6">
+                  {/* Items Card */}
+                  <div className="bg-[#0F0F0F] rounded-2xl border border-white/5 overflow-hidden">
+                    <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-tertiary">Order Items</h3>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      {(() => {
+                        const items = expandedOrder.items || [];
+                        const grouped: Record<string, any> = {};
+                        items.forEach((item: any) => {
+                          const pId = String(typeof item.product === 'object' ? item.product?.id : item.product || '').trim();
+                          if (!grouped[pId]) {
+                            grouped[pId] = { id: pId, product_name: item.product_name, quantity: 0, total_price: 0 };
+                          }
+                          const qty = parseFloat(item.quantity || '0');
+                          const price = parseFloat(item.total_price || '0');
+                          if (item.action === 'void') {
+                            grouped[pId].quantity -= qty;
+                            grouped[pId].total_price -= price;
+                          } else {
+                            grouped[pId].quantity += qty;
+                            grouped[pId].total_price += price;
+                          }
+                        });
+                        
+                        return Object.values(grouped).filter(g => g.quantity > 0).map((item: any, i: number) => {
+                          const name = allProductsMap[item.id] || item.product_name || 'Product';
+                          return (
+                            <div key={i} className="flex justify-between items-center p-3 bg-white/[0.02] border border-white/5 rounded-xl">
+                              <div className="flex items-center gap-4">
+                                <span className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-black text-xs border border-primary/20">x{item.quantity}</span>
+                                <span className="text-xs font-bold text-white uppercase tracking-wider">{name}</span>
+                              </div>
+                              <span className="text-sm font-bold text-tertiary font-mono">Rs. {Number(item.total_price).toFixed(2)}</span>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Totals Summary */}
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="bg-[#0F0F0F] p-5 rounded-2xl border border-white/5">
+                      <p className="text-[9px] font-bold text-[#505050] uppercase tracking-[0.2em] mb-1">Total Billing</p>
+                      <p className="text-xl font-black text-primary font-mono tracking-tighter">Rs. {Number(expandedOrder.total).toFixed(2)}</p>
+                    </div>
+                    <div className="bg-[#0F0F0F] p-5 rounded-2xl border border-white/5">
+                      <p className="text-[9px] font-bold text-success/60 uppercase tracking-[0.2em] mb-1">Verified Paid</p>
+                      <p className="text-xl font-black text-success font-mono tracking-tighter">Rs. {Number(expandedOrder.paid_amount || 0).toFixed(2)}</p>
+                    </div>
+                    <div className="bg-[#0F0F0F] p-5 rounded-2xl border border-white/5">
+                      <p className="text-[9px] font-bold text-error/60 uppercase tracking-[0.2em] mb-1">Outstanding</p>
+                      <p className="text-xl font-black text-error font-mono tracking-tighter animate-pulse">Rs. {Math.max(0, Number(expandedOrder.total) - Number(expandedOrder.paid_amount || 0)).toFixed(2)}</p>
+                    </div>
+                  </div>
+
+                  {/* Discounts Detail */}
+                  {expandedOrder.discounts && expandedOrder.discounts.length > 0 && (
+                    <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-2xl p-4 space-y-3">
+                      <p className="text-[10px] font-bold text-yellow-500 uppercase tracking-widest">Applied Discounts</p>
+                      <div className="space-y-2">
+                        {expandedOrder.discounts.map(d => (
+                          <div key={d.id} className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                            <div className="flex-1">
+                              <span className="text-[10px] font-black text-white uppercase tracking-widest">{d.reason}</span>
+                              <p className="text-yellow-400 font-mono text-xs mt-0.5">
+                                -{d.type === 'percentage' ? `${d.value}%` : `Rs. ${Number(d.value).toFixed(2)}`}
+                              </p>
+                            </div>
+                            <div className="flex gap-1.5">
+                              <button 
+                                onClick={() => {
+                                  setOrderToDiscount(expandedOrder);
+                                  setEditingDiscountId(d.id);
+                                  setDiscountValue(d.value);
+                                  setDiscountType(d.type as any);
+                                  setDiscountReason(d.reason);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 rounded-lg hover:bg-yellow-500/20 transition-all text-[9px] font-black uppercase tracking-[0.2em]"
+                                title="Edit Discount"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" /> Update
+                              </button>
+                              <button 
+                                onClick={() => handleRemoveDiscount(expandedOrder.id, d.id)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-all text-[9px] font-black uppercase tracking-[0.2em]"
+                                title="Remove Discount"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> Remove
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Col: Metadata & Actions */}
+                <div className="space-y-6">
+                  {/* Metadata Grid */}
+                  <div className="bg-[#0F0F0F] rounded-2xl border border-white/5 p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                      <p className="text-[9px] font-bold text-[#505050] uppercase tracking-[0.2em] mb-2">Order Type</p>
+                      <div className="flex items-center gap-3 text-sm font-bold text-white">
+                        {expandedOrder.order_type === 'dine_in' ? <Store className="w-4 h-4 text-primary" /> : expandedOrder.order_type === 'delivery' ? <Bike className="w-4 h-4 text-orange-400" /> : <LayoutGrid className="w-4 h-4 text-blue-400" />}
+                        <span className="uppercase tracking-widest">{expandedOrder.order_type.replace('_', ' ')}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold text-[#505050] uppercase tracking-[0.2em] mb-2">Location/Table</p>
+                      <p className="text-sm font-bold text-white uppercase tracking-widest">
+                        {expandedOrder.order_type === 'dine_in' ? `Table ${expandedOrder.table_no || expandedOrder.table}` : (expandedOrder.delivery_info?.name || 'Walk-in')}
+                      </p>
+                    </div>
+                    {expandedOrder.delivery_info?.phone && (
+                      <div className="col-span-full">
+                        <p className="text-[9px] font-bold text-[#505050] uppercase tracking-[0.2em] mb-2">Contact Info</p>
+                        <p className="text-sm font-bold text-white flex items-center gap-2">
+                          <Phone className="w-3.5 h-3.5 text-orange-400" /> {expandedOrder.delivery_info.phone}
+                        </p>
+                        <p className="text-xs text-tertiary mt-1">{expandedOrder.delivery_info.address}</p>
+                      </div>
+                    )}
+                    {expandedOrder.notes && (
+                      <div className="col-span-full pt-4 border-t border-white/5">
+                        <p className="text-[9px] font-bold text-orange-400 uppercase tracking-[0.2em] mb-2">Special Instructions</p>
+                        <div className="bg-orange-400/5 p-4 rounded-xl border border-orange-400/10 italic text-white/80 text-sm">
+                          "{expandedOrder.notes}"
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => triggerDirectPrint(expandedOrder, 'kitchen')}
+                      className="h-14 font-black uppercase tracking-widest text-[9px] border-white/10 hover:bg-orange-500/10 hover:text-orange-500"
+                      icon={<ChefHat className="w-5 h-5" />}
+                    >
+                      Kitchen
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => triggerDirectPrint(expandedOrder, 'main')}
+                      className="h-14 font-black uppercase tracking-widest text-[9px] border-white/10 hover:bg-primary/10 hover:text-primary"
+                      icon={<Printer className="w-5 h-5" />}
+                    >
+                      Receipt
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => { setOrderToDiscount(expandedOrder); setDiscountValue(expandedOrder.discount_amount || ''); setDiscountType('fixed'); setEditingDiscountId(null); setDiscountReason(''); }}
+                      className="h-14 font-black uppercase tracking-widest text-[9px] border-white/10 hover:bg-yellow-500/10 hover:text-yellow-500"
+                      icon={<Percent className="w-5 h-5" />}
+                    >
+                      Discount
+                    </Button>
+                    
+                    {expandedOrder.order_type === 'dine_in' && !['completed', 'cancelled'].includes(expandedOrder.status) && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setOrderToChangeTable(expandedOrder)}
+                        className="h-14 font-black uppercase tracking-widest text-[9px] border-white/10 hover:bg-accent/10 hover:text-accent"
+                        icon={<Store className="w-5 h-5" />}
+                      >
+                        Change Table
+                      </Button>
+                    )}
+
+                    {expandedOrder.status !== 'completed' && expandedOrder.status !== 'cancelled' && expandedOrder.order_type === 'delivery' && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setOrderToAssign(expandedOrder);
+                          setIsAssignModalOpen(true);
+                        }}
+                        className="h-14 font-black uppercase tracking-widest text-[9px] border-white/10 hover:bg-blue-500/10 hover:text-blue-400"
+                        icon={<Bike className="w-5 h-5" />}
+                      >
+                        Assign Delivery
+                      </Button>
+                    )}
+
+                    {expandedOrder.status !== 'completed' && expandedOrder.status !== 'cancelled' && (
+                      <Button 
+                        variant="primary" 
+                        onClick={() => {
+                          const hasPaid = Number(expandedOrder.paid_amount || 0) > 0;
+                          if (hasPaid) {
+                            handleFinalizeOrder(expandedOrder);
+                          } else {
+                            setIsFinalizingFromModal(true);
+                            loadOrderForEditing(expandedOrder, false);
+                            setTimeout(() => setIsPaymentModalOpen(true), 100);
+                          }
+                        }}
+                        className="h-14 font-black uppercase tracking-widest text-[9px] bg-emerald-600 hover:bg-emerald-500 shadow-xl shadow-emerald-500/10 border-0 col-span-2 sm:col-span-1"
+                        icon={Number(expandedOrder.paid_amount || 0) > 0 ? <CheckCircle2 className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />}
+                      >
+                        {Number(expandedOrder.paid_amount || 0) > 0 ? 'Finalize' : 'Checkout'}
+                      </Button>
+                    )}
+                    
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setOrderToCancel(expandedOrder)}
+                      className="h-14 font-black uppercase tracking-widest text-[9px] border-white/10 text-red-500/60 hover:text-red-500 hover:bg-red-500/10"
+                      icon={<Ban className="w-5 h-5" />}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Main Menu View */
+          <div className="flex flex-col h-full animate-in fade-in duration-300">
+            <div className="flex items-center justify-between mb-0">
+              <div>
+                <h1 className="text-lg font-bold uppercase tracking-tight text-white flex items-center gap-3">
+                  POS <span className="text-primary text-[0.8em]">Terminal</span>
+                  {editingOrder && (
+                    <span className="text-[8px] font-black uppercase tracking-[0.3em] px-3 py-1 bg-primary/20 border border-primary/30 rounded-full text-primary animate-pulse">
+                      Editing Mode
+                    </span>
+                  )}
+                </h1>
+              </div>
+              <div className="lg:hidden flex items-center gap-2">
+                <button 
+                  onClick={() => setIsActiveOrdersModalOpen(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-lg hidden"
+                >
+                  <ListOrdered className="w-4 h-4 text-primary" />
+                  <Badge variant="default" size="sm" className="bg-primary text-white text-[9px] px-1.5 py-0 min-w-[1.25rem]">{activeOrders.length}</Badge>
+                </button>
+              </div>
+            </div>
         {/* Header Controls */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Select 
@@ -1065,17 +1576,19 @@ const handleProcessPayment = async () => {
             ))}
           </div>
         </div>
+          </div>
+        )}
       </div>
       
-      {/* Cart Section (Right / Mobile Drawer) */}
+      {/* Pane 3: Cart Section (Right Sidebar) */}
       <div className={`
         fixed inset-0 lg:static z-50 lg:z-auto bg-black/40 lg:bg-transparent backdrop-blur-md lg:backdrop-blur-none
         transition-all duration-500 ease-in-out
         ${isCartOpen ? 'translate-y-0 opacity-100' : 'translate-y-full lg:translate-y-0 opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto'}
       `}>
         <div className={`
-          absolute bottom-0 lg:static w-full lg:w-[380px] bg-secondary border border-base lg:rounded-3xl 
-          flex flex-col shadow-2xl h-[90vh] lg:h-[calc(100vh-140px)] sticky top-24
+          absolute bottom-0 lg:static w-full lg:w-[320px] xl:w-[380px] bg-[#0A0A0A] border border-white/5 lg:rounded-3xl 
+          flex flex-col shadow-2xl h-[90vh] lg:h-full
           transition-transform duration-500 overflow-hidden
           ${isCartOpen ? 'translate-y-0' : 'translate-y-[20%] lg:translate-y-0'}
         `}>
@@ -1270,9 +1783,15 @@ const handleProcessPayment = async () => {
                 variant="primary" 
                 className="text-white font-bold h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] shadow-xl shadow-primary/20 rounded-xl px-2"
                 disabled={cart.length === 0 || !!isProcessing}
-                onClick={handleCheckoutClick}
+                onClick={() => {
+                  if (editingOrder && Number(editingOrder.paid_amount || 0) > 0) {
+                    handleFinalizeOrder(editingOrder);
+                  } else {
+                    handleCheckoutClick();
+                  }
+                }}
               >
-                Checkout
+                { (editingOrder && Number(editingOrder.paid_amount || 0) > 0) ? 'Finalize' : 'Checkout' }
               </Button>
             </div>
           </div>
@@ -2034,8 +2553,8 @@ const handleProcessPayment = async () => {
       {/* Discount Modal */}
       <Modal
         isOpen={!!orderToDiscount}
-        onClose={() => { setOrderToDiscount(null); setDiscountValue(''); }}
-        title="Apply Discount"
+        onClose={() => { setOrderToDiscount(null); setDiscountValue(''); setDiscountReason(''); setEditingDiscountId(null); }}
+        title="Order Discounts"
         size="sm"
       >
         {orderToDiscount && (
@@ -2050,487 +2569,188 @@ const handleProcessPayment = async () => {
                 <p className="text-[9px] font-bold text-tertiary uppercase tracking-widest">Order Total</p>
                 <p className="text-lg font-bold text-primary font-mono">Rs. {Number(orderToDiscount.total).toFixed(2)}</p>
               </div>
-              {Number(orderToDiscount.discount_amount) > 0 && (
-                <div className="text-right">
-                  <p className="text-[9px] font-bold text-yellow-500/60 uppercase tracking-widest">Current Discount</p>
-                  <p className="text-sm font-bold text-yellow-400 font-mono">-Rs. {Number(orderToDiscount.discount_amount).toFixed(2)}</p>
-                </div>
-              )}
             </div>
 
-            {/* Type Toggle */}
-            <div className="grid grid-cols-2 bg-[#0A0A0A] rounded-xl p-1 border border-[#2A2A2A] gap-1">
-              <button
-                onClick={() => setDiscountType('amount')}
-                className={`flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${discountType === 'amount' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'text-[#666] hover:text-[#888]'}`}
-              >
-                <span className="text-xs">Rs.</span> Fixed Amount
-              </button>
-              <button
-                onClick={() => setDiscountType('percent')}
-                className={`flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${discountType === 'percent' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'text-[#666] hover:text-[#888]'}`}
-              >
-                <Percent className="w-3.5 h-3.5" /> Percentage
-              </button>
-            </div>
-
-            {/* Input */}
-            <div>
-              <Input
-                type="number"
-                placeholder={discountType === 'amount' ? 'Enter amount (Rs.)...' : 'Enter percentage (0-100)...'}
-                value={discountValue}
-                onChange={(e) => setDiscountValue(e.target.value)}
-                className="bg-[#0A0A0A] h-12 text-lg font-bold border-[#2A2A2A]"
-                icon={discountType === 'amount' ? <span className="text-[#808080] font-bold pl-2 text-sm">Rs.</span> : <Percent className="w-4 h-4 text-[#808080]" />}
-              />
-            </div>
-
-            {/* Preview */}
-            {discountValue && !isNaN(parseFloat(discountValue)) && parseFloat(discountValue) > 0 && (
-              <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4 animate-fade-in">
-                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest mb-2">
-                  <span className="text-tertiary">Order Total</span>
-                  <span className="text-white font-mono">Rs. {Number(orderToDiscount.total).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest mb-2">
-                  <span className="text-yellow-400">Discount</span>
-                  <span className="text-yellow-400 font-mono">
-                    -{discountType === 'percent'
-                      ? `Rs. ${((Number(orderToDiscount.total) * parseFloat(discountValue)) / 100).toFixed(2)} (${parseFloat(discountValue).toFixed(1)}%)`
-                      : `Rs. ${parseFloat(discountValue).toFixed(2)}`
-                    }
-                  </span>
-                </div>
-                <div className="flex justify-between items-center pt-2 border-t border-yellow-500/20">
-                  <span className="text-[11px] font-bold text-white uppercase tracking-widest">New Total</span>
-                  <span className="text-base font-bold text-primary font-mono">
-                    Rs. {Math.max(0, Number(orderToDiscount.total) - (discountType === 'percent' ? (Number(orderToDiscount.total) * parseFloat(discountValue)) / 100 : parseFloat(discountValue))).toFixed(2)}
-                  </span>
-                </div>
+            {/* Existing Discounts */}
+            {orderToDiscount.discounts && orderToDiscount.discounts.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[9px] font-bold text-tertiary uppercase tracking-widest px-1">Applied Discounts</p>
+                {orderToDiscount.discounts.map(d => (
+                  <div key={d.id} className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3 flex justify-between items-center">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest bg-yellow-400/10 px-2 py-0.5 rounded-lg border border-yellow-400/20">
+                          {d.type === 'percentage' ? `${d.value}%` : `Rs. ${d.value}`}
+                        </span>
+                        <span className="text-xs font-bold text-white uppercase tracking-tight">{d.reason}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={() => {
+                          setEditingDiscountId(d.id);
+                          setDiscountValue(d.value);
+                          setDiscountType(d.type as any);
+                          setDiscountReason(d.reason);
+                        }}
+                        disabled={isApplyingDiscount}
+                        className="p-2 hover:bg-yellow-500/10 text-yellow-500/60 hover:text-yellow-500 rounded-lg transition-all"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleRemoveDiscount(orderToDiscount.id, d.id)}
+                        disabled={isApplyingDiscount}
+                        className="p-2 hover:bg-red-500/10 text-red-500/60 hover:text-red-500 rounded-lg transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-2 border-t border-[#2A2A2A]">
-              <Button variant="outline" fullWidth onClick={() => { setOrderToDiscount(null); setDiscountValue(''); }} className="h-11 uppercase tracking-widest text-[10px] font-bold rounded-xl">
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                fullWidth
-                onClick={handleApplyDiscount}
-                isLoading={isApplyingDiscount}
-                disabled={!discountValue || isNaN(parseFloat(discountValue)) || parseFloat(discountValue) <= 0}
-                className="h-11 uppercase tracking-widest text-[10px] font-bold rounded-xl shadow-xl shadow-yellow-500/10 bg-yellow-500 hover:bg-yellow-400 border-yellow-500 text-black"
-              >
-                Apply Discount
-              </Button>
+            <div className="pt-4 border-t border-white/5 space-y-5">
+              <div className="flex justify-between items-center px-1">
+                <p className="text-[9px] font-bold text-tertiary uppercase tracking-widest">
+                  {editingDiscountId ? 'Update Discount' : 'Apply New Discount'}
+                </p>
+                {editingDiscountId && (
+                  <button 
+                    onClick={() => {
+                      setEditingDiscountId(null);
+                      setDiscountValue('');
+                      setDiscountReason('');
+                    }}
+                    className="text-[9px] font-bold text-red-400 uppercase tracking-widest hover:text-red-300"
+                  >
+                    Cancel Editing
+                  </button>
+                )}
+              </div>
+              
+              {/* Type Toggle */}
+              <div className="grid grid-cols-2 bg-[#0A0A0A] rounded-xl p-1 border border-[#2A2A2A] gap-1">
+                <button
+                  onClick={() => setDiscountType('fixed')}
+                  className={`flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${discountType === 'fixed' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'text-[#666] hover:text-[#888]'}`}
+                >
+                  <span className="text-xs">Rs.</span> Fixed Amount
+                </button>
+                <button
+                  onClick={() => setDiscountType('percentage')}
+                  className={`flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${discountType === 'percentage' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'text-[#666] hover:text-[#888]'}`}
+                >
+                  <Percent className="w-3.5 h-3.5" /> Percentage
+                </button>
+              </div>
+
+              {/* Input */}
+              <div className="space-y-4">
+                <Input
+                  type="number"
+                  placeholder={discountType === 'fixed' ? 'Enter amount (Rs.)...' : 'Enter percentage (0-100)...'}
+                  value={discountValue}
+                  onChange={(e) => setDiscountValue(e.target.value)}
+                  className="bg-[#0A0A0A] h-12 text-lg font-bold border-[#2A2A2A]"
+                  icon={discountType === 'fixed' ? <span className="text-[#808080] font-bold pl-2 text-sm">Rs.</span> : <Percent className="w-4 h-4 text-[#808080]" />}
+                />
+                
+                <TextArea
+                  placeholder="Reason for discount (e.g. Happy Hour, Staff...)"
+                  value={discountReason}
+                  onChange={(e) => setDiscountReason(e.target.value)}
+                  className="bg-[#0A0A0A] border-[#2A2A2A] text-sm"
+                  rows={2}
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2 border-t border-[#2A2A2A]">
+                <Button variant="outline" fullWidth onClick={() => { setOrderToDiscount(null); setDiscountValue(''); setDiscountReason(''); setEditingDiscountId(null); }} className="h-11 uppercase tracking-widest text-[10px] font-bold rounded-xl">
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  onClick={() => editingDiscountId ? handleUpdateDiscount(editingDiscountId) : handleApplyDiscount()}
+                  isLoading={isApplyingDiscount}
+                  disabled={!discountValue || isNaN(parseFloat(discountValue)) || parseFloat(discountValue) <= 0 || !discountReason.trim()}
+                  className="h-11 uppercase tracking-widest text-[10px] font-bold rounded-xl shadow-xl shadow-yellow-500/10 bg-yellow-500 hover:bg-yellow-400 border-yellow-500 text-black"
+                >
+                  {editingDiscountId ? 'Update Discount' : 'Apply Discount'}
+                </Button>
+              </div>
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Active Orders Modal */}
+      {/* Assign Delivery Person Modal */}
       <Modal
-        isOpen={isActiveOrdersModalOpen}
-        onClose={() => setIsActiveOrdersModalOpen(false)}
-        title={`Active Orders (${activeOrders.length})`}
-        size="7xl"
+        isOpen={isAssignModalOpen}
+        onClose={() => { setIsAssignModalOpen(false); setOrderToAssign(null); setSelectedDeliveryPerson(''); }}
+        title="Assign Delivery Person"
+        size="sm"
       >
-        <div className="space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar pr-2">
-          {activeOrders.length === 0 ? (
-            <div className="text-center py-12">
-              <ListOrdered className="w-12 h-12 text-[#2A2A2A] mx-auto mb-4" />
-              <p className="font-bold uppercase tracking-widest text-[#505050]">No active orders found</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#555] pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search by order #, table, name, status…"
-                  value={activeOrdersSearch}
-                  onChange={e => setActiveOrdersSearch(e.target.value)}
-                  className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl pl-8 pr-8 py-2.5 text-[11px] font-bold text-white placeholder:text-[#444] focus:outline-none focus:border-primary/40 uppercase tracking-wide transition-colors"
-                />
-                {activeOrdersSearch && (
-                  <button
-                    onClick={() => setActiveOrdersSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555] hover:text-white transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
+        <div className="space-y-4">
+          <p className="text-xs text-tertiary uppercase tracking-widest">Select driver for Order <span className="text-white font-bold">{orderToAssign?.order_number || orderToAssign?.id.substring(0,6)}</span></p>
+          
+          <div className="grid grid-cols-1 gap-2 max-h-[40vh] overflow-y-auto custom-scrollbar pr-1">
+            {deliveryPersons.map(person => (
+              <button
+                key={person.id}
+                onClick={() => setSelectedDeliveryPerson(person.id)}
+                className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                  selectedDeliveryPerson === person.id 
+                    ? 'border-primary bg-primary/10 text-primary' 
+                    : 'border-white/5 bg-white/5 text-tertiary hover:border-white/10'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+                  <UserIcon className="w-5 h-5" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="font-bold text-sm uppercase tracking-tight">{person.name}</p>
+                  <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest">{person.phone_number}</p>
+                </div>
+                {selectedDeliveryPerson === person.id && <CheckCircle2 className="w-4 h-4" />}
+              </button>
+            ))}
+          </div>
 
-              {/* Filter Tabs */}
-              <div className="flex gap-2 bg-[#0A0A0A] p-1 rounded-xl border border-[#2A2A2A]">
-                {(['all', 'dine_in', 'takeaway', 'delivery'] as const).map(type => (
-                  <button
-                    key={type}
-                    onClick={() => setActiveOrdersTypeFilter(type)}
-                    className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${
-                      activeOrdersTypeFilter === type 
-                        ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                        : 'text-[#666] hover:text-[#888]'
-                    }`}
-                  >
-                    {type.replace('_', ' ')}
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid gap-5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
-                {activeOrders
-                  .filter(o => {
-                    const matchesType = activeOrdersTypeFilter === 'all' || o.order_type === activeOrdersTypeFilter;
-                    if (!activeOrdersSearch.trim()) return matchesType;
-                    const q = activeOrdersSearch.toLowerCase().trim();
-                    const matchesSearch =
-                      (o.order_number?.toString() || '').includes(q) ||
-                      o.id.toLowerCase().includes(q) ||
-                      o.status.toLowerCase().includes(q) ||
-                      (o.table_no?.toString() || o.table?.toString() || '').toLowerCase().includes(q) ||
-                      (o.delivery_info?.name || '').toLowerCase().includes(q) ||
-                      (o.delivery_info?.phone || '').toLowerCase().includes(q) ||
-                      (o.notes || '').toLowerCase().includes(q);
-                    return matchesType && matchesSearch;
-                  })
-                  .map(order => (
-                  <div 
-                    key={order.id} 
-                    onClick={() => setExpandedOrder(order)}
-                    className={`bg-[#1A1A1A] border-2 rounded-2xl p-3 flex flex-col items-center justify-start gap-1.5 cursor-pointer transition-all hover:-translate-y-1 hover:bg-[#202020] shadow-lg text-center h-[155px] ${
-                      order.status === 'ready' ? 'border-accent shadow-[0_0_15px_rgba(34,211,238,0.15)]' : 
-                      order.status === 'preparing' ? 'border-warning shadow-[0_0_15px_rgba(250,204,21,0.15)]' : 
-                      order.status === 'confirmed' ? 'border-primary shadow-[0_0_15px_rgba(212,175,55,0.15)]' : 'border-[#2A2A2A]'
-                    }`}
-                  >
-                    <h4 className="text-[14px] font-black uppercase tracking-tighter text-white leading-none text-center w-full px-1 overflow-hidden text-ellipsis whitespace-nowrap mb-1">
-                      {order.order_number ? `#${String(order.order_number).replace(/^#?/, '')}` : `#${order.id.substring(0,4)}`}
-                    </h4>
-
-                    <div className="flex justify-between items-center w-full">
-                      <span className="text-[11px] font-mono text-[#AAA] font-bold">
-                        {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      <span className="text-[10px] font-bold uppercase text-[#888] tracking-wider bg-white/5 px-2 py-0.5 rounded flex items-center">{order.items?.length || 0} ITM</span>
-                    </div>
-                    
-                    <div className="flex flex-col items-center justify-center flex-1 w-full gap-1 min-h-0 relative">
-                      <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#888] justify-center mb-1">
-                        {order.order_type === 'dine_in' ? (
-                          <span className="text-primary flex items-center justify-center gap-1"><Store className="w-3.5 h-3.5 shrink-0" /> TABLE {order.table_no || order.table || '?'}</span>
-                        ) : order.order_type === 'delivery' ? (
-                          <span className="text-orange-400 flex items-center justify-center gap-1"><Bike className="w-3.5 h-3.5 shrink-0" /> <span className="truncate max-w-[80px]">{order.delivery_info?.name || 'DELIVERY'}</span></span>
-                        ) : (
-                          <span className="text-blue-400 flex items-center justify-center gap-1"><LayoutGrid className="w-3.5 h-3.5 shrink-0" /> TAKEAWAY</span>
-                        )}
-                      </div>
-                      
-                      <p className="text-[11px] text-[#CCC] font-mono font-bold mt-auto">
-                        Rs. {Number(order.total).toFixed(0)}
-                      </p>
-                    </div>
-                    
-                    <div className="w-full mt-1">
-                      <Badge variant={order.is_paid ? 'success' : 'warning'} className="text-[9px] px-2 py-1 uppercase tracking-widest w-full block text-center shadow-inner border border-white/5 flex items-center justify-center h-5">
-                        {order.is_paid ? 'Paid' : 'Payment Due'}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <div className="pt-4 border-t border-[#2A2A2A] flex gap-3">
+            <Button variant="outline" fullWidth onClick={() => setIsAssignModalOpen(false)}>Cancel</Button>
+            <Button 
+              variant="primary" 
+              fullWidth 
+              disabled={!selectedDeliveryPerson || isProcessing}
+              onClick={handleAssignDelivery}
+              isLoading={isProcessing}
+            >
+              Confirm Assignment
+            </Button>
+          </div>
         </div>
       </Modal>
 
-      {/* Expanded Order Details Modal Overlay */}
-      <Modal
-        isOpen={!!expandedOrder}
-        onClose={() => setExpandedOrder(null)}
-        title={`Order Details #${expandedOrder?.order_number || expandedOrder?.id.substring(0,6)}`}
-        size="md"
-      >
-        {expandedOrder && (
-          <div className="space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar pr-2 pb-4">
-            <div className={`bg-[#1A1A1A] border-l-4 rounded-2xl p-4 flex flex-col gap-3 group/order transition-all shadow-xl ${
-              expandedOrder.status === 'ready' ? 'border-accent' : 
-              expandedOrder.status === 'preparing' ? 'border-warning' : 
-              expandedOrder.status === 'confirmed' ? 'border-primary' : 'border-[#2A2A2A]'
-            }`}>
-              <div className="flex justify-between items-start">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-bold uppercase tracking-tight text-white">Order #{expandedOrder.order_number || expandedOrder.id.substring(0,6)}</p>
-                    <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded text-tertiary font-mono border border-white/5">
-                      {new Date(expandedOrder.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-tertiary mt-1 flex items-center gap-1.5 uppercase font-bold tracking-widest bg-black/20 p-1.5 rounded-lg border border-white/5">
-                    {expandedOrder.order_type === 'dine_in' ? <Store className="w-3 h-3 text-primary" /> : expandedOrder.order_type === 'delivery' ? <Bike className="w-3 h-3 text-orange-400" /> : <LayoutGrid className="w-3 h-3 text-blue-400" />}
-                    {expandedOrder.order_type.replace('_', ' ')} • {
-                      expandedOrder.order_type === 'dine_in' ? `Table ${expandedOrder.table_no || expandedOrder.table}` : (expandedOrder.delivery_info?.name || 'Walk-in')
-                    }
-                  </p>
-                  {expandedOrder.delivery_person_name && (
-                    <p className="text-[9px] text-orange-300 font-bold uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
-                      <Bike className="w-3 h-3" /> Driver: {expandedOrder.delivery_person_name}
-                    </p>
-                  )}
-                  {expandedOrder.notes && (
-                      <div className="mt-2 p-2 bg-orange-400/5 border border-orange-400/10 rounded-lg">
-                        <p className="text-[9px] text-orange-400/80 font-bold uppercase tracking-widest leading-normal">
-                          <span className="opacity-50 mr-1">Note:</span> {expandedOrder.notes}
-                        </p>
-                      </div>
-                  )}
-                </div>
-                <div className="flex flex-col items-end gap-1.5 relative">
-                  <div className="flex items-center gap-1.5">
-                    <Badge variant={
-                      expandedOrder.status === 'draft' ? 'secondary' :
-                      expandedOrder.status === 'ready' ? 'accent' as any : 'warning'
-                    } className="text-[9px] px-3 py-1 uppercase tracking-widest border border-white/5 shadow-inner">{expandedOrder.status.replace('_', ' ')}</Badge>
-                    {/* 3-dot kebab menu */}
-                    <div className="relative">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setOpenCardMenu(openCardMenu === expandedOrder.id ? null : expandedOrder.id); }}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all active:scale-95"
-                      >
-                        <MoreVertical className="w-3.5 h-3.5 text-[#888]" />
-                      </button>
-                      {openCardMenu === expandedOrder.id && (
-                        <div
-                          className="absolute right-0 top-full mt-1.5 z-50 bg-[#1E1E1E] border border-[#333] rounded-xl shadow-2xl py-1 min-w-[140px] animate-fade-in"
-                          onClick={(e) => { e.stopPropagation(); setOpenCardMenu(null); }}
-                        >
-                          <button
-                            onClick={() => { setOpenCardMenu(null); setExpandedOrder(null); setOrderToCancel(expandedOrder); }}
-                            disabled={isUpdatingStatus === expandedOrder.id}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-red-400 hover:bg-red-500/10 transition-all rounded-lg mx-auto disabled:opacity-40"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-                            <Ban className="w-3.5 h-3.5 shrink-0" />
-                            Cancel Order
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <Badge variant={expandedOrder.is_paid ? 'success' : 'warning'} className="text-[8px] px-2 py-0.5 uppercase tracking-tighter shadow-sm border border-white/5">
-                    {expandedOrder.is_paid ? 'Fully Paid' : 'Payment Due'}
-                  </Badge>
-                </div>
+      <div className="lg:hidden fixed bottom-6 left-6 right-6 z-40 animate-slide-up">
+        {cart.length > 0 && (
+          <button 
+            onClick={() => setIsCartOpen(true)}
+            className="w-full bg-primary text-white h-16 rounded-2xl shadow-[0_10px_30px_rgba(212,175,55,0.4)] flex items-center justify-between px-6 font-bold uppercase tracking-widest border border-white/20 active:scale-95 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 w-8 h-8 rounded-lg flex items-center justify-center text-xs">
+                {cart.reduce((s, i) => s + i.quantity, 0)}
               </div>
-              
-              {/* Delivery Person Assignment */}
-              {expandedOrder.order_type === 'delivery' && (
-                <div className="flex items-center gap-2 bg-[#0A0A0A] p-2 rounded-xl border border-white/5">
-                  <UserIcon className="w-3 h-3 text-tertiary" />
-                  <select
-                    value={expandedOrder.delivery_person || ''}
-                    onChange={async (e) => {
-                      await handleAssignDeliveryPerson(expandedOrder.id, e.target.value);
-                      // Update local expandedOrder state softly if possible, or expect refreshAllData to re-read it
-                      // Modal will update naturally on data refresh
-                    }}
-                    disabled={isUpdatingStatus === expandedOrder.id}
-                    className="bg-transparent border-0 text-[10px] font-bold uppercase tracking-widest text-orange-300 focus:outline-none cursor-pointer flex-1 appearance-none"
-                  >
-                    <option value="" className="bg-[#1A1A1A]">Assign Driver</option>
-                    {deliveryPersons.map(dp => (
-                      <option key={dp.id} value={dp.id} className="bg-[#1A1A1A]">{dp.name}</option>
-                    ))}
-                  </select>
-                  {expandedOrder.delivery_person_name && (
-                    <span className="text-[8px] text-white/40 uppercase tracking-widest">{expandedOrder.delivery_person_name}</span>
-                  )}
-                </div>
-              )}
-
-              <div className="flex flex-col gap-2 bg-black/20 p-3 rounded-xl border border-white/5">
-                <div className="flex justify-between items-center">
-                  <span className="text-tertiary font-bold uppercase tracking-widest text-[9px]">{expandedOrder.items?.length || 0} Assets</span>
-                  <span className="font-bold text-white text-sm font-mono">Total: Rs. {Number(expandedOrder.total).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center text-[10px] border-t border-white/5 pt-2 mt-1">
-                  <span className="font-bold text-success font-mono uppercase tracking-widest">
-                    Paid: Rs. {Number(expandedOrder.paid_amount || 0).toFixed(2)}
-                  </span>
-                  {Number(expandedOrder.paid_amount || 0) > Number(expandedOrder.total) ? (
-                    <span className="font-bold text-emerald-400 font-mono uppercase tracking-widest bg-emerald-500/10 px-2 rounded-lg border border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.1)]">
-                      Return: Rs. {(Number(expandedOrder.paid_amount || 0) - Number(expandedOrder.total)).toFixed(2)}
-                    </span>
-                  ) : (
-                    <span className="font-bold text-error font-mono uppercase tracking-widest">
-                      Due: Rs. {Math.max(0, Number(expandedOrder.total) - Number(expandedOrder.paid_amount || 0)).toFixed(2)}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-[#1A1A1A] p-3 rounded-xl space-y-2 max-h-32 overflow-y-auto custom-scrollbar border border-[#333] shadow-inner">
-                {(() => {
-                  const items = expandedOrder.items || [];
-                  const grouped: Record<string, any> = {};
-                  items.forEach((item: any) => {
-                    const pId = String(typeof item.product === 'object' ? item.product?.id : item.product || '').trim();
-                    if (!grouped[pId]) {
-                      grouped[pId] = {
-                        id: pId,
-                        product: item.product,
-                        product_name: item.product_name,
-                        quantity: 0,
-                        total_price: 0
-                      };
-                    }
-                    const qty = parseFloat(item.quantity || '0');
-                    const price = parseFloat(item.total_price || '0');
-                    const action = item.action || 'original';
-                    
-                    if (action === 'void') {
-                      grouped[pId].quantity -= qty;
-                      grouped[pId].total_price -= price;
-                    } else {
-                      grouped[pId].quantity += qty;
-                      grouped[pId].total_price += price;
-                    }
-                  });
-                  
-                  return Object.values(grouped).filter(g => g.quantity > 0).map((item: any, i: number) => {
-                    const name = allProductsMap[item.id] || 
-                                  (item.product_name && item.product_name.toLowerCase().trim() !== 'string' ? item.product_name : null) || 
-                                  (typeof item.product === 'object' ? (item.product as any)?.name || (item.product as any)?.product_name : null) || 
-                                  'Product';
-                    return (
-                      <div key={i} className="flex justify-between text-xs uppercase tracking-tighter items-center bg-white/5 p-2 rounded-lg border border-white/5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="min-w-[24px] h-5 px-1.5 rounded bg-primary/20 text-primary font-extrabold flex items-center justify-center text-[11px] shrink-0 border border-primary/20">x{item.quantity}</span>
-                            <span className="text-white font-extrabold truncate max-w-[140px] tracking-wide text-[11px]">{name}</span>
-                          </div>
-                          <span className="text-[#CCCCCC] font-bold font-mono tracking-wider shrink-0 text-[11px]">Rs. {Number(item.total_price || 0).toFixed(0)}</span>
-                      </div>
-                    )
-                  });
-                })()}
-              </div>
-
-            <div className="flex flex-wrap gap-2 pt-3 border-t border-[#2A2A2A]">
-                <Button 
-                  variant="outline" 
-                  onClick={() => { setExpandedOrder(null); loadOrderForEditing(expandedOrder); }}
-                  className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest bg-white/5 border-white/10"
-                >
-                  Edit 
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => triggerDirectPrint(expandedOrder, 'kitchen')}
-                  className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest hover:text-orange-500 border-white/10"
-                  icon={<ChefHat className="w-4 h-4" />}
-                >
-                  Kitchen
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => triggerDirectPrint(expandedOrder, 'main')}
-                  className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest hover:text-primary border-white/10"
-                  icon={<Printer className="w-4 h-4" />}
-                >
-                  Receipt
-                </Button>
-
-                {/* Discount Button */}
-                <Button
-                  variant="outline"
-                  onClick={() => { setExpandedOrder(null); setOrderToDiscount(expandedOrder); setDiscountValue(expandedOrder.discount_amount || ''); setDiscountType('amount'); }}
-                  className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest hover:text-yellow-400 hover:border-yellow-400/30 border-white/10"
-                  icon={<Percent className="w-3.5 h-3.5" />}
-                >
-                  Discount
-                </Button>
-
-                {expandedOrder.order_type === 'dine_in' && !['completed', 'cancelled'].includes(expandedOrder.status) && (
-                  <Button 
-                    variant="outline" 
-                    onClick={() => { setExpandedOrder(null); setOrderToChangeTable(expandedOrder); }}
-                    className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest hover:text-accent border-white/10"
-                    icon={<Store className="w-4 h-4" />}
-                  >
-                    Table
-                  </Button>
-                )}
-
-                {/* Add Payment Button */}
-                {expandedOrder.status !== 'draft' && !expandedOrder.is_paid && (
-                  <Button 
-                    variant="primary" 
-                    className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/10" 
-                    onClick={() => {
-                      setIsFinalizingFromModal(true);
-                      setExpandedOrder(null);
-                      loadOrderForEditing(expandedOrder, false);
-                      setTimeout(() => setIsPaymentModalOpen(true), 100);
-                    }}
-                  >
-                    Add Payment
-                  </Button>
-                )}
-              
-              <div className="flex flex-wrap gap-2 w-full pt-1">
-                {expandedOrder.status === 'draft' && (
-                  <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest" onClick={() => { setExpandedOrder(null); executeStatusUpdate(expandedOrder, 'confirm'); }} disabled={isUpdatingStatus===expandedOrder.id}>Send to Kitchen</Button>
-                )}
-                {expandedOrder.status === 'confirmed' && (
-                  <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest" onClick={() => { setExpandedOrder(null); executeStatusUpdate(expandedOrder, 'prepare'); }} disabled={isUpdatingStatus===expandedOrder.id}>Start Cooking</Button>
-                )}
-                {expandedOrder.status === 'preparing' && (
-                  <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest" onClick={() => { setExpandedOrder(null); executeStatusUpdate(expandedOrder, 'ready'); }} disabled={isUpdatingStatus===expandedOrder.id}>Mark Ready</Button>
-                )}
-                {expandedOrder.status === 'ready' && (
-                  <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest" onClick={() => { setExpandedOrder(null); executeStatusUpdate(expandedOrder, 'serve'); }} disabled={isUpdatingStatus===expandedOrder.id}>Mark Served</Button>
-                )}
-                {expandedOrder.status === 'served' && (
-                  <Button variant="primary" className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest hover:bg-success hover:border-success/50 bg-success border-success text-white shadow-lg shadow-success/20" onClick={() => { setExpandedOrder(null); executeStatusUpdate(expandedOrder, 'complete'); }} disabled={isUpdatingStatus===expandedOrder.id}>Finalize Order</Button>
-                )}
-                
-                {/* Unified Checkout/Finalize Button */}
-                {expandedOrder.status !== 'draft' && (
-                  (expandedOrder.is_paid || Number(expandedOrder.paid_amount || 0) > 0) ? (
-                    <Button 
-                      variant="primary" 
-                      className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest bg-success hover:bg-success/90 border-success shadow-lg shadow-success/20" 
-                      onClick={() => { setExpandedOrder(null); executeStatusUpdate(expandedOrder, 'complete'); }}
-                      disabled={isUpdatingStatus === expandedOrder.id}
-                    >
-                      Finalize
-                    </Button>
-                  ) : (
-                    <Button 
-                      variant="primary" 
-                      className="flex-1 text-[10px] h-8 font-bold uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-500/10" 
-                      onClick={() => {
-                        setIsFinalizingFromModal(true);
-                        setExpandedOrder(null);
-                        loadOrderForEditing(expandedOrder, false);
-                        setTimeout(() => setIsPaymentModalOpen(true), 100);
-                      }}
-                    >
-                      Checkout
-                    </Button>
-                  )
-                )}
-                </div>
-              </div>
+              <span>View Order</span>
             </div>
-          </div>
+            <div className="text-lg">Rs. {total.toFixed(2)}</div>
+          </button>
         )}
-      </Modal>
+      </div>
 
       {/* Hidden Receipt for Printing */}
       <div className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none">

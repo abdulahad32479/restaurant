@@ -141,6 +141,14 @@ export interface Order {
   cancelled_at?: string;
   refunded_at?: string;
   paid_at?: string;
+  discounts?: Discount[];
+}
+
+export interface Discount {
+  id: number;
+  type: 'percentage' | 'fixed';
+  value: string;
+  reason: string;
 }
 
 export interface Payment {
