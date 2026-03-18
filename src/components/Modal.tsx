@@ -9,7 +9,7 @@ interface ModalProps {
   title: string
   children: React.ReactNode
   footer?: React.ReactNode
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl' | '7xl'
 }
 
 export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }: ModalProps) {
@@ -20,6 +20,9 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
       case 'md': return "max-w-md"
       case 'lg': return "max-w-2xl"
       case 'xl': return "max-w-4xl"
+      case '2xl': return "max-w-5xl"
+      case '4xl': return "max-w-6xl"
+      case '7xl': return "max-w-[90vw] lg:max-w-[85vw] xl:max-w-7xl 2xl:max-w-[1500px]"
       default: return "max-w-md"
     }
   }
