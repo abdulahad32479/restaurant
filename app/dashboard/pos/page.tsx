@@ -2713,7 +2713,7 @@ const handleProcessPayment = async () => {
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-bold text-sm uppercase tracking-tight">{person.name}</p>
-                  <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest">{person.phone_number}</p>
+                  <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest">{person.phone}</p>
                 </div>
                 {selectedDeliveryPerson === person.id && <CheckCircle2 className="w-4 h-4" />}
               </button>
