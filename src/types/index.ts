@@ -149,6 +149,7 @@ export interface Discount {
   type: 'percentage' | 'fixed';
   value: string;
   reason: string;
+  is_active?: boolean;
 }
 
 export interface Payment {
@@ -248,7 +249,7 @@ export interface PaymentSummaryReport {
 export interface DeliveryPerson {
   id: string;
   name: string;
-  phone: string;
+  phone_number: string;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;

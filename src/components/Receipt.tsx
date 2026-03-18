@@ -13,6 +13,7 @@ interface ReceiptProps {
   logoUrl?: string;
   logoUrlBottom?: string;
   paymentAccount?: string;
+  deliveryPersons?: Record<string, { id: string; name: string; phone_number: string }>;
 }
 
 export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
@@ -27,7 +28,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
     users = {},
     logoUrl,
     logoUrlBottom,
-    paymentAccount
+    paymentAccount,
+    deliveryPersons = {}
   }, ref) => {
     
     const formatDate = (dateString?: string) => {
@@ -103,6 +105,28 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
                   {order.delivery_info.address}
                 </div>
               )}
+            </div>
+          )}
+
+          {order.order_type === 'delivery' && (order.delivery_person || order.delivery_person_name) && (
+            <div className="mt-2 pt-2 border-t border-black border-dotted">
+              <div className="flex justify-between text-black text-xs">
+                <span>Rider:</span>
+                <span className="font-bold">
+                  {(() => {
+                    const riderId = order.delivery_person;
+                    const riderName = order.delivery_person_name;
+                    // 1. Try to find by ID
+                    let rider = Object.values(deliveryPersons).find(p => String(p.id).trim() === String(riderId).trim());
+                    // 2. Fallback to finding by Name if ID fails
+                    if (!rider && riderName) {
+                      rider = Object.values(deliveryPersons).find(p => p.name === riderName);
+                    }
+                    return riderName || rider?.name || 'Assigned Rider';
+                  })()}
+                </span>
+              </div>
+              {/* Rider section without phone number */}
             </div>
           )}
         </div>

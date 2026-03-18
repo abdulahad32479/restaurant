@@ -15,7 +15,7 @@ import { tableService } from '@/src/services/table.service';
 import { orderService } from '@/src/services/order.service';
 import { customerService } from '@/src/services/customer.service';
 import { userService } from '@/src/services/user.service';
-import { Product, Category, Branch, Table, OrderType, Order, Customer, DeliveryPerson, User } from '@/src/types';
+import { Product, Category, Branch, Table, OrderType, Order, Customer, DeliveryPerson, User, Discount } from '@/src/types';
 import { Modal } from '@/src/components/Modal';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useReactToPrint } from 'react-to-print';
@@ -210,7 +210,7 @@ export default function POS() {
       setAllProductsList(pData);
       setCategories(cData);
       setBranches(bData);
-      setDeliveryPersons(deliveryPersonsData.filter((dp: any) => dp.is_active));
+      setDeliveryPersons(deliveryPersonsData);
       // Sort tables by name/number ascending
       setTables(tData.filter((t: Table) => t.is_active).sort((a: Table, b: Table) => {
         const nameA = a.name.toLowerCase();
@@ -400,17 +400,13 @@ export default function POS() {
       return;
     }
     
-    if (!discountReason.trim()) {
-      toast.error('Please provide a reason for the discount');
-      return;
-    }
-
     setIsApplyingDiscount(true);
     try {
       await orderService.applyDiscount(orderToDiscount.id, {
         type: discountType,
         value: discountValue,
-        reason: discountReason.trim()
+        reason: discountReason.trim() || 'Discount',
+        is_active: true
       });
       toast.success('Discount applied successfully!');
       setOrderToDiscount(null);
@@ -425,10 +421,16 @@ export default function POS() {
     }
   };
 
-  const handleRemoveDiscount = async (orderId: string, discountId: number) => {
+  const handleRemoveDiscount = async (orderId: string, discount: Discount) => {
     setIsApplyingDiscount(true);
     try {
-      await orderService.removeDiscount(orderId, discountId);
+      await orderService.updateDiscount(orderId, {
+        discount_id: discount.id,
+        type: discount.type,
+        value: discount.value,
+        reason: discount.reason,
+        is_active: false
+      });
       toast.success('Discount removed successfully!');
       await refreshOrder(orderId);
     } catch (e: any) {
@@ -446,18 +448,14 @@ export default function POS() {
       return;
     }
     
-    if (!discountReason.trim()) {
-      toast.error('Please provide a reason for the discount');
-      return;
-    }
-
     setIsApplyingDiscount(true);
     try {
       await orderService.updateDiscount(orderToDiscount.id, {
         discount_id: discountId,
         type: discountType,
         value: discountValue,
-        reason: discountReason.trim()
+        reason: discountReason.trim() || 'Discount',
+        is_active: true
       });
       toast.success('Discount updated successfully!');
       setOrderToDiscount(null);
@@ -625,9 +623,18 @@ export default function POS() {
     if (!orderToAssign || !selectedDeliveryPerson) return;
     setIsProcessing(true);
     try {
-      await orderService.assignDeliveryPerson(orderToAssign.id, selectedDeliveryPerson);
+      const updatedOrder = await orderService.assignDeliveryPerson(orderToAssign.id, selectedDeliveryPerson);
       toast.success('Delivery person assigned successfully!');
       setIsAssignModalOpen(false);
+      
+      // Update expandedOrder immediately if it matches
+      if (expandedOrder && expandedOrder.id === orderToAssign.id) {
+        setExpandedOrder(updatedOrder);
+      }
+      
+      // Update activeOrders list immediately
+      setActiveOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+      
       setOrderToAssign(null);
       setSelectedDeliveryPerson('');
       await refreshAllData(true);
@@ -920,7 +927,13 @@ const handleProcessPayment = async () => {
       let isCompleted = false;
 
       try {
-        remainingToPay = total - parseFloat(editingOrder?.paid_amount || '0');
+        // Use server-side total for existing orders (it includes discounts).
+        // Using the cart's 'total' would ignore applied discounts and cause
+        // "Payment exceeds remaining balance" from the backend.
+        const orderTotal = editingOrder 
+          ? Number(editingOrder.total || 0) 
+          : total;
+        remainingToPay = orderTotal - parseFloat(editingOrder?.paid_amount || '0');
         finalPayAmount = parseFloat(amountTendered || '0');
         
         // For card payments or if user didn't enter amount for cash, pay the full remaining balance
@@ -932,16 +945,15 @@ const handleProcessPayment = async () => {
           await orderService.addPayment(orderId!, {
             method: paymentMethod,
             amount: finalPayAmount.toFixed(2),
-            idempotency_key: `POS-${Date.now()}`,
           });
         }
-
-        // 4. Record payment (Removing auto-finalize logic)
-        // We no longer call orderService.complete automatically.
-        // Status remains unchanged so the workflow can continue.
-      } catch (paymentError) {
-        console.error('Payment recording failed', paymentError);
-        toast.error('Order confirmed but payment recording failed');
+      } catch (paymentError: any) {
+        const errMsg = paymentError?.response?.data 
+          ? JSON.stringify(paymentError.response.data) 
+          : paymentError?.message || 'Unknown error';
+        console.error('Payment recording failed', errMsg);
+        toast.error(`Payment failed: ${errMsg}`);
+        return; // stop here so success toast does not fire
       }
 
       toast.success(editingOrder ? 'Payment recorded successfully!' : 'Order paid and confirmed successfully!');
@@ -1048,7 +1060,7 @@ const handleProcessPayment = async () => {
         </div>
 
         {/* Sidebar Feed */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-3">
+        <div className="overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-3" style={{ maxHeight: '500px' }}>
           {activeOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 opacity-20">
               <ListOrdered className="w-8 h-8 mb-2" />
@@ -1090,15 +1102,33 @@ const handleProcessPayment = async () => {
                     </Badge>
                   </div>
                   
-                  <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-tertiary">
+                  <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-tertiary">
                     {order.order_type === 'dine_in' ? (
-                      <span className="text-primary flex items-center gap-1"><Store className="w-2.5 h-2.5" /> T-{order.table_no || order.table || '?'}</span>
+                      <span className="text-primary flex items-center gap-1 text-[20px]"><Store className="w-4 h-4" /> T-{order.table_no || order.table || '?'}</span>
                     ) : order.order_type === 'delivery' ? (
-                      <span className="text-orange-400 flex items-center gap-1"><Bike className="w-2.5 h-2.5" /> {order.delivery_info?.name?.split(' ')[0] || 'DLV'}</span>
+                      <div className="flex flex-col overflow-hidden">
+                        <span className="text-orange-400 flex items-center gap-1 text-[10px]">
+                          <Bike className="w-3 h-3" /> {order.delivery_info?.name || 'DLV'}
+                          {(order.delivery_person || order.delivery_person_name) && (
+                            <span className="text-blue-400 ml-1 border-l border-white/10 pl-1 text-[9px] lowercase font-black">
+                              @{(() => {
+                                const dp = order.delivery_person;
+                                return (typeof dp === 'object' && dp !== null ? (dp as any).name : null) 
+                                       || order.delivery_person_name 
+                                       || deliveryPersons.find(p => String(p.id).trim() === String(typeof dp === 'object' && dp !== null ? (dp as any).id : dp).trim())?.name 
+                                       || 'Rider';
+                              })()}
+                            </span>
+                          )}
+                        </span>
+                        {order.delivery_info?.address && (
+                          <span className="text-[14px] text-[#808080] leading-tight line-clamp-1 lowercase font-bold">{order.delivery_info.address}</span>
+                        )}
+                      </div>
                     ) : (
-                      <span className="text-blue-400 flex items-center gap-1"><LayoutGrid className="w-2.5 h-2.5" /> AWAY</span>
+                      <span className="text-blue-400 flex items-center gap-1 text-[10px]"><LayoutGrid className="w-3 h-3" /> AWAY</span>
                     )}
-                    <span className="ml-auto text-[#666] font-mono">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="ml-auto text-[#666] font-mono text-[10px]">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
 
                   <div className="mt-2 flex items-center justify-between">
@@ -1219,6 +1249,13 @@ const handleProcessPayment = async () => {
 
                   {/* Totals Summary */}
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Original price card — shown when discounts are applied */}
+                    {expandedOrder.discounts && expandedOrder.discounts.filter(d => d.is_active !== false).length > 0 && (
+                      <div className="bg-yellow-500/5 border border-yellow-500/20 p-5 rounded-2xl">
+                        <p className="text-[9px] font-bold text-yellow-500/60 uppercase tracking-[0.2em] mb-1">Original Price</p>
+                        <p className="text-xl font-black text-yellow-400 font-mono tracking-tighter">Rs. {Number(expandedOrder.subtotal).toFixed(2)}</p>
+                      </div>
+                    )}
                     <div className="bg-[#0F0F0F] p-5 rounded-2xl border border-white/5">
                       <p className="text-[9px] font-bold text-[#505050] uppercase tracking-[0.2em] mb-1">Total Billing</p>
                       <p className="text-xl font-black text-primary font-mono tracking-tighter">Rs. {Number(expandedOrder.total).toFixed(2)}</p>
@@ -1227,9 +1264,22 @@ const handleProcessPayment = async () => {
                       <p className="text-[9px] font-bold text-success/60 uppercase tracking-[0.2em] mb-1">Verified Paid</p>
                       <p className="text-xl font-black text-success font-mono tracking-tighter">Rs. {Number(expandedOrder.paid_amount || 0).toFixed(2)}</p>
                     </div>
-                    <div className="bg-[#0F0F0F] p-5 rounded-2xl border border-white/5">
-                      <p className="text-[9px] font-bold text-error/60 uppercase tracking-[0.2em] mb-1">Outstanding</p>
-                      <p className="text-xl font-black text-error font-mono tracking-tighter animate-pulse">Rs. {Math.max(0, Number(expandedOrder.total) - Number(expandedOrder.paid_amount || 0)).toFixed(2)}</p>
+                    <div className="bg-[#0F0F0F] p-5 rounded-2xl border border-white/5 flex justify-between items-center group">
+                      <div>
+                        <p className="text-[9px] font-bold text-error/60 uppercase tracking-[0.2em] mb-1">Outstanding</p>
+                        <p className="text-xl font-black text-error font-mono tracking-tighter animate-pulse">Rs. {Math.max(0, Number(expandedOrder.total) - Number(expandedOrder.paid_amount || 0)).toFixed(2)}</p>
+                      </div>
+                      {Math.max(0, Number(expandedOrder.total) - Number(expandedOrder.paid_amount || 0)) > 0 && (
+                        <button 
+                          onClick={() => {
+                            loadOrderForEditing(expandedOrder, true);
+                            setTimeout(() => setIsPaymentModalOpen(true), 100);
+                          }}
+                          className="px-3 py-1.5 bg-error/10 text-error border border-error/20 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-error/20 transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          Pay Now
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1238,10 +1288,10 @@ const handleProcessPayment = async () => {
                     <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-2xl p-4 space-y-3">
                       <p className="text-[10px] font-bold text-yellow-500 uppercase tracking-widest">Applied Discounts</p>
                       <div className="space-y-2">
-                        {expandedOrder.discounts.map(d => (
+                        {expandedOrder.discounts.filter(d => d.is_active !== false).map(d => (
                           <div key={d.id} className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
                             <div className="flex-1">
-                              <span className="text-[10px] font-black text-white uppercase tracking-widest">{d.reason}</span>
+                              <span className="text-[10px] font-black text-white uppercase tracking-widest">{d.reason || 'Discount'}</span>
                               <p className="text-yellow-400 font-mono text-xs mt-0.5">
                                 -{d.type === 'percentage' ? `${d.value}%` : `Rs. ${Number(d.value).toFixed(2)}`}
                               </p>
@@ -1261,7 +1311,7 @@ const handleProcessPayment = async () => {
                                 <Edit2 className="w-3.5 h-3.5" /> Update
                               </button>
                               <button 
-                                onClick={() => handleRemoveDiscount(expandedOrder.id, d.id)}
+                                onClick={() => handleRemoveDiscount(expandedOrder.id, d)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-all text-[9px] font-black uppercase tracking-[0.2em]"
                                 title="Remove Discount"
                               >
@@ -1286,19 +1336,47 @@ const handleProcessPayment = async () => {
                         <span className="uppercase tracking-widest">{expandedOrder.order_type.replace('_', ' ')}</span>
                       </div>
                     </div>
-                    <div>
-                      <p className="text-[9px] font-bold text-[#505050] uppercase tracking-[0.2em] mb-2">Location/Table</p>
-                      <p className="text-sm font-bold text-white uppercase tracking-widest">
-                        {expandedOrder.order_type === 'dine_in' ? `Table ${expandedOrder.table_no || expandedOrder.table}` : (expandedOrder.delivery_info?.name || 'Walk-in')}
-                      </p>
-                    </div>
-                    {expandedOrder.delivery_info?.phone && (
-                      <div className="col-span-full">
-                        <p className="text-[9px] font-bold text-[#505050] uppercase tracking-[0.2em] mb-2">Contact Info</p>
-                        <p className="text-sm font-bold text-white flex items-center gap-2">
-                          <Phone className="w-3.5 h-3.5 text-orange-400" /> {expandedOrder.delivery_info.phone}
-                        </p>
-                        <p className="text-xs text-tertiary mt-1">{expandedOrder.delivery_info.address}</p>
+                    {expandedOrder.order_type === 'delivery' && (
+                      <div className="col-span-full p-5 bg-orange-500/[0.03] rounded-2xl border border-orange-500/10 space-y-4">
+                        <div className="flex justify-between items-start gap-4">
+                          <div className="flex-1">
+                            <p className="text-[9px] font-bold text-orange-400 uppercase tracking-[0.4em] mb-3">Customer Information</p>
+                            <h4 className="text-base font-black text-white uppercase tracking-tight mb-1">{expandedOrder.delivery_info?.name || 'Walk-in Customer'}</h4>
+                            <div className="flex flex-col gap-1.5">
+                              <p className="text-xs font-bold text-orange-400/90 flex items-center gap-2">
+                                <Phone className="w-3.5 h-3.5" /> {expandedOrder.delivery_info?.phone || 'No Phone'}
+                              </p>
+                              <p className="text-[11px] text-tertiary leading-relaxed font-medium">{expandedOrder.delivery_info?.address || 'No Address Provided'}</p>
+                            </div>
+                          </div>
+
+                          {(expandedOrder.delivery_person || expandedOrder.delivery_person_name) && (
+                            <div className="shrink-0 text-right animate-in fade-in zoom-in duration-300">
+                              <p className="text-[9px] font-bold text-blue-400 uppercase tracking-[0.4em] mb-3">Assigned Rider</p>
+                              <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-xl flex flex-col items-end gap-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Bike className="w-3.5 h-3.5 text-blue-400" />
+                                  <span className="text-xs font-black text-white uppercase tracking-widest leading-none">
+                                    {(() => {
+                                      const dp = expandedOrder.delivery_person;
+                                      return (typeof dp === 'object' && dp !== null ? (dp as any).name : null) 
+                                             || expandedOrder.delivery_person_name 
+                                             || deliveryPersons.find(p => String(p.id).trim() === String(typeof dp === 'object' && dp !== null ? (dp as any).id : dp).trim())?.name 
+                                             || 'Rider Assigned';
+                                    })()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {expandedOrder.order_type === 'takeaway' && (
+                      <div>
+                        <p className="text-[9px] font-bold text-[#505050] uppercase tracking-[0.2em] mb-2">Customer Name</p>
+                        <p className="text-sm font-bold text-white uppercase tracking-widest">{expandedOrder.delivery_info?.name || 'Walk-in'}</p>
                       </div>
                     )}
                     {expandedOrder.notes && (
@@ -1360,6 +1438,20 @@ const handleProcessPayment = async () => {
                         icon={<Bike className="w-5 h-5" />}
                       >
                         Assign Delivery
+                      </Button>
+                    )}
+
+                    {expandedOrder.status !== 'completed' && expandedOrder.status !== 'cancelled' && Number(expandedOrder.total) - Number(expandedOrder.paid_amount || 0) > 0 && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          loadOrderForEditing(expandedOrder, true);
+                          setTimeout(() => setIsPaymentModalOpen(true), 100);
+                        }}
+                        className="h-14 font-black uppercase tracking-widest text-[9px] border-emerald-500/20 hover:bg-emerald-500/10 hover:text-emerald-500"
+                        icon={<Banknote className="w-5 h-5" />}
+                      >
+                        Add Payment
                       </Button>
                     )}
 
@@ -2575,14 +2667,14 @@ const handleProcessPayment = async () => {
             {orderToDiscount.discounts && orderToDiscount.discounts.length > 0 && (
               <div className="space-y-2">
                 <p className="text-[9px] font-bold text-tertiary uppercase tracking-widest px-1">Applied Discounts</p>
-                {orderToDiscount.discounts.map(d => (
+                {orderToDiscount.discounts.filter(d => d.is_active !== false).map(d => (
                   <div key={d.id} className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3 flex justify-between items-center">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest bg-yellow-400/10 px-2 py-0.5 rounded-lg border border-yellow-400/20">
                           {d.type === 'percentage' ? `${d.value}%` : `Rs. ${d.value}`}
                         </span>
-                        <span className="text-xs font-bold text-white uppercase tracking-tight">{d.reason}</span>
+                        <span className="text-xs font-bold text-white uppercase tracking-tight">{d.reason || 'Discount'}</span>
                       </div>
                     </div>
                     <div className="flex gap-1">
@@ -2599,7 +2691,7 @@ const handleProcessPayment = async () => {
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
-                        onClick={() => handleRemoveDiscount(orderToDiscount.id, d.id)}
+                        onClick={() => handleRemoveDiscount(orderToDiscount.id, d)}
                         disabled={isApplyingDiscount}
                         className="p-2 hover:bg-red-500/10 text-red-500/60 hover:text-red-500 rounded-lg transition-all"
                       >
@@ -2658,12 +2750,46 @@ const handleProcessPayment = async () => {
                 />
                 
                 <TextArea
-                  placeholder="Reason for discount (e.g. Happy Hour, Staff...)"
+                  placeholder="Reason for discount (optional)..."
                   value={discountReason}
                   onChange={(e) => setDiscountReason(e.target.value)}
                   className="bg-[#0A0A0A] border-[#2A2A2A] text-sm"
                   rows={2}
                 />
+
+                {/* Live Calculation Display */}
+                {(() => {
+                  if (!discountValue || isNaN(parseFloat(discountValue)) || !orderToDiscount) return null;
+                  const val = parseFloat(discountValue);
+                  if (val <= 0) return null;
+                  
+                  const orderTotal = Number(orderToDiscount.total || 0);
+                  const amount = discountType === 'percentage' 
+                    ? (orderTotal * val / 100) 
+                    : val;
+                  const newTotal = Math.max(0, orderTotal - amount);
+
+                  return (
+                    <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div className="flex justify-between items-center text-[10px] uppercase tracking-widest font-bold text-tertiary">
+                        <span>Original Total</span>
+                        <span className="text-white">Rs. {orderTotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-yellow-500/80 uppercase tracking-tight">Discount Amount</span>
+                        <span className="text-lg font-black text-yellow-500">
+                          - Rs. {amount.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="pt-2 border-t border-yellow-500/10 flex justify-between items-center">
+                        <span className="text-xs font-black text-white uppercase tracking-widest">New Total</span>
+                        <span className="text-xl font-black text-white">
+                          Rs. {newTotal.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Actions */}
@@ -2676,7 +2802,7 @@ const handleProcessPayment = async () => {
                   fullWidth
                   onClick={() => editingDiscountId ? handleUpdateDiscount(editingDiscountId) : handleApplyDiscount()}
                   isLoading={isApplyingDiscount}
-                  disabled={!discountValue || isNaN(parseFloat(discountValue)) || parseFloat(discountValue) <= 0 || !discountReason.trim()}
+                  disabled={!discountValue || isNaN(parseFloat(discountValue)) || parseFloat(discountValue) <= 0}
                   className="h-11 uppercase tracking-widest text-[10px] font-bold rounded-xl shadow-xl shadow-yellow-500/10 bg-yellow-500 hover:bg-yellow-400 border-yellow-500 text-black"
                 >
                   {editingDiscountId ? 'Update Discount' : 'Apply Discount'}
@@ -2713,7 +2839,7 @@ const handleProcessPayment = async () => {
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-bold text-sm uppercase tracking-tight">{person.name}</p>
-                  <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest">{person.phone}</p>
+                  <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest">{person.phone_number}</p>
                 </div>
                 {selectedDeliveryPerson === person.id && <CheckCircle2 className="w-4 h-4" />}
               </button>
@@ -2779,6 +2905,7 @@ const handleProcessPayment = async () => {
               const local = bId ? localSettingsService.getForBranch(bId) : {};
               return local.payment_account || b?.payment_account;
             })()}
+            deliveryPersons={Object.fromEntries(deliveryPersons.map(p => [String(p.id).trim(), { id: String(p.id).trim(), name: p.name, phone_number: p.phone_number }]))}
           />
         )}
 

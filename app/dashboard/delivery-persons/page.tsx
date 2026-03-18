@@ -39,7 +39,7 @@ export default function DeliveryPersons() {
   };
 
   const handleCreateOrUpdate = async () => {
-    if (!editingPerson?.name || !editingPerson?.phone) {
+    if (!editingPerson?.name || !editingPerson?.phone_number) {
       toast.error('Name and phone number are required');
       return;
     }
@@ -76,7 +76,7 @@ export default function DeliveryPersons() {
 
   const filteredData = deliveryPersons.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    p.phone?.includes(searchQuery)
+    p.phone_number?.includes(searchQuery)
   );
 
   const columns = [
@@ -93,7 +93,7 @@ export default function DeliveryPersons() {
       )
     },
     { 
-      key: 'phone', 
+      key: 'phone_number', 
       header: 'Phone',
       render: (val: string) => (
         <div className="flex items-center gap-2 text-tertiary">
@@ -183,8 +183,8 @@ export default function DeliveryPersons() {
           />
           <Input 
             label="Phone Number"
-            value={editingPerson?.phone || ''}
-            onChange={(e) => setEditingPerson({...editingPerson, phone: e.target.value})}
+            value={editingPerson?.phone_number || ''}
+            onChange={(e) => setEditingPerson({...editingPerson, phone_number: e.target.value})}
             placeholder="e.g. 03001234567"
           />
           <div className="flex items-center gap-3 pt-2">
