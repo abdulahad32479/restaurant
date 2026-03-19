@@ -6,7 +6,7 @@ import { Input, Select, TextArea } from '@/src/components/Input';
 import { Badge } from '@/src/components/Badge';
 import { 
   Search, Plus, Minus, CreditCard, Banknote, 
-  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User as UserIcon, Phone, AlertTriangle, ListOrdered, Clock, ChefHat, Percent, Ban, MoreVertical, Edit2
+  ChevronRight, ShoppingCart, Store, LayoutGrid, X, Trash2, Bike, Printer, CheckCircle2, User as UserIcon, Phone, AlertTriangle, ListOrdered, Clock, ChefHat, Percent, Ban, MoreVertical, Edit2, LayoutList, RefreshCw
 } from 'lucide-react';
 import { productService } from '@/src/services/product.service';
 import { categoryService } from '@/src/services/category.service';
@@ -114,6 +114,7 @@ export default function POS() {
 
   // Cart & Mobile Drawer State
   const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Payment Modal State
@@ -1009,18 +1010,46 @@ const handleProcessPayment = async () => {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-[calc(100vh-100px)] gap-4 animate-fade-in text-white pb-4 relative overflow-hidden">
-      {/* Pane 1: Active Orders Sidebar (Desktop Only) */}
-      <div className="hidden lg:flex w-[300px] flex-col gap-4 bg-white/[0.01] rounded-3xl p-4 border border-white/[0.03] shrink-0 overflow-hidden">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-[#808080]">Active Orders ({activeOrders.length})</h2>
-          <button 
-            onClick={() => refreshAllData(true)}
-            className={`p-1.5 hover:bg-white/5 rounded-lg transition-all ${isRefreshing ? 'animate-spin' : ''}`}
-          >
-            <Clock className="w-3.5 h-3.5 text-[#505050]" />
-          </button>
-        </div>
+    <div className="pos-terminal-layout flex flex-col 2xl:flex-row min-h-[calc(100vh-100px)] gap-2 2xl:gap-4 animate-fade-in text-white pb-4 relative overflow-hidden">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (min-width: 1536px) and (max-width: 1710px) {
+          .pos-terminal-layout { font-size: 0.85rem !important; }
+          .pos-terminal-layout h1 { font-size: 1rem !important; }
+          .pos-terminal-layout h2 { font-size: 0.9rem !important; }
+          .pos-terminal-layout .grid { gap: 0.75rem !important; }
+          .pos-terminal-layout button { padding: 0.5rem !important; }
+        }
+      `}} />
+      {/* Pane 1: Active Orders Sidebar (Desktop Only as Drawer below 2xl) */}
+      <div className={`
+        fixed inset-y-0 left-0 2xl:static z-50 2xl:z-auto bg-black/40 2xl:bg-transparent backdrop-blur-md 2xl:backdrop-blur-none
+        transition-all duration-500 ease-in-out
+        ${isSidebarOpen ? 'translate-x-0 opacity-100' : '-translate-x-full 2xl:translate-x-0 opacity-0 2xl:opacity-100 pointer-events-none 2xl:pointer-events-auto'}
+      `}>
+        <div className={`
+          absolute left-0 2xl:static h-full w-[280px] xl:w-[320px] 2xl:w-[300px] 3xl:w-[680px] 
+          bg-[#0A0A0A] border-r 2xl:border border-white/5 2xl:rounded-3xl p-4 flex flex-col gap-4 shadow-2xl overflow-hidden
+          transition-transform duration-500
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full 2xl:translate-x-0'}
+        `}>
+          <div className="flex items-center justify-between px-1 shrink-0">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[#808080]">Active Orders ({activeOrders.length})</h2>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => refreshAllData(true)}
+                className={`p-1.5 hover:bg-white/5 rounded-lg transition-all ${isRefreshing ? 'animate-spin' : ''}`}
+                title="Refresh Feed"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-[#505050]" />
+              </button>
+              <button 
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-1.5 hover:bg-white/5 rounded-lg transition-colors text-error 2xl:hidden"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
 
         {/* Sidebar Search */}
         <div className="relative">
@@ -1030,7 +1059,7 @@ const handleProcessPayment = async () => {
             placeholder="Search orders..."
             value={activeOrdersSearch}
             onChange={e => setActiveOrdersSearch(e.target.value)}
-            className="w-full bg-black/20 border border-white/5 rounded-xl pl-8 pr-3 py-2 text-[10px] font-bold text-white placeholder:text-[#333] focus:outline-none focus:border-primary/30 uppercase tracking-wider transition-all"
+            className="w-full bg-black/20 border border-white/5 rounded-xl pl-8 pr-3 py-2 text-[9px] 2xl:text-[10px] font-bold text-white placeholder:text-[#333] focus:outline-none focus:border-primary/30 uppercase tracking-wider transition-all"
           />
         </div>
 
@@ -1040,7 +1069,7 @@ const handleProcessPayment = async () => {
             <button
               key={type}
               onClick={() => setActiveOrdersTypeFilter(type)}
-              className={`flex-1 py-1.5 text-[8px] font-bold uppercase tracking-widest rounded-lg transition-all ${
+              className={`flex-1 py-1 text-[7px] 2xl:text-[8px] font-bold uppercase tracking-widest rounded-lg transition-all ${
                 activeOrdersTypeFilter === type 
                   ? 'bg-primary text-white shadow-lg shadow-primary/20' 
                   : 'text-[#505050] hover:text-[#808080]'
@@ -1077,7 +1106,7 @@ const handleProcessPayment = async () => {
                     setExpandedOrder(order);
                     setViewMode('order_details');
                   }}
-                  className={`p-3 rounded-2xl border transition-all cursor-pointer group hover:scale-[1.02] active:scale-95 ${
+                  className={`p-3 3xl:p-5 rounded-2xl border transition-all cursor-pointer group hover:scale-[1.02] active:scale-95 ${
                     expandedOrder?.id === order.id
                       ? 'bg-primary/20 border-primary shadow-[0_0_15px_rgba(212,175,55,0.2)]'
                       : order.status === 'ready' ? 'bg-accent/5 border-accent/20 hover:bg-accent/10' : 
@@ -1086,23 +1115,23 @@ const handleProcessPayment = async () => {
                   }`}
                 >
                   <div className="flex justify-between items-start mb-1.5">
-                    <span className="text-[11px] font-black text-white">
+                  <span className="text-[10px] 2xl:text-[11px] 3xl:text-[16px] font-black text-white">
                       #{order.order_number || order.id.substring(0,4)}
                     </span>
-                    <Badge variant={order.is_paid ? 'success' : 'warning'} className="text-[7px] px-1.5 py-0 uppercase h-3.5">
+                    <Badge variant={order.is_paid ? 'success' : 'warning'} className="text-[6px] 2xl:text-[7px] px-1.5 py-0 uppercase h-3.5">
                       {order.is_paid ? 'PAID' : 'DUE'}
                     </Badge>
                   </div>
                   
                   <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-tertiary">
                     {order.order_type === 'dine_in' ? (
-                      <span className="text-primary flex items-center gap-1 text-[20px]"><Store className="w-4 h-4" /> T-{order.table_no || order.table || '?'}</span>
+                      <span className="text-primary flex items-center gap-2 text-[16px] 2xl:text-[20px] 3xl:text-[32px]"><Store className="w-4 h-4 2xl:w-5 2xl:h-5 3xl:w-7 3xl:h-7" /> T-{order.table_no || order.table || '?'}</span>
                     ) : order.order_type === 'delivery' ? (
                       <div className="flex flex-col overflow-hidden">
-                        <span className="text-orange-400 flex items-center gap-1 text-[10px]">
-                          <Bike className="w-3 h-3" /> {order.delivery_info?.name || 'DLV'}
+                        <span className="text-orange-400 flex items-center gap-1 text-[9px] 2xl:text-[10px] 3xl:text-[16px]">
+                          <Bike className="w-3 h-3 3xl:w-5 3xl:h-5" /> {order.delivery_info?.name || 'DLV'}
                           {(order.delivery_person || order.delivery_person_name) && (
-                            <span className="text-blue-400 ml-1 border-l border-white/10 pl-1 text-[9px] lowercase font-black">
+                            <span className="text-blue-400 ml-1 border-l border-white/10 pl-1 text-[8px] 2xl:text-[9px] lowercase font-black">
                               @{(() => {
                                 const dp = order.delivery_person;
                                 return (typeof dp === 'object' && dp !== null ? (dp as any).name : null) 
@@ -1114,25 +1143,25 @@ const handleProcessPayment = async () => {
                           )}
                         </span>
                         {order.delivery_info?.address && (
-                          <span className="text-[14px] text-[#808080] leading-tight line-clamp-1 lowercase font-bold">{order.delivery_info.address}</span>
+                          <span className="text-[12px] 2xl:text-[14px] 3xl:text-[20px] text-[#808080] leading-tight line-clamp-1 lowercase font-bold">{order.delivery_info.address}</span>
                         )}
                       </div>
                     ) : (
                       <span className="text-blue-400 flex items-center gap-1 text-[10px]"><LayoutGrid className="w-3 h-3" /> AWAY</span>
                     )}
-                    <span className="ml-auto text-[#666] font-mono text-[10px]">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="ml-auto text-[#666] font-mono text-[9px] 2xl:text-[10px]">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
 
                   <div className="mt-2 flex items-center justify-between">
-                    <span className={`text-[8px] font-bold uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border ${
+                    <span className={`text-[7px] 2xl:text-[8px] 3xl:text-[14px] font-bold uppercase tracking-[0.2em] px-2 py-0.5 3xl:px-3 3xl:py-1 rounded-full border ${
                       order.status === 'ready' ? 'bg-accent/20 border-accent/30 text-accent' : 
                       order.status === 'preparing' ? 'bg-warning/20 border-warning/30 text-warning' : 
                       'bg-white/5 border-white/10 text-tertiary'
                     }`}>
-                      {order.status}
+                      {order.status || 'pending'}
                     </span>
-                    <span className="text-[10px] font-bold text-white/50 tracking-widest">
-                      Rs. {Number(order.total).toFixed(0)}
+                    <span className="text-[11px] xl:text-[14px] 2xl:text-[14px] 3xl:text-[24px] font-black text-white font-mono tracking-tighter">
+                      Rs. {parseFloat(order.total).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -1140,33 +1169,54 @@ const handleProcessPayment = async () => {
           )}
         </div>
       </div>
+    </div>
 
       {/* Pane 2: Content Section (Middle) */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white/[0.01] rounded-3xl p-4 md:p-6 border border-white/[0.03] overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 bg-white/[0.01] rounded-3xl p-4 md:p-6 3xl:p-4 border border-white/[0.03] overflow-hidden">
+        <div className="flex-1 flex flex-col mx-auto w-full 3xl:max-w-[1250px]">
         {viewMode === 'order_details' && expandedOrder ? (
           /* Order Details View */
           <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-300">
             {/* Details Header */}
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/5">
+            <div className="flex items-center justify-between mb-4 md:mb-6 pb-3 md:pb-4 border-b border-white/5 flex-wrap gap-4">
               <div className="flex items-center gap-4">
                 <button 
-                  onClick={() => setViewMode('menu')}
-                  className="p-2 hover:bg-white/5 rounded-xl border border-white/10 transition-all active:scale-95"
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="p-2.5 bg-white/5 rounded-xl border border-white/5 text-tertiary hover:text-white 2xl:hidden"
+                  title="Show Active Orders"
                 >
-                  <X className="w-5 h-5 text-tertiary" />
+                  <LayoutList className="w-5 h-5" />
                 </button>
-                <div>
-                  <h2 className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-3">
-                    Order Details <span className="text-primary">#{expandedOrder.order_number || expandedOrder.id.substring(0,6)}</span>
-                  </h2>
-                  <div className="flex items-center gap-3 mt-1">
-                    <Badge variant={expandedOrder.status === 'ready' ? 'accent' as any : 'warning'} className="text-[9px] px-3 py-1 uppercase tracking-widest">
-                      {expandedOrder.status.replace('_', ' ')}
-                    </Badge>
-                    <span className="text-[10px] text-[#666] font-bold uppercase tracking-[0.2em]">{new Date(expandedOrder.created_at).toLocaleString()}</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20 shadow-glow-primary">
+                    <Store className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h1 className="text-sm md:text-lg font-bold text-white uppercase tracking-tight">#{expandedOrder.order_number || expandedOrder.id.substring(0,8)}</h1>
+                    <p className="text-[9px] md:text-[10px] text-tertiary uppercase tracking-widest font-black">
+                      {expandedOrder.branch_name || 'Main Branch'} • {new Date(expandedOrder.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
                   </div>
                 </div>
               </div>
+              
+              <div className="flex items-center gap-2 md:gap-3 ml-auto">
+                <button 
+                  onClick={() => setIsCartOpen(true)}
+                  className="p-2.5 bg-white/5 rounded-xl border border-white/5 text-tertiary hover:text-white 2xl:hidden"
+                  title="Show Live Bill"
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => setViewMode('menu')}
+                  className="p-2.5 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all text-tertiary hover:text-white"
+                  title="Close Details"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
 
               <div className="flex items-center gap-3">
                 <Button 
@@ -1192,10 +1242,9 @@ const handleProcessPayment = async () => {
                   )}
                 </div>
               </div>
-            </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-6">
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 min-[1900px]:grid-cols-2 gap-6">
                 {/* Left Col: Items & Financials */}
                 <div className="space-y-6">
                   {/* Items Card */}
@@ -1203,7 +1252,7 @@ const handleProcessPayment = async () => {
                     <div className="p-4 border-b border-white/5 bg-white/[0.02]">
                       <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-tertiary">Order Items</h3>
                     </div>
-                    <div className="p-4 space-y-3">
+                    <div className="p-3 xl:p-4 space-y-3">
                       {(() => {
                         const items = expandedOrder.items || [];
                         const grouped: Record<string, any> = {};
@@ -1240,7 +1289,7 @@ const handleProcessPayment = async () => {
                   </div>
 
                   {/* Totals Summary */}
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 min-[1800px]:grid-cols-3 gap-3 md:gap-4">
                     {/* Original price card — shown when discounts are applied */}
                     {expandedOrder.discounts && expandedOrder.discounts.filter(d => d.is_active !== false).length > 0 && (
                       <div className="bg-yellow-500/5 border border-yellow-500/20 p-5 rounded-2xl">
@@ -1277,7 +1326,7 @@ const handleProcessPayment = async () => {
 
                   {/* Discounts Detail */}
                   {expandedOrder.discounts && expandedOrder.discounts.length > 0 && (
-                    <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-2xl p-4 space-y-3">
+                    <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-2xl p-3 xl:p-4 space-y-3">
                       <p className="text-[10px] font-bold text-yellow-500 uppercase tracking-widest">Applied Discounts</p>
                       <div className="space-y-2">
                         {expandedOrder.discounts.filter(d => d.is_active === true).map(d => (
@@ -1320,7 +1369,7 @@ const handleProcessPayment = async () => {
                 {/* Right Col: Metadata & Actions */}
                 <div className="space-y-6">
                   {/* Metadata Grid */}
-                  <div className="bg-[#0F0F0F] rounded-2xl border border-white/5 p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="bg-[#0F0F0F] rounded-2xl border border-white/5 p-4 xl:p-6 grid grid-cols-1 min-[1800px]:grid-cols-2 gap-4 xl:gap-6">
                     <div>
                       <p className="text-[9px] font-bold text-[#505050] uppercase tracking-[0.2em] mb-2">Order Type</p>
                       <div className="flex items-center gap-3 text-sm font-bold text-white">
@@ -1330,7 +1379,7 @@ const handleProcessPayment = async () => {
                     </div>
                     {expandedOrder.order_type === 'delivery' && (
                       <div className="col-span-full p-5 bg-orange-500/[0.03] rounded-2xl border border-orange-500/10 space-y-4">
-                        <div className="flex justify-between items-start gap-4">
+                        <div className="flex flex-col min-[1800px]:flex-row justify-between items-start gap-4">
                           <div className="flex-1">
                             <p className="text-[9px] font-bold text-orange-400 uppercase tracking-[0.4em] mb-3">Customer Information</p>
                             <h4 className="text-base font-black text-white uppercase tracking-tight mb-1">{expandedOrder.delivery_info?.name || 'Walk-in Customer'}</h4>
@@ -1343,9 +1392,9 @@ const handleProcessPayment = async () => {
                           </div>
 
                           {(expandedOrder.delivery_person || expandedOrder.delivery_person_name) && (
-                            <div className="shrink-0 text-right animate-in fade-in zoom-in duration-300">
+                            <div className="w-full min-[1800px]:w-auto min-[1800px]:text-right animate-in fade-in zoom-in duration-300">
                               <p className="text-[9px] font-bold text-blue-400 uppercase tracking-[0.4em] mb-3">Assigned Rider</p>
-                              <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-xl flex flex-col items-end gap-1">
+                              <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-xl flex flex-col items-start min-[1800px]:items-end gap-1">
                                 <div className="flex items-center gap-2 mb-1">
                                   <Bike className="w-3.5 h-3.5 text-blue-400" />
                                   <span className="text-xs font-black text-white uppercase tracking-widest leading-none">
@@ -1382,7 +1431,7 @@ const handleProcessPayment = async () => {
                   </div>
 
                   {/* Actions Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 min-[1800px]:grid-cols-3 gap-3">
                     <Button 
                       variant="outline" 
                       onClick={() => triggerDirectPrint(expandedOrder, 'kitchen')}
@@ -1482,10 +1531,10 @@ const handleProcessPayment = async () => {
           </div>
         ) : (
           /* Main Menu View */
-          <div className="flex flex-col h-full animate-in fade-in duration-300">
+          <div className="flex flex-col h-full animate-in fade-in duration-300 gap-1.5">
             <div className="flex items-center justify-between mb-0">
               <div>
-                <h1 className="text-lg font-bold uppercase tracking-tight text-white flex items-center gap-3">
+                <h1 className="text-sm md:text-base 2xl:text-lg font-bold uppercase tracking-tight text-white flex items-center gap-3">
                   POS <span className="text-primary text-[0.8em]">Terminal</span>
                   {editingOrder && (
                     <span className="text-[8px] font-black uppercase tracking-[0.3em] px-3 py-1 bg-primary/20 border border-primary/30 rounded-full text-primary animate-pulse">
@@ -1494,65 +1543,77 @@ const handleProcessPayment = async () => {
                   )}
                 </h1>
               </div>
-              <div className="lg:hidden flex items-center gap-2">
+              <div className="2xl:hidden flex items-center gap-2">
                 <button 
-                  onClick={() => setIsActiveOrdersModalOpen(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-lg hidden"
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="p-2.5 bg-white/5 rounded-xl border border-white/5 text-tertiary hover:text-white transition-all active:scale-95"
+                  title="Show Active Orders"
                 >
-                  <ListOrdered className="w-4 h-4 text-primary" />
-                  <Badge variant="default" size="sm" className="bg-primary text-white text-[9px] px-1.5 py-0 min-w-[1.25rem]">{activeOrders.length}</Badge>
+                  <div className="relative">
+                    <LayoutList className="w-5 h-5" />
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-primary text-white text-[9px] font-black rounded-full flex items-center justify-center border border-black tabular-nums shadow-lg">
+                      {activeOrders.length}
+                    </span>
+                  </div>
+                </button>
+                <button 
+                  onClick={() => setIsCartOpen(true)}
+                  className="p-2.5 bg-white/5 rounded-xl border border-white/5 text-tertiary hover:text-white transition-all active:scale-95"
+                  title="Show Live Bill"
+                >
+                  <ShoppingCart className="w-5 h-5" />
                 </button>
               </div>
             </div>
         {/* Header Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Select 
-            value={selectedBranch}
-            onChange={(e) => {
-              setSelectedBranch(e.target.value);
-              setSelectedTable('');
-            }}
-            options={[
-              { value: '', label: 'Select Branch' },
-              ...branches.map(br => ({ value: br.id, label: br.name }))
-            ]}
-            icon={<Store className="w-4 h-4" />}
-            className="bg-[#1A1A1A] border-[#2A2A2A]"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <Select 
+              value={selectedBranch}
+              onChange={(e) => {
+                setSelectedBranch(e.target.value);
+                setSelectedTable('');
+              }}
+              options={[
+                { value: '', label: 'Select Branch' },
+                ...branches.map(br => ({ value: br.id, label: br.name }))
+              ]}
+              icon={<Store className="w-4 h-4" />}
+              className="bg-[#1A1A1A] border-[#2A2A2A] text-xs 2xl:text-sm"
+            />
 
-          <div className="grid grid-cols-3 bg-[#1A1A1A] rounded-xl p-1 border border-[#2A2A2A] gap-1">
-            <button 
-              onClick={() => {
-                setOrderType('dine_in');
-                if (!selectedTable) setIsTableModalOpen(true);
-              }}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-tighter rounded-lg transition-all ${orderType === 'dine_in' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-[#666] hover:text-[#888]'}`}
-            >
-              <Store className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
-              <span className="truncate">DINE IN</span>
-            </button>
-            <button 
-              onClick={() => {
-                setOrderType('takeaway');
-                setSelectedTable('');
-              }}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-tighter rounded-lg transition-all ${orderType === 'takeaway' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-[#666] hover:text-[#888]'}`}
-            >
-              <LayoutGrid className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
-              <span className="truncate">TAKEAWAY</span>
-            </button>
-             <button 
-              onClick={() => {
-                setOrderType('delivery');
-                setSelectedTable('');
-                setIsDeliveryModalOpen(true);
-              }}
-              className={`flex items-center justify-center gap-1.5 py-1.5 px-0.5 text-[8px] md:text-[10px] font-bold uppercase tracking-tighter rounded-lg transition-all ${orderType === 'delivery' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-[#666] hover:text-[#888]'}`}
-            >
-              <Bike className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
-              <span className="truncate">DELIVERY</span>
-            </button>
-          </div>
+            <div className="grid grid-cols-3 bg-[#1A1A1A] rounded-xl p-1 border border-[#2A2A2A] gap-1">
+              <button 
+                onClick={() => {
+                  setOrderType('dine_in');
+                  if (!selectedTable) setIsTableModalOpen(true);
+                }}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-0.5 text-[7px] md:text-[9px] 2xl:text-[10px] font-bold uppercase tracking-tighter rounded-lg transition-all ${orderType === 'dine_in' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-[#666] hover:text-[#888]'}`}
+              >
+                <Store className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
+                <span className="truncate">DINE IN</span>
+              </button>
+              <button 
+                onClick={() => {
+                  setOrderType('takeaway');
+                  setSelectedTable('');
+                }}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-0.5 text-[7px] md:text-[9px] 2xl:text-[10px] font-bold uppercase tracking-tighter rounded-lg transition-all ${orderType === 'takeaway' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-[#666] hover:text-[#888]'}`}
+              >
+                <LayoutGrid className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
+                <span className="truncate">TAKEAWAY</span>
+              </button>
+               <button 
+                onClick={() => {
+                  setOrderType('delivery');
+                  setSelectedTable('');
+                  setIsDeliveryModalOpen(true);
+                }}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-0.5 text-[7px] md:text-[9px] 2xl:text-[10px] font-bold uppercase tracking-tighter rounded-lg transition-all ${orderType === 'delivery' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-[#666] hover:text-[#888]'}`}
+              >
+                <Bike className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
+                <span className="truncate">DELIVERY</span>
+              </button>
+            </div>
 
           {orderType === 'dine_in' && (
             <button
@@ -1564,7 +1625,7 @@ const handleProcessPayment = async () => {
               }`}
             >
               <LayoutGrid className="w-4 h-4 shrink-0" />
-              <span className="text-[11px] font-bold uppercase tracking-wider flex-1 truncate">
+              <span className="text-[9px] 2xl:text-[11px] font-bold uppercase tracking-wider flex-1 truncate">
                 {selectedTable 
                   ? `Table ${tables.find(t => t.id === selectedTable)?.name || '?'} · Cap. ${tables.find(t => t.id === selectedTable)?.capacity || '?'}` 
                   : 'Choose Table'}
@@ -1589,7 +1650,8 @@ const handleProcessPayment = async () => {
           )}
         </div>
 
-        {/* Search */}
+        {/* Search & Side Toggles (Mobile/Small Desktop) */}
+        {/* Search Bar Row */}
         <div className="relative group">
           <Input 
             id="pos-search-input"
@@ -1597,30 +1659,30 @@ const handleProcessPayment = async () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             icon={<Search className="w-5 h-5 text-[#808080] group-focus-within:text-primary transition-colors" />}
-            className="bg-[#1A1A1A] border-[#2A2A2A] focus:border-primary/50"
+            className="bg-[#1A1A1A] border-[#2A2A2A] focus:border-primary/50 h-10 text-xs"
           />
           <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-bold text-[#444] border border-[#2A2A2A] px-1.5 py-0.5 rounded uppercase tracking-tighter pointer-events-none group-focus-within:opacity-0 transition-opacity">
-            / Show
+            /
           </div>
         </div>
 
         {/* Categories */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1.5 no-scrollbar bg-black/20 p-2 rounded-xl border border-white/5">
-          <button
-            onClick={() => setActiveCategory('all')}
-            className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-bold transition-all border ${
-              activeCategory === 'all' 
-                ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' 
-                : 'bg-[#1A1A1A] border-[#2A2A2A] text-[#808080] hover:border-[#404040]'
-            }`}
-          >
-            All Items
-          </button>
+        <div className="flex gap-1.5 overflow-x-auto pb-1.5 no-scrollbar bg-black/20 p-1.5 rounded-xl border border-white/5">
+            <button
+              onClick={() => setActiveCategory('all')}
+              className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-[8px] md:text-[9px] 2xl:text-[10px] font-bold transition-all border ${
+                activeCategory === 'all' 
+                  ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' 
+                  : 'bg-[#1A1A1A] border-[#2A2A2A] text-[#808080] hover:border-[#404040]'
+              }`}
+            >
+              All Items
+            </button>
           {categories.map(cat => (
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-bold transition-all border ${
+              className={`px-4 py-1.5 rounded-lg whitespace-nowrap text-[8px] md:text-[9px] 2xl:text-[10px] font-bold transition-all border ${
                 activeCategory === cat.id 
                   ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' 
                   : 'bg-[#1A1A1A] border-[#2A2A2A] text-[#808080] hover:border-[#404040]'
@@ -1633,7 +1695,7 @@ const handleProcessPayment = async () => {
         
         {/* Products Grid */}
         <div className="flex-1 overflow-y-auto min-h-[400px]">
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 3xl:grid-cols-5 gap-4">
             {filteredProducts.map(product => (
               <div 
                 key={product.id}
@@ -1649,32 +1711,33 @@ const handleProcessPayment = async () => {
                     </div>
                   )}
                 </div>
-                <h3 className="font-bold text-sm md:text-base mb-1 text-white uppercase tracking-tight leading-tight min-h-[2.5rem] md:min-h-[3rem] whitespace-normal">
+                <h3 className="font-bold text-xs md:text-sm 2xl:text-base mb-1 text-white uppercase tracking-tight leading-tight min-h-[2.5rem] md:min-h-[3rem] whitespace-normal">
                   {product.name}
                 </h3>
                 <div className="flex items-center justify-between gap-2 mt-auto pt-1">
-                  <p className="text-[#666] text-[9px] md:text-[11px] font-mono truncate">SKU: {product.sku}</p>
-                  <p className="text-primary font-bold text-base md:text-lg shrink-0 font-mono">Rs. {parseFloat(product.price).toFixed(2)}</p>
+                  <p className="text-[#666] text-[8px] md:text-[10px] font-mono truncate tracking-tighter">SKU: {product.sku}</p>
+                  <p className="text-primary font-bold text-sm md:text-base 2xl:text-lg shrink-0 font-mono">Rs. {parseFloat(product.price).toFixed(2)}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
-          </div>
-        )}
       </div>
+    )}
+  </div>
+</div>
       
       {/* Pane 3: Cart Section (Right Sidebar) */}
       <div className={`
-        fixed inset-0 lg:static z-50 lg:z-auto bg-black/40 lg:bg-transparent backdrop-blur-md lg:backdrop-blur-none
+        fixed inset-0 2xl:static z-50 2xl:z-auto bg-black/40 2xl:bg-transparent backdrop-blur-md 2xl:backdrop-blur-none
         transition-all duration-500 ease-in-out
-        ${isCartOpen ? 'translate-y-0 opacity-100' : 'translate-y-full lg:translate-y-0 opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto'}
+        ${isCartOpen ? 'translate-y-0 opacity-100' : 'translate-y-full 2xl:translate-y-0 opacity-0 2xl:opacity-100 pointer-events-none 2xl:pointer-events-auto'}
       `}>
         <div className={`
-          absolute bottom-0 lg:static w-full lg:w-[320px] xl:w-[380px] bg-[#0A0A0A] border border-white/5 lg:rounded-3xl 
-          flex flex-col shadow-2xl h-[90vh] lg:h-full
+          absolute bottom-0 2xl:static w-full 2xl:w-[320px] 3xl:w-[460px] bg-[#0A0A0A] border border-white/5 2xl:rounded-3xl 
+          flex flex-col shadow-2xl h-[90vh] 2xl:h-full
           transition-transform duration-500 overflow-hidden
-          ${isCartOpen ? 'translate-y-0' : 'translate-y-[20%] lg:translate-y-0'}
+          ${isCartOpen ? 'translate-y-0' : 'translate-y-[20%] 2xl:translate-y-0'}
         `}>
           {/* Animated Gradient Border Overlay */}
           <div className="absolute inset-0 pointer-events-none border border-white/5 rounded-[inherit]"></div>
@@ -1682,24 +1745,24 @@ const handleProcessPayment = async () => {
           {/* Header */}
           <div className="p-4 border-b border-base bg-white/[0.02] flex items-center justify-between shrink-0">
             <div>
-              <h2 className="text-base font-bold uppercase tracking-tight text-white mb-0.5">Live Bill</h2>
+              <h2 className="text-sm 2xl:text-base font-bold uppercase tracking-tight text-white mb-0.5">Live Bill</h2>
               <div className="flex items-center gap-2">
-                <p className="text-[10px] text-primary font-bold uppercase tracking-widest flex items-center gap-1">
+                <p className="text-[9px] 2xl:text-[10px] text-primary font-bold uppercase tracking-widest flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                   {orderType ? orderType.replace('_', ' ') : 'No Type'}
                 </p>
                 {orderType === 'dine_in' && selectedTable && (
-                  <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">
+                  <span className="text-[7px] 2xl:text-[8px] font-bold text-white/40 uppercase tracking-widest">
                     • Table {tables.find(t => t.id === selectedTable)?.name || selectedTable}
                   </span>
                 )}
                 {selectedCustomer && customers.length > 0 && (
-                  <span className="text-[8px] font-bold text-accent/70 uppercase tracking-widest truncate max-w-[120px]">
+                  <span className="text-[7px] 2xl:text-[8px] font-bold text-accent/70 uppercase tracking-widest truncate max-w-[120px]">
                     • {customers.find(c => c.id === selectedCustomer)?.name || 'Customer'}
                   </span>
                 )}
                 {editingOrder && (
-                  <span className="text-[8px] font-bold uppercase tracking-[0.2em] px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full text-primary">
+                  <span className="text-[7px] 2xl:text-[8px] font-bold uppercase tracking-[0.2em] px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full text-primary">
                     EDITING
                   </span>
                 )}
@@ -1708,14 +1771,14 @@ const handleProcessPayment = async () => {
             <div className="flex items-center gap-2 shrink-0">
               <button 
                 onClick={clearCart}
-                className="p-2.5 bg-white/5 rounded-xl border border-white/5 hover:bg-error/10 hover:border-error/20 transition-all text-[#808080] hover:text-error lg:flex hidden"
+                className="p-2.5 bg-white/5 rounded-xl border border-white/5 hover:bg-error/10 hover:border-error/20 transition-all text-[#808080] hover:text-error 2xl:flex hidden"
                 title="Clear Cart"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
               <button 
                 onClick={() => setIsCartOpen(false)}
-                className="p-2.5 bg-white/5 rounded-xl border border-white/5 lg:hidden"
+                className="p-2.5 bg-white/5 rounded-xl border border-white/5 2xl:hidden"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1733,7 +1796,7 @@ const handleProcessPayment = async () => {
                   <select
                     value={selectedCustomer}
                     onChange={e => setSelectedCustomer(e.target.value)}
-                    className="flex-1 bg-transparent border-0 text-white text-[11px] font-bold focus:outline-none cursor-pointer appearance-none"
+                    className="flex-1 bg-transparent border-0 text-white text-[10px] 2xl:text-[11px] font-bold focus:outline-none cursor-pointer appearance-none"
                   >
                     <option value="" className="bg-[#1A1A1A]">Walk-in (no customer)</option>
                     {customers.map(c => (
@@ -1746,13 +1809,13 @@ const handleProcessPayment = async () => {
               )}
               {/* Notes inline */}
               <div className="flex items-start gap-2">
-                <span className="text-[#505050] mt-1.5 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">Notes:</span>
+                <span className="text-[#505050] mt-1.5 text-[9px] 2xl:text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">Notes:</span>
                 <textarea
                   value={orderNotes}
                   onChange={e => setOrderNotes(e.target.value)}
                   placeholder="Special instructions..."
                   rows={1}
-                  className="flex-1 bg-transparent border-0 text-white text-[11px] placeholder:text-[#404040] resize-none focus:outline-none custom-scrollbar leading-relaxed"
+                  className="flex-1 bg-transparent border-0 text-white text-[10px] 2xl:text-[11px] placeholder:text-[#404040] resize-none focus:outline-none custom-scrollbar leading-relaxed"
                   onInput={e => {
                     const t = e.target as HTMLTextAreaElement;
                     t.style.height = 'auto';
@@ -1769,15 +1832,15 @@ const handleProcessPayment = async () => {
                   <div className="w-20 h-20 bg-white/5 rounded-[2rem] flex items-center justify-center mb-4 animate-pulse">
                     <ShoppingCart className="w-9 h-9" />
                   </div>
-                  <p className="font-bold uppercase tracking-[0.4em] text-[10px]">Empty Basket</p>
+                  <p className="font-bold uppercase tracking-[0.4em] text-[9px] 2xl:text-[10px]">Empty Basket</p>
                 </div>
               ) : (
                 cart.map((item, idx) => (
-                  <div key={item.product.id} className="flex items-center gap-2.5 p-2.5 bg-white/[0.03] rounded-2xl border border-white/[0.05] hover:bg-white/[0.06] group/item transition-all">
+                  <div key={item.product.id} className="flex items-center gap-2 2xl:gap-1.5 p-2.5 2xl:p-1.5 3xl:p-3 bg-white/[0.03] rounded-2xl border border-white/[0.05] hover:bg-white/[0.06] group/item transition-all">
                     {/* Index */}
-                    <span className="text-[10px] font-bold text-[#404040] w-4 text-center shrink-0">{idx + 1}</span>
+                    <span className="text-[8px] 2xl:text-[10px] font-bold text-[#404040] w-4 text-center shrink-0">{idx + 1}</span>
                     {/* Image */}
-                    <div className="w-9 h-9 bg-black rounded-lg shrink-0 border border-white/10 overflow-hidden">
+                    <div className="w-9 h-9 2xl:w-8 2xl:h-8 3xl:w-12 3xl:h-12 bg-black rounded-lg shrink-0 border border-white/10 overflow-hidden">
                       {item.product.image ? (
                         <img src={getImageUrl(item.product.image)} alt="" className="w-full h-full object-cover" />
                       ) : (
@@ -1787,24 +1850,24 @@ const handleProcessPayment = async () => {
                       )}
                     </div>
                     {/* Name + Price */}
-                    <div className="flex-1 min-w-0 pr-2">
-                      <h4 className="font-bold text-sm uppercase tracking-tight text-white leading-tight mb-0.5 whitespace-normal">{item.product.name}</h4>
-                      <p className="text-primary text-xs font-bold font-mono">Rs. {(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p>
+                    <div className="flex-1 min-w-0 pr-1">
+                      <h4 className="font-bold text-xs 2xl:text-[11px] 3xl:text-base uppercase tracking-tight text-white leading-tight mb-0.5 truncate">{item.product.name}</h4>
+                      <p className="text-primary text-[11px] 2xl:text-[10px] 3xl:text-sm font-bold font-mono">Rs. {(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p>
                     </div>
                     {/* Qty Controls */}
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => updateQuantity(item.product.id, -1)}
-                        className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5"
+                        className="w-8 h-8 2xl:w-7 2xl:h-7 3xl:w-11 3xl:h-11 rounded-lg 2xl:rounded-lg 3xl:rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5"
                       >
-                        <Minus className="w-5 h-5 text-[#808080]" />
+                        <Minus className="w-4 h-4 2xl:w-3.5 2xl:h-3.5 3xl:w-5 3xl:h-5 text-[#808080]" />
                       </button>
-                      <span className="w-8 text-center text-lg font-black tabular-nums text-white">{item.quantity}</span>
+                      <span className="w-6 2xl:w-5 3xl:w-10 text-center text-sm 2xl:text-base 3xl:text-xl font-black tabular-nums text-white">{item.quantity}</span>
                       <button 
                         onClick={() => updateQuantity(item.product.id, 1)}
-                        className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-primary/20"
+                        className="w-8 h-8 2xl:w-10 2xl:h-10 rounded-lg 2xl:rounded-xl bg-primary text-white flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-primary/20"
                       >
-                        <Plus className="w-5 h-5" />
+                        <Plus className="w-4 h-4 2xl:w-5 2xl:h-5" />
                       </button>
                     </div>
                   </div>
@@ -1816,18 +1879,18 @@ const handleProcessPayment = async () => {
           {/* Fixed Footer: Totals + Actions */}
           <div className="shrink-0 border-t border-[#2A2A2A] bg-[#0F0F0F] rounded-b-3xl">
             <div className="px-5 pt-4 pb-2 space-y-2">
-              <div className="flex justify-between items-center text-[#606060] text-[10px] font-bold uppercase tracking-[0.15em]">
+              <div className="flex justify-between items-center text-[#606060] text-[9px] 2xl:text-[10px] font-bold uppercase tracking-[0.15em]">
                 <span>Subtotal</span>
-                <span className="text-white font-mono">Rs. {subtotal.toFixed(2)}</span>
+                <span className="text-white font-mono text-[12px] 2xl:text-inherit">Rs. {subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center text-[#606060] text-[10px] font-bold uppercase tracking-[0.15em]">
-                <span className="flex items-center gap-1.5">Tax <span className="bg-white/5 px-1.5 py-0.5 rounded text-[9px] border border-white/5">16%</span></span>
-                <span className="text-white font-mono">Rs. {totalTax.toFixed(2)}</span>
+              <div className="flex justify-between items-center text-[#606060] text-[9px] 2xl:text-[10px] font-bold uppercase tracking-[0.15em]">
+                <span className="flex items-center gap-1.5">Tax <span className="bg-white/5 px-1.5 py-0.5 rounded text-[8px] 2xl:text-[9px] border border-white/5">16%</span></span>
+                <span className="text-white font-mono text-[12px] 2xl:text-inherit">Rs. {totalTax.toFixed(2)}</span>
               </div>
               
               <div className="flex justify-between items-center pt-2 border-t border-[#2A2A2A]">
-                <span className="text-xl font-bold text-white tracking-tight uppercase">TOTAL</span>
-                <span className="text-2xl font-bold text-primary tabular-nums">Rs. {total.toFixed(2)}</span>
+                <span className="text-lg 2xl:text-xl font-bold text-white tracking-tight uppercase">TOTAL</span>
+                <span className="text-xl 2xl:text-2xl font-bold text-primary tabular-nums">Rs. {total.toFixed(2)}</span>
               </div>
 
               {editingOrder && (
@@ -1847,7 +1910,7 @@ const handleProcessPayment = async () => {
             <div className="p-4 grid grid-cols-3 gap-2">
               <Button 
                 variant={editingOrder && editingOrder.status !== 'draft' ? "primary" : "outline"}
-                className={`${editingOrder && editingOrder.status !== 'draft' ? 'text-white' : 'text-[#808080] border-[#2A2A2A]'} hover:bg-[#2A2A2A] hover:text-white font-bold h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2 flex-1`}
+                className={`${editingOrder && editingOrder.status !== 'draft' ? 'text-white' : 'text-[#808080] border-[#2A2A2A]'} hover:bg-[#2A2A2A] hover:text-white font-bold h-12 uppercase tracking-[0.2em] text-[7px] sm:text-[8px] 2xl:text-[9px] rounded-xl px-2 flex-1`}
                 disabled={cart.length === 0 || !!isProcessing}
                 onClick={handleSaveDraft}
                 isLoading={!!isProcessing}
@@ -1856,7 +1919,7 @@ const handleProcessPayment = async () => {
               </Button>
               <Button 
                 variant="outline" 
-                className="text-primary border-primary/20 hover:bg-primary/10 font-bold h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] rounded-xl px-2 flex-1"
+                className="text-primary border-primary/20 hover:bg-primary/10 font-bold h-12 uppercase tracking-[0.2em] text-[7px] sm:text-[8px] 2xl:text-[9px] rounded-xl px-2 flex-1"
                 disabled={cart.length === 0 || !!isProcessing || !!(editingOrder && editingOrder.status !== 'draft')}
                 onClick={handleConfirmOrder}
                 isLoading={!!isProcessing}
@@ -1865,7 +1928,7 @@ const handleProcessPayment = async () => {
               </Button>
               <Button 
                 variant="primary" 
-                className="text-white font-bold h-12 uppercase tracking-[0.2em] text-[8px] sm:text-[9px] shadow-xl shadow-primary/20 rounded-xl px-2"
+                className="text-white font-bold h-12 uppercase tracking-[0.2em] text-[7px] sm:text-[8px] 2xl:text-[9px] shadow-xl shadow-primary/20 rounded-xl px-2"
                 disabled={cart.length === 0 || !!isProcessing}
                 onClick={() => {
                   if (editingOrder && Number(editingOrder.paid_amount || 0) > 0) {
