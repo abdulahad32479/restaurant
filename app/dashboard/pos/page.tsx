@@ -1010,7 +1010,7 @@ const handleProcessPayment = async () => {
   }
 
   return (
-    <div className="pos-terminal-layout flex flex-col 2xl:flex-row min-h-[calc(100vh-100px)] gap-2 2xl:gap-4 animate-fade-in text-white pb-4 relative overflow-hidden">
+    <div className="pos-terminal-layout flex flex-col 2xl:flex-row h-[calc(100vh-150px)] 2xl:h-[calc(100vh-150px)] gap-2 2xl:gap-4 animate-fade-in text-white pb-4 relative overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: `
         @media (min-width: 1536px) and (max-width: 1710px) {
           .pos-terminal-layout { font-size: 0.85rem !important; }
@@ -1081,7 +1081,7 @@ const handleProcessPayment = async () => {
         </div>
 
         {/* Sidebar Feed */}
-        <div className="overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-3" style={{ maxHeight: '500px' }}>
+        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-3">
           {activeOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 opacity-20">
               <ListOrdered className="w-8 h-8 mb-2" />
@@ -1172,8 +1172,8 @@ const handleProcessPayment = async () => {
     </div>
 
       {/* Pane 2: Content Section (Middle) */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white/[0.01] rounded-3xl p-4 md:p-6 3xl:p-4 border border-white/[0.03] overflow-hidden">
-        <div className="flex-1 flex flex-col mx-auto w-full 3xl:max-w-[1250px]">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-white/[0.01] rounded-3xl p-4 md:p-6 3xl:p-4 border border-white/[0.03] overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 mx-auto w-full 3xl:max-w-[1250px]">
         {viewMode === 'order_details' && expandedOrder ? (
           /* Order Details View */
           <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-300">
@@ -1531,7 +1531,7 @@ const handleProcessPayment = async () => {
           </div>
         ) : (
           /* Main Menu View */
-          <div className="flex flex-col h-full animate-in fade-in duration-300 gap-1.5">
+          <div className="flex flex-col flex-1 min-h-0 animate-in fade-in duration-300 gap-1.5">
             <div className="flex items-center justify-between mb-0">
               <div>
                 <h1 className="text-sm md:text-base 2xl:text-lg font-bold uppercase tracking-tight text-white flex items-center gap-3">
@@ -1694,7 +1694,7 @@ const handleProcessPayment = async () => {
         </div>
         
         {/* Products Grid */}
-        <div className="flex-1 overflow-y-auto min-h-[400px]">
+        <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 3xl:grid-cols-5 gap-4">
             {filteredProducts.map(product => (
               <div 
