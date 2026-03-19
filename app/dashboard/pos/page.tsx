@@ -161,14 +161,25 @@ export default function POS() {
   const refreshOrder = async (orderId: string) => {
     try {
       const updatedOrder = await orderService.getById(orderId);
+      const isInactive = ['completed', 'cancelled', 'refunded'].includes(updatedOrder.status);
       
       // Update expandedOrder if this is the one being viewed
       if (expandedOrder && String(expandedOrder.id) === String(orderId)) {
-        setExpandedOrder(updatedOrder);
+        if (isInactive) {
+          setExpandedOrder(null);
+          setViewMode('menu');
+        } else {
+          setExpandedOrder(updatedOrder);
+        }
       }
       
-      // Update activeOrders list
-      setActiveOrders(prev => prev.map(o => String(o.id) === String(orderId) ? updatedOrder : o));
+      // Update activeOrders list - remove if no longer active
+      setActiveOrders(prev => {
+        if (isInactive) {
+          return prev.filter(o => String(o.id) !== String(orderId));
+        }
+        return prev.map(o => String(o.id) === String(orderId) ? updatedOrder : o);
+      });
       
       // Update orderToDiscount if modal is open for this order
       if (orderToDiscount && String(orderToDiscount.id) === String(orderId)) {
@@ -1090,10 +1101,11 @@ const handleProcessPayment = async () => {
           ) : (
             activeOrders
               .filter(o => {
+                const isActiveStatus = !['completed', 'cancelled', 'refunded'].includes(o.status);
                 const matchesType = activeOrdersTypeFilter === 'all' || o.order_type === activeOrdersTypeFilter;
-                if (!activeOrdersSearch.trim()) return matchesType;
+                if (!activeOrdersSearch.trim()) return isActiveStatus && matchesType;
                 const q = activeOrdersSearch.toLowerCase().trim();
-                return matchesType && (
+                return isActiveStatus && matchesType && (
                   (o.order_number?.toString() || '').includes(q) ||
                   (o.table_no?.toString() || o.table?.toString() || '').toLowerCase().includes(q) ||
                   (o.delivery_info?.name || '').toLowerCase().includes(q)
