@@ -1385,8 +1385,23 @@ const handleProcessPayment = async () => {
                     <div>
                       <p className="text-[9px] font-bold text-[#505050] uppercase tracking-[0.2em] mb-2">Order Type</p>
                       <div className="flex items-center gap-3 text-sm font-bold text-white">
-                        {expandedOrder.order_type === 'dine_in' ? <Store className="w-4 h-4 text-primary" /> : expandedOrder.order_type === 'delivery' ? <Bike className="w-4 h-4 text-orange-400" /> : <LayoutGrid className="w-4 h-4 text-blue-400" />}
-                        <span className="uppercase tracking-widest">{expandedOrder.order_type.replace('_', ' ')}</span>
+                        {expandedOrder.order_type === 'dine_in' ? (
+                          <>
+                            <Store className="w-4 h-4 text-primary" />
+                            <span className="uppercase tracking-widest">Dine In</span>
+                            <span className="ml-2 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-lg text-primary text-[10px]">Table {expandedOrder.table_no || expandedOrder.table || '?'}</span>
+                          </>
+                        ) : expandedOrder.order_type === 'delivery' ? (
+                          <>
+                            <Bike className="w-4 h-4 text-orange-400" />
+                            <span className="uppercase tracking-widest">Delivery</span>
+                          </>
+                        ) : (
+                          <>
+                            <LayoutGrid className="w-4 h-4 text-blue-400" />
+                            <span className="uppercase tracking-widest">Takeaway</span>
+                          </>
+                        )}
                       </div>
                     </div>
                     {expandedOrder.order_type === 'delivery' && (
