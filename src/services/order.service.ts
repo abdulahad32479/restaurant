@@ -250,7 +250,7 @@ export const orderService = {
     return response.data;
   },
 
-  applyDiscount: async (id: string, data: { type: string; value: string; reason: string; is_active?: boolean }) => {
+  applyDiscount: async (id: string, data: { type: string; value: string; reason: string }) => {
     const response = await apiClient.post<Order>(`v1/orders/${id}/apply_discount/`, data);
     return response.data;
   },
@@ -260,7 +260,7 @@ export const orderService = {
     return response.data;
   },
 
-  updateDiscount: async (id: string, data: { discount_id: number; type: string; value: string; reason: string; is_active?: boolean }) => {
+  updateDiscount: async (id: string, data: { discount_id: number; type: string; value: string; reason: string }) => {
     const response = await apiClient.post<Order>(`v1/orders/${id}/update_discount/`, data);
     return response.data;
   },

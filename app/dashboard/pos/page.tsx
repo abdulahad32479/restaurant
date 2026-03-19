@@ -405,8 +405,7 @@ export default function POS() {
       await orderService.applyDiscount(orderToDiscount.id, {
         type: discountType,
         value: discountValue,
-        reason: discountReason.trim() || 'Discount',
-        is_active: true
+        reason: discountReason.trim() || 'Discount'
       });
       toast.success('Discount applied successfully!');
       setOrderToDiscount(null);
@@ -424,13 +423,7 @@ export default function POS() {
   const handleRemoveDiscount = async (orderId: string, discount: Discount) => {
     setIsApplyingDiscount(true);
     try {
-      await orderService.updateDiscount(orderId, {
-        discount_id: discount.id,
-        type: discount.type,
-        value: discount.value,
-        reason: discount.reason,
-        is_active: false
-      });
+      await orderService.removeDiscount(orderId, discount.id);
       toast.success('Discount removed successfully!');
       await refreshOrder(orderId);
     } catch (e: any) {
@@ -454,8 +447,7 @@ export default function POS() {
         discount_id: discountId,
         type: discountType,
         value: discountValue,
-        reason: discountReason.trim() || 'Discount',
-        is_active: true
+        reason: discountReason.trim() || 'Discount'
       });
       toast.success('Discount updated successfully!');
       setOrderToDiscount(null);
@@ -1288,7 +1280,7 @@ const handleProcessPayment = async () => {
                     <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-2xl p-4 space-y-3">
                       <p className="text-[10px] font-bold text-yellow-500 uppercase tracking-widest">Applied Discounts</p>
                       <div className="space-y-2">
-                        {expandedOrder.discounts.filter(d => d.is_active !== false).map(d => (
+                        {expandedOrder.discounts.filter(d => d.is_active === true).map(d => (
                           <div key={d.id} className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
                             <div className="flex-1">
                               <span className="text-[10px] font-black text-white uppercase tracking-widest">{d.reason || 'Discount'}</span>
@@ -2667,7 +2659,7 @@ const handleProcessPayment = async () => {
             {orderToDiscount.discounts && orderToDiscount.discounts.length > 0 && (
               <div className="space-y-2">
                 <p className="text-[9px] font-bold text-tertiary uppercase tracking-widest px-1">Applied Discounts</p>
-                {orderToDiscount.discounts.filter(d => d.is_active !== false).map(d => (
+                {orderToDiscount.discounts.filter(d => d.is_active === true).map(d => (
                   <div key={d.id} className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3 flex justify-between items-center">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
