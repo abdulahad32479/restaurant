@@ -60,9 +60,9 @@ export default function KitchenDisplay() {
   // Use a ref to track the last known orders count to break the infinite loop in fetchOrdersAndProducts
   const ordersRef = useRef<Order[]>([]);
 
-  const fetchOrdersAndProducts = useCallback(async (silent = false) => {
+  const fetchOrdersAndProducts = useCallback(async (silent = false, background = false) => {
     if (!silent) setIsLoading(true);
-    else setIsRefreshing(true);
+    else if (!background) setIsRefreshing(true);
     
     try {
       const { customerService } = await import('@/src/services/customer.service');
@@ -129,7 +129,7 @@ export default function KitchenDisplay() {
   useEffect(() => {
     fetchOrdersAndProducts();
     // Use a shorter interval for a more "live" feel
-    const interval = setInterval(() => fetchOrdersAndProducts(true), 5000); 
+    const interval = setInterval(() => fetchOrdersAndProducts(true, true), 5000); 
     return () => clearInterval(interval);
   }, [fetchOrdersAndProducts]);
   

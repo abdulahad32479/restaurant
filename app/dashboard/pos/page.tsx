@@ -192,9 +192,9 @@ export default function POS() {
     }
   };
 
-  const refreshAllData = useCallback(async (silent = false) => {
+  const refreshAllData = useCallback(async (silent = false, background = false) => {
     if (!silent) setIsLoading(true);
-    else setIsRefreshing(true);
+    else if (!background) setIsRefreshing(true);
     
     try {
       const results = await Promise.all([
@@ -297,6 +297,13 @@ export default function POS() {
 
   useEffect(() => {
     refreshAllData();
+    
+    // Background polling every 10 seconds
+    const interval = setInterval(() => {
+      refreshAllData(true, true);
+    }, 10000);
+    
+    return () => clearInterval(interval);
   }, [refreshAllData]);
 
 

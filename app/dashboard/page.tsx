@@ -18,7 +18,8 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchDashboardData = async (background = false) => {
+      if (!background) setIsLoading(true);
       try {
         const [summary, orders, lowStockData, tablesData] = await Promise.all([
           reportService.getSalesSummary(),
@@ -44,6 +45,13 @@ export default function Dashboard() {
     };
 
     fetchDashboardData();
+    
+    // Background polling every 15 seconds
+    const interval = setInterval(() => {
+      fetchDashboardData(true);
+    }, 15000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   if (isLoading) {

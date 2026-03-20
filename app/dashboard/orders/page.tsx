@@ -146,8 +146,8 @@ export default function Orders() {
     }
   };
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
+  const fetchData = useCallback(async (background = false) => {
+    if (!background) setIsLoading(true);
     try {
       const [orderData, productData, tableData, branchData, userData] = await Promise.all([
         orderService.getAll(['completed', 'cancelled', 'refunded']),
@@ -181,6 +181,13 @@ export default function Orders() {
 
   useEffect(() => {
     fetchData();
+    
+    // Background polling every 30 seconds
+    const interval = setInterval(() => {
+      fetchData(true);
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [fetchData]);
 
   const handleUpdateStatus = async (order: Order, action: 'confirm' | 'cancel' | 'complete' | 'ready' | 'prepare' | 'serve') => {
