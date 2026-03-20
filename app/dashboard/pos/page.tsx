@@ -202,7 +202,7 @@ export default function POS() {
         categoryService.getAll(),
         branchService.getAll(),
         tableService.getAll(),
-        orderService.getAll(undefined, 1000),
+        orderService.getAll(['draft', 'confirmed', 'preparing', 'ready', 'served']),
         customerService.getAll().catch(() => []),
         userService.getAll().catch(() => []),
         apiClient.get('v1/delivery-persons/').then(res => res.data).catch(() => [])
@@ -232,7 +232,7 @@ export default function POS() {
         if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
         return nameA.localeCompare(nameB);
       }));
-      setActiveOrders(oData.filter((o: Order) => !['completed', 'cancelled', 'refunded'].includes(o.status)));
+      setActiveOrders(oData);
       setCustomers(custData);
       
       

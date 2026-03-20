@@ -150,7 +150,7 @@ export default function Orders() {
     setIsLoading(true);
     try {
       const [orderData, productData, tableData, branchData, userData] = await Promise.all([
-        orderService.getAll(), // Fetch all to be safe and filter on frontend
+        orderService.getAll(['completed', 'cancelled', 'refunded']),
         productService.getAll(1000),
         tableService.getAll(),
         branchService.getAll(),
@@ -263,9 +263,6 @@ export default function Orders() {
   };
   
   const filteredOrders = orders.filter(order => {
-    const historyStatuses = ['completed', 'cancelled', 'refunded'];
-    if (!historyStatuses.includes(order.status)) return false;
-
     const tableIdentifier = order.table ? (tables[order.table] || order.table) : (order.table_no || '');
     const matchesSearch = (order.id || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
                           tableIdentifier.toLowerCase().includes(searchQuery.toLowerCase());
