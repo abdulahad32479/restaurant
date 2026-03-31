@@ -116,11 +116,26 @@ export default function PayrollDetail() {
   }
 
   if (!runDetails || !runDetails.year || !runDetails.month) {
-    return <div>Payroll details not found.</div>;
+    if (isLoading) return (
+      <div className="flex items-center justify-center p-20">
+        <Loader2 className="animate-spin text-primary w-12 h-12" />
+      </div>
+    );
+    return (
+      <div className="p-10 text-center">
+        <p className="text-tertiary">Payroll details not found or date information is missing.</p>
+        <Button onClick={() => router.back()} variant="secondary" className="mt-4">Go Back</Button>
+      </div>
+    );
   }
 
-  const date = new Date(runDetails.year, runDetails.month - 1);
-  const monthName = date.toLocaleString('default', { month: 'long' });
+  let monthName = 'Month';
+  try {
+    const date = new Date(Number(runDetails.year), Number(runDetails.month) - 1);
+    monthName = date.toLocaleString('default', { month: 'long' });
+  } catch (e) {
+    console.error('Date parsing error', e);
+  }
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
