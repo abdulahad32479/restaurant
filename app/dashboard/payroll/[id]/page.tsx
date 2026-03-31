@@ -124,13 +124,16 @@ export default function PayrollDetail() {
     );
   }
 
+  // Define safe display values
+  const year = runDetails.year || new Date().getFullYear();
+  const month = runDetails.month || (new Date().getMonth() + 1);
+  const status = runDetails.status || 'draft';
+  const lines = Array.isArray(runDetails.lines) ? runDetails.lines : [];
+
   // Safety fallback for month name calculation
   let monthName = 'Payroll';
-  const displayYear = runDetails.year || new Date().getFullYear();
-  const displayMonth = runDetails.month || (new Date().getMonth() + 1);
-
   try {
-    const dateObj = new Date(Number(displayYear), Number(displayMonth) - 1);
+    const dateObj = new Date(Number(year), Number(month) - 1);
     monthName = dateObj.toLocaleString('default', { month: 'long' });
   } catch (e) {
     console.error('Date parsing error', e);
@@ -145,17 +148,17 @@ export default function PayrollDetail() {
           </button>
           <div>
             <h1 className="text-xl md:text-2xl font-black text-white mb-1 uppercase tracking-tighter">
-              {monthName} {displayYear} Payroll
+              {monthName} {year} Payroll
             </h1>
             <div className="flex gap-2 items-center">
-              <Badge variant={(runDetails.status === 'paid' ? 'success' : runDetails.status === 'draft' ? 'warning' : 'secondary') as any} size="sm" className="uppercase text-[9px]">
-                {runDetails.status}
+              <Badge variant={(status === 'paid' ? 'success' : status === 'draft' ? 'warning' : 'secondary') as any} size="sm" className="uppercase text-[9px]">
+                {status}
               </Badge>
             </div>
           </div>
         </div>
         
-        {runDetails.status === 'draft' && (
+        {status === 'draft' && (
           <Button 
             variant="primary" 
             size="sm"
@@ -189,7 +192,7 @@ export default function PayrollDetail() {
       </div>
       
       <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0 min-h-[400px]">
-         <Table columns={columns} data={runDetails.lines || []} />
+         <Table columns={columns} data={lines} />
       </Card>
 
       <Modal
