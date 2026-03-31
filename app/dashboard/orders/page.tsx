@@ -550,13 +550,7 @@ export default function Orders() {
     }
   ];
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  // Removed top-level full page loading blocker so filters don't unmount and lose focus
   
   return (
     <div className="space-y-6 animate-fade-in pb-10">
@@ -704,8 +698,21 @@ export default function Orders() {
         </div>
       
       {/* Orders Table */}
-      <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0">
-        <Table columns={columns} data={orders} />
+      <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0 relative min-h-[400px]">
+        {isLoading && orders.length === 0 ? (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <>
+            {isLoading && (
+               <div className="absolute top-0 left-0 w-full h-1 bg-white/5 overflow-hidden z-20">
+                  <div className="h-full bg-primary animate-pulse w-1/3 rounded-full" />
+               </div>
+            )}
+            <Table columns={columns} data={orders} />
+          </>
+        )}
       </Card>
       
       {/* Footer Info & Pagination */}

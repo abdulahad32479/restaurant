@@ -166,24 +166,16 @@ export default function StaffManagement() {
     },
     { 
       key: 'employment_status', 
-      header: 'Status',
-      render: (value: string) => {
-        const color = value === 'active' ? 'success' : value === 'terminated' ? 'error' : 'secondary';
+      header: 'Status & Access',
+      render: (value: string, row: StaffMember) => {
         return (
-          <Badge variant={color} size="sm" className="font-black uppercase tracking-widest text-[9px]">
-            {value}
-          </Badge>
+          <div className="flex flex-col gap-1.5">
+            <Badge variant={row.is_active ? 'success' : 'error'} size="sm" className="font-black uppercase tracking-widest text-[9px] w-max">
+              {row.is_active ? 'ACTIVE (ACCESS ON)' : 'INACTIVE (ACCESS OFF)'}
+            </Badge>
+          </div>
         );
       }
-    },
-    {
-      key: 'is_active',
-      header: 'System Access',
-      render: (value: boolean) => (
-        <Badge variant={value ? 'success' : 'error'} size="sm" className="font-black uppercase tracking-widest text-[9px]">
-          {value ? 'ENABLED' : 'DISABLED'}
-        </Badge>
-      )
     },
     {
       key: 'actions',
@@ -238,23 +230,14 @@ export default function StaffManagement() {
               ...(roles?.map(r => ({ value: r.id, label: r.name })) || [])
             ]}
           />
-          <Select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            options={[
-              { value: '', label: 'All Statuses' },
-              { value: 'active', label: 'Active' },
-              { value: 'inactive', label: 'Inactive' },
-              { value: 'terminated', label: 'Terminated' },
-            ]}
-          />
+          {/* Removed Status Filter */}
           <Select
             value={isActiveFilter}
             onChange={(e) => { setIsActiveFilter(e.target.value); setPage(1); }}
             options={[
-              { value: '', label: 'System Access: All' },
-              { value: 'true', label: 'Access Enabled' },
-              { value: 'false', label: 'Access Disabled' },
+              { value: '', label: 'Status & Access: All' },
+              { value: 'true', label: 'Active (Access Enabled)' },
+              { value: 'false', label: 'Inactive (Access Disabled)' },
             ]}
           />
         </div>
@@ -356,16 +339,27 @@ export default function StaffManagement() {
               ]} 
               icon={<Briefcase className="w-4 h-4" />}
             />
-            <Select 
-              label="Employment Status" 
-              value={formData.employment_status}
-              onChange={(e) => setFormData({...formData, employment_status: e.target.value as any})}
-              options={[
-                { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' },
-                { value: 'terminated', label: 'Terminated' },
-              ]} 
-            />
+            <div className="flex flex-col gap-1.5 w-full justify-center">
+              <label className="flex items-center gap-3 cursor-pointer p-3 border border-base rounded-xl bg-white/5 w-full hover:bg-white/10 transition-colors">
+                 <input 
+                    type="checkbox" 
+                    checked={formData.is_active} 
+                    onChange={(e) => {
+                       const isActive = e.target.checked;
+                       setFormData({
+                          ...formData, 
+                          is_active: isActive, 
+                          employment_status: isActive ? 'active' : 'inactive'
+                       });
+                    }} 
+                    className="w-5 h-5 rounded bg-white/5 border-base text-primary focus:ring-primary" 
+                 />
+                 <div className="flex flex-col">
+                   <span className="text-sm font-black text-white">System Access & Status</span>
+                   <span className="text-[10px] text-tertiary uppercase tracking-widest">{formData.is_active ? 'ACTIVE (ACCESS ON)' : 'INACTIVE (ACCESS OFF)'}</span>
+                 </div>
+              </label>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -424,10 +418,7 @@ export default function StaffManagement() {
           <div className="p-4 bg-white/5 rounded-xl border border-white/10">
             <h3 className="text-white text-sm font-bold mb-3">Roles & Permissions</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={formData.is_active} onChange={(e) => setFormData({...formData, is_active: e.target.checked})} className="w-4 h-4 rounded bg-white/5 border-base text-primary focus:ring-primary" />
-                <span className="text-xs font-bold text-white">System Access</span>
-              </label>
+              {/* Status checkbox moved up */}
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={formData.is_manager} onChange={(e) => setFormData({...formData, is_manager: e.target.checked})} className="w-4 h-4 rounded" />
                 <span className="text-xs font-bold text-white">Manager flag</span>

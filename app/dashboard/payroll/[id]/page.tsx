@@ -114,7 +114,7 @@ export default function PayrollDetail({ params }: { params: { id: string } }) {
     );
   }
 
-  if (!runDetails) {
+  if (!runDetails || !runDetails.year || !runDetails.month) {
     return <div>Payroll details not found.</div>;
   }
 

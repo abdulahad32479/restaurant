@@ -17,7 +17,7 @@ export default function Dashboard() {
   const [tableOccupancy, setTableOccupancy] = useState({ occupied: 0, total: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
-    start_date: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
+    start_date: format(new Date(), 'yyyy-MM-dd'),
     end_date: format(new Date(), 'yyyy-MM-dd'),
   });
 
@@ -57,7 +57,7 @@ export default function Dashboard() {
     }, 15000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [dateRange]);
 
   if (isLoading) {
     return (
@@ -81,13 +81,32 @@ export default function Dashboard() {
             Live Network Status: <span className="text-success glow-text-success">Operational</span>
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row items-end gap-3">
+          <div className="flex items-center bg-black/40 border border-base rounded-2xl p-1 px-3">
+             <div className="flex flex-col pr-3 border-r border-base">
+                <span className="text-[8px] font-black text-tertiary uppercase mb-0.5">Start Date</span>
+                <input 
+                  type="date" 
+                  value={dateRange.start_date}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, start_date: e.target.value }))}
+                  className="bg-transparent text-white text-[10px] font-black uppercase outline-none cursor-pointer"
+                />
+             </div>
+             <div className="flex flex-col pl-3">
+                <span className="text-[8px] font-black text-tertiary uppercase mb-0.5">End Date</span>
+                <input 
+                  type="date" 
+                  value={dateRange.end_date}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, end_date: e.target.value }))}
+                  className="bg-transparent text-white text-[10px] font-black uppercase outline-none cursor-pointer"
+                />
+             </div>
+          </div>
           <button 
             onClick={() => window.location.reload()} 
-            className="px-6 py-3 bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl text-[10px] font-black uppercase tracking-widest text-[#808080] hover:text-white transition-all flex items-center gap-2"
+            className="h-10 px-4 bg-black/40 border border-base rounded-2xl text-[10px] font-black uppercase tracking-widest text-[#808080] hover:text-white transition-all flex items-center gap-2"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Refresh Data
+            <RefreshCw className="w-3" />
           </button>
         </div>
       </div>
@@ -193,13 +212,13 @@ export default function Dashboard() {
         <div className="h-[400px] w-full relative z-10">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={[
-              { name: '10am', sales: 4000 },
-              { name: '12pm', sales: 7500 },
-              { name: '2pm', sales: 6200 },
-              { name: '4pm', sales: 4800 },
-              { name: '6pm', sales: 11000 },
-              { name: '8pm', sales: 15400 },
-              { name: '10pm', sales: 9800 },
+              { name: '10 AM', sales: 4000 },
+              { name: '12 PM', sales: 7500 },
+              { name: '02 PM', sales: 6200 },
+              { name: '04 PM', sales: 4800 },
+              { name: '06 PM', sales: 11000 },
+              { name: '08 PM', sales: 15400 },
+              { name: '10 PM', sales: 9800 },
             ]}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#222" />
               <XAxis 

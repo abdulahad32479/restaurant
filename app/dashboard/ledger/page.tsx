@@ -120,11 +120,17 @@ export default function LedgerManagement() {
       render: (_: any, row: StaffLedgerEntry) => <span className="text-tertiary">{row.entry_date}</span>
     },
     { 
-      key: 'type', 
-      header: 'Entry Type',
-      render: (value: string) => {
-        const label = entryTypes.find(e => e.value === value)?.label || value;
-        return <span className="uppercase text-xs tracking-widest text-[#888]">{label}</span>;
+      key: 'entry_type', 
+      header: 'Entry Type / Details',
+      render: (value: string, row: StaffLedgerEntry) => {
+        const actualValue = value || row.entry_type; // Fallback in case table mapping uses exact key
+        const label = entryTypes.find(e => e.value === actualValue)?.label || actualValue;
+        return (
+          <div className="flex flex-col gap-0.5">
+             <span className="uppercase text-xs tracking-widest text-[#888]">{label || 'N/A'}</span>
+             {row.note && <span className="text-[9px] text-tertiary max-w-[150px] truncate">{row.note}</span>}
+          </div>
+        );
       }
     },
     { 
@@ -291,16 +297,25 @@ export default function LedgerManagement() {
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
-             <Select 
-                label="Direction (Impact)" 
-                value={formData.direction}
-                onChange={(e) => setFormData({...formData, direction: e.target.value as any})}
-                options={[
-                  { value: 'debit', label: 'Debit (Reduces Salary)' },
-                  { value: 'credit', label: 'Credit (Increases Salary)' },
-                ]}
-                disabled={['advance', 'late_penalty', 'meal_deduction', 'deduction', 'bonus', 'reimbursement'].includes(formData.entry_type || '')}
-              />
+             <div className="flex flex-col gap-1.5 w-full">
+                <label className="text-sm font-medium text-[#B3B3B3]">Direction (Impact)</label>
+                <div className="flex gap-2 h-12">
+                   <button 
+                      type="button" 
+                      onClick={() => setFormData({...formData, direction: 'debit'})} 
+                      className={`flex-1 rounded-xl border text-[10px] font-bold transition-all ${formData.direction === 'debit' ? 'bg-error/20 border-error/50 text-error' : 'bg-white/5 border-white/10 text-[#888]'}`}
+                   >
+                     Debit (Deduct)
+                   </button>
+                   <button 
+                      type="button" 
+                      onClick={() => setFormData({...formData, direction: 'credit'})} 
+                      className={`flex-1 rounded-xl border text-[10px] font-bold transition-all ${formData.direction === 'credit' ? 'bg-success/20 border-success/50 text-success' : 'bg-white/5 border-white/10 text-[#888]'}`}
+                   >
+                     Credit (Add)
+                   </button>
+                </div>
+              </div>
               <Input 
                 label="Amount" type="number"
                 placeholder="0.00"

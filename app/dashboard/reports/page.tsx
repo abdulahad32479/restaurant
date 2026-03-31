@@ -12,6 +12,7 @@ import { ZReport, Branch } from '@/src/types';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/src/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import { formatHour12 } from '@/src/lib/format-utils';
 
 const PIE_COLORS = ['#8B0000', '#D4AF37', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6'];
 
@@ -31,8 +32,8 @@ export default function Reports() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Filters
-  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0]);
+  // Filters - Default to today
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Z-Report state
@@ -194,7 +195,7 @@ export default function Reports() {
           </div>
           <div className="h-[300px] w-full relative z-10">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hourlyTrend.map(h => ({ hour: `${h.hour.toString().padStart(2, '0')}h`, sales: parseFloat(h.sales) }))} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <BarChart data={hourlyTrend.map(h => ({ hour: formatHour12(h.hour), sales: parseFloat(h.sales) }))} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
                 <XAxis dataKey="hour" stroke="#666" fontSize={8} fontWeight={900} tickLine={false} axisLine={false} dy={10} />
                 <YAxis stroke="#666" fontSize={10} fontWeight={900} tickLine={false} axisLine={false} />

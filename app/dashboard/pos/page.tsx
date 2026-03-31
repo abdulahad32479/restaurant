@@ -202,7 +202,7 @@ export default function POS() {
         categoryService.getAll(),
         branchService.getAll(),
         tableService.getAll(),
-        orderService.getAll({ status: ['draft', 'confirmed', 'preparing', 'ready', 'served'] }),
+        orderService.getAll({ status: ['draft', 'confirmed', 'preparing', 'ready', 'served'], page_size: 1000 }),
         customerService.getAll().catch(() => []),
         userService.getAll().catch(() => []),
         apiClient.get('v1/delivery-persons/').then(res => res.data).catch(() => [])
