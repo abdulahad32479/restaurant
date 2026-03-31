@@ -115,24 +115,23 @@ export default function PayrollDetail() {
     );
   }
 
-  if (!runDetails || !runDetails.year || !runDetails.month) {
-    if (isLoading) return (
-      <div className="flex items-center justify-center p-20">
-        <Loader2 className="animate-spin text-primary w-12 h-12" />
-      </div>
-    );
+  if (!runDetails) {
     return (
       <div className="p-10 text-center">
-        <p className="text-tertiary">Payroll details not found or date information is missing.</p>
+        <p className="text-tertiary">Payroll details not found.</p>
         <Button onClick={() => router.back()} variant="secondary" className="mt-4">Go Back</Button>
       </div>
     );
   }
 
-  let monthName = 'Month';
+  // Safety fallback for month name calculation
+  let monthName = 'Payroll';
+  const displayYear = runDetails.year || new Date().getFullYear();
+  const displayMonth = runDetails.month || (new Date().getMonth() + 1);
+
   try {
-    const date = new Date(Number(runDetails.year), Number(runDetails.month) - 1);
-    monthName = date.toLocaleString('default', { month: 'long' });
+    const dateObj = new Date(Number(displayYear), Number(displayMonth) - 1);
+    monthName = dateObj.toLocaleString('default', { month: 'long' });
   } catch (e) {
     console.error('Date parsing error', e);
   }
@@ -146,7 +145,7 @@ export default function PayrollDetail() {
           </button>
           <div>
             <h1 className="text-xl md:text-2xl font-black text-white mb-1 uppercase tracking-tighter">
-              {monthName} {runDetails.year} Payroll
+              {monthName} {displayYear} Payroll
             </h1>
             <div className="flex gap-2 items-center">
               <Badge variant={(runDetails.status === 'paid' ? 'success' : runDetails.status === 'draft' ? 'warning' : 'secondary') as any} size="sm" className="uppercase text-[9px]">
