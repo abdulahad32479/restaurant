@@ -4,34 +4,39 @@ import React, { useEffect, useState } from 'react';
 import { KPICard } from '@/src/components/Card';
 import { DollarSign, ShoppingBag, Users, TrendingUp, AlertCircle, RefreshCw, CheckCircle2 as CheckCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { reportService } from '@/src/services/report.service';
+import { reportService, DashboardKPIs } from '@/src/services/report.service';
 import { orderService } from '@/src/services/order.service';
 import { tableService } from '@/src/services/table.service';
-import { Order, SalesSummary, LowStockReport } from '@/src/types';
+import { Order } from '@/src/types';
 import toast from 'react-hot-toast';
+import { format, subDays } from 'date-fns';
 
 export default function Dashboard() {
-  const [salesSummary, setSalesSummary] = useState<SalesSummary | null>(null);
+  const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
-  const [lowStock, setLowStock] = useState<LowStockReport[]>([]);
   const [tableOccupancy, setTableOccupancy] = useState({ occupied: 0, total: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [dateRange, setDateRange] = useState({
+    start_date: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
+    end_date: format(new Date(), 'yyyy-MM-dd'),
+  });
 
   useEffect(() => {
     const fetchDashboardData = async (background = false) => {
       if (!background) setIsLoading(true);
       try {
-        const [summary, orders, lowStockData, tablesData] = await Promise.all([
-          reportService.getSalesSummary(),
+        const [dashKpis, orders, tablesData] = await Promise.all([
+          reportService.getDashboardKPIs(dateRange),
           orderService.getAll(),
-          reportService.getLowStock(),
           tableService.getAll()
         ]);
 
         const tables = tablesData as any[];
-        setSalesSummary(summary as SalesSummary);
-        setRecentOrders((orders as Order[]).slice(0, 5));
-        setLowStock(lowStockData as LowStockReport[]);
+        setKpis(dashKpis);
+        
+        // Robust handling of both array and paginated response
+        const orderList = Array.isArray(orders) ? orders : (orders as any)?.results || [];
+        setRecentOrders(orderList.slice(0, 5));
         
         const totalTables = tables.length;
         const occupiedTables = tables.filter((t: any) => t.is_occupied).length;
@@ -91,7 +96,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard
           title="Gross Revenue"
-          value={`Rs. ${parseFloat(salesSummary?.total_sales || '0').toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          value={`Rs. ${parseFloat(kpis?.net_sales || '0').toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
           change="+12.5% vs yesterday"
           changeType="positive"
           icon={<DollarSign className="w-5 h-5" />}
@@ -100,7 +105,7 @@ export default function Dashboard() {
         />
         <KPICard
           title="Active Orders"
-          value={salesSummary?.total_orders.toString() || '0'}
+          value={kpis?.total_orders.toString() || '0'}
           change="+8.2% vs yesterday"
           changeType="positive"
           icon={<ShoppingBag className="w-5 h-5" />}
@@ -118,13 +123,50 @@ export default function Dashboard() {
         />
         <KPICard
           title="Ticket Average"
-          value={`Rs. ${(parseFloat(salesSummary?.total_sales || '0') / (salesSummary?.total_orders || 1)).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          value={`Rs. ${parseFloat(kpis?.avg_order_value || '0').toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
           change="+5.4% vs yesterday"
           changeType="positive"
           icon={<TrendingUp className="w-5 h-5" />}
           iconBg="bg-success/10 text-success border border-success/20"
           className="bg-[#0A0A0A] border-base shadow-2xl"
         />
+      </div>
+
+      {/* Analytics Splits */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-[#111111] border border-base rounded-[2rem] p-8 shadow-2xl">
+          <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-8 leading-none">Order Distribution</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {kpis?.order_type_split.map((item, idx) => (
+              <div key={idx} className="p-5 bg-black/40 border border-base rounded-2xl flex items-center justify-between group">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-tertiary mb-1">{item.order_type.replace('_', ' ')}</p>
+                  <p className="text-white font-black text-xl tracking-tighter">{item.count} Orders</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10">
+                  <ShoppingBag className="w-5 h-5" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-[#111111] border border-base rounded-[2rem] p-8 shadow-2xl">
+          <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-8 leading-none">Revenue Channels</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {kpis?.payment_split.map((item, idx) => (
+              <div key={idx} className="p-5 bg-black/40 border border-base rounded-2xl flex items-center justify-between group">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-tertiary mb-1">{item.method} Receipts</p>
+                  <p className="text-white font-black text-xl tracking-tighter">Rs. {parseFloat(item.total).toLocaleString()}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-success/5 flex items-center justify-center text-success border border-success/10">
+                  <DollarSign className="w-5 h-5" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Main Chart Section */}
@@ -248,31 +290,16 @@ export default function Dashboard() {
           </div>
           
           <div className="space-y-4">
-            {lowStock.map((item, index) => (
-              <div key={index} className="flex gap-5 p-5 bg-[#EF444405] border border-[#EF444415] rounded-2xl group hover:border-[#EF444430] transition-all">
-                <div className="w-10 h-10 rounded-xl bg-[#EF444410] flex items-center justify-center shrink-0">
-                  <AlertCircle className="w-5 h-5 text-error" />
-                </div>
-                <div>
-                  <p className="font-black text-white uppercase text-xs tracking-tight">Critical Stock: {item.product__name}</p>
-                  <p className="text-[10px] text-[#808080] font-bold uppercase tracking-widest mt-1">
-                    Only <span className="text-error">{item.quantity} units</span> left (Min: {item.min_quantity})
-                  </p>
-                </div>
+            {/* System Integrity Notification */}
+            <div className="flex gap-5 p-5 bg-[#10B98105] border border-[#10B98115] rounded-2xl">
+              <div className="w-10 h-10 rounded-xl bg-[#10B98110] flex items-center justify-center shrink-0">
+                <CheckCircle className="w-5 h-5 text-success" />
               </div>
-            ))}
-            
-            {lowStock.length === 0 && (
-              <div className="flex gap-5 p-5 bg-[#10B98105] border border-[#10B98115] rounded-2xl">
-                <div className="w-10 h-10 rounded-xl bg-[#10B98110] flex items-center justify-center shrink-0">
-                  <CheckCircle className="w-5 h-5 text-success" />
-                </div>
-                <div>
-                  <p className="font-black text-white uppercase text-xs tracking-tight">Inventory Healthy</p>
-                  <p className="text-[10px] text-[#808080] font-bold uppercase tracking-widest mt-1">All stock levels are within optimal ranges.</p>
-                </div>
+              <div>
+                <p className="font-black text-white uppercase text-xs tracking-tight">System Integrity</p>
+                <p className="text-[10px] text-[#808080] font-bold uppercase tracking-widest mt-1">Duke's POS API Cloud Sync: <span className="text-success">Operational</span></p>
               </div>
-            )}
+            </div>
             
             <div className="flex gap-5 p-5 bg-[#3B82F605] border border-[#3B82F615] rounded-2xl">
               <div className="w-10 h-10 rounded-xl bg-[#3B82F610] flex items-center justify-center shrink-0">

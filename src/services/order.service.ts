@@ -1,34 +1,41 @@
 import apiClient from '../lib/axios';
-import { Order, OrderItem, Payment } from '../types';
+import { Order, OrderItem, Payment, OrderFilters } from '../types';
 
 export const orderService = {
-  getAll: async (status?: string | string[], limit?: number) => {
+  getAll: async (filters: OrderFilters = {}) => {
     let url = 'v1/orders/';
-    const params: string[] = [];
+    const searchParams = new URLSearchParams();
     
-    if (status) {
-      if (Array.isArray(status)) {
-        params.push(`status=${status.join(',')}`);
-      } else {
-        params.push(`status=${status}`);
+    Object.entries(filters).forEach(([key, value]) => {
+      // Skip undefined, null, or empty strings
+      if (value !== undefined && value !== null && value !== '') {
+        if (Array.isArray(value)) {
+          searchParams.append(key, value.join(','));
+        } else {
+          searchParams.append(key, value.toString());
+        }
       }
+    });
+
+    const queryString = searchParams.toString();
+    if (queryString) {
+      url += `?${queryString}`;
     }
-    
-    if (limit) {
-      params.push(`limit=${limit}`);
-    }
-    
-    if (params.length > 0) {
-      url += `?${params.join('&')}`;
-    }
+
     const response = await apiClient.get<any>(url);
+    
     // Handle both direct array and DRF paginated response
+    // If it's a paginated response, return the full object so the UI can use 'count', 'next', etc.
+    if (response.data && response.data.results && Array.isArray(response.data.results)) {
+      return response.data;
+    }
+    
+    // If it's just an array, return it (backward compatibility or non-paginated endpoints)
     if (Array.isArray(response.data)) {
       return response.data;
-    } else if (response.data && Array.isArray(response.data.results)) {
-      return response.data.results;
     }
-    return [];
+
+    return response.data;
   },
 
   getById: async (id: string) => {

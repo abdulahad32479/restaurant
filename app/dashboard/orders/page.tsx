@@ -37,8 +37,23 @@ export default function Orders() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [branchFilter, setBranchFilter] = useState('all');
+  const [orderTypeFilter, setOrderTypeFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [ordering, setOrdering] = useState('-created_at');
+  
+  // Explicit filters state
+  const [orderNumberFilter, setOrderNumberFilter] = useState('');
+  const [customerNameFilter, setCustomerNameFilter] = useState('');
+  const [customerPhoneFilter, setCustomerPhoneFilter] = useState('');
+  const [createdByFilter, setCreatedByFilter] = useState('');
+  const [deliveryPersonFilter, setDeliveryPersonFilter] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -149,8 +164,31 @@ export default function Orders() {
   const fetchData = useCallback(async (background = false) => {
     if (!background) setIsLoading(true);
     try {
-      const [orderData, productData, tableData, branchData, userData] = await Promise.all([
-        orderService.getAll(['completed', 'cancelled', 'refunded']),
+      const filters: any = {
+        page,
+        page_size: pageSize,
+        ordering,
+        search: searchQuery || undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        order_type: orderTypeFilter !== 'all' ? orderTypeFilter : undefined,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+        start_time: startTime || undefined,
+        end_time: endTime || undefined,
+        date: dateFilter || undefined,
+        order_number: orderNumberFilter || undefined,
+        customer_name: customerNameFilter || undefined,
+        customer_phone: customerPhoneFilter || undefined,
+        created_by: createdByFilter || undefined,
+        delivery_person: deliveryPersonFilter || undefined,
+      };
+
+      // Branch filter is handled slightly differently if it's 'all'
+      // If we had a specific branch field in OrderFilters, we'd use it here.
+      // Based on previous code, we might need a branch-specific endpoint or filter.
+      
+      const [orderResponse, productData, tableData, branchData, userData] = await Promise.all([
+        orderService.getAll(filters),
         productService.getAll(1000),
         tableService.getAll(),
         branchService.getAll(),
@@ -169,7 +207,17 @@ export default function Orders() {
       userData.forEach((u: any) => { uMap[u.id] = u.username; });
       setUsersMap(uMap);
       
-      setOrders(orderData);
+      if (orderResponse && orderResponse.results) {
+        setOrders(orderResponse.results);
+        setTotalOrders(orderResponse.count || 0);
+      } else if (Array.isArray(orderResponse)) {
+        setOrders(orderResponse);
+        setTotalOrders(orderResponse.length);
+      } else {
+        setOrders([]);
+        setTotalOrders(0);
+      }
+      
       setBranches(branchData);
     } catch (error) {
       console.error('Failed to fetch orders', error);
@@ -177,7 +225,12 @@ export default function Orders() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [
+    page, pageSize, ordering, searchQuery, statusFilter, orderTypeFilter, 
+    startDate, endDate, startTime, endTime, dateFilter, 
+    orderNumberFilter, customerNameFilter, customerPhoneFilter, 
+    createdByFilter, deliveryPersonFilter
+  ]);
 
   useEffect(() => {
     fetchData();
@@ -269,30 +322,32 @@ export default function Orders() {
     }
   };
   
-  const filteredOrders = orders.filter(order => {
-    const tableIdentifier = order.table ? (tables[order.table] || order.table) : (order.table_no || '');
-    const matchesSearch = (order.id || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          tableIdentifier.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    const matchesBranch = branchFilter === 'all' || order.branch === branchFilter;
-    
-    let matchesDate = true;
-    if (startDate || endDate) {
-      const orderDate = new Date(order.created_at);
-      if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        if (orderDate < start) matchesDate = false;
-      }
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        if (orderDate > end) matchesDate = false;
-      }
-    }
+  const resetFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setBranchFilter('all');
+    setOrderTypeFilter('all');
+    setStartDate('');
+    setEndDate('');
+    setStartTime('');
+    setEndTime('');
+    setDateFilter('');
+    setOrderNumberFilter('');
+    setCustomerNameFilter('');
+    setCustomerPhoneFilter('');
+    setCreatedByFilter('');
+    setDeliveryPersonFilter('');
+    setPage(1);
+  };
 
-    return matchesSearch && matchesStatus && matchesBranch && matchesDate;
-  });
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [
+    searchQuery, statusFilter, orderTypeFilter, startDate, endDate, 
+    startTime, endTime, dateFilter, orderNumberFilter, 
+    customerNameFilter, customerPhoneFilter, createdByFilter, deliveryPersonFilter
+  ]);
 
   const getStatusBadgeVariant = (status: OrderStatus) => {
     switch (status) {
@@ -531,15 +586,57 @@ export default function Orders() {
       </div>
       
       {/* Filters */}
-      <div className="bg-secondary border border-base rounded-2xl p-5 md:p-6 shadow-xl space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Input
-            placeholder="Search ID or Table..."
+            placeholder="Universal Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             icon={<Search className="w-5 h-5 text-tertiary" />}
           />
+          <Input
+            placeholder="Order #"
+            value={orderNumberFilter}
+            onChange={(e) => setOrderNumberFilter(e.target.value)}
+          />
+          <Input
+            placeholder="Customer Name"
+            value={customerNameFilter}
+            onChange={(e) => setCustomerNameFilter(e.target.value)}
+          />
+          <Input
+            placeholder="Phone"
+            value={customerPhoneFilter}
+            onChange={(e) => setCustomerPhoneFilter(e.target.value)}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            options={[
+              { value: 'all', label: 'All Status' },
+              { value: 'draft', label: 'Draft' },
+              { value: 'confirmed', label: 'Confirmed' },
+              { value: 'preparing', label: 'Preparing' },
+              { value: 'ready', label: 'Ready' },
+              { value: 'served', label: 'Served' },
+              { value: 'completed', label: 'Completed' },
+              { value: 'cancelled', label: 'Cancelled' },
+              { value: 'refunded', label: 'Refunded' },
+            ]}
+          />
+          <Select
+            value={orderTypeFilter}
+            onChange={(e) => setOrderTypeFilter(e.target.value)}
+            options={[
+              { value: 'all', label: 'All Types' },
+              { value: 'dine_in', label: 'Dine In' },
+              { value: 'takeaway', label: 'Takeaway' },
+              { value: 'delivery', label: 'Delivery' },
+            ]}
+          />
+           <Select
             value={branchFilter}
             onChange={(e) => setBranchFilter(e.target.value)}
             options={[
@@ -547,18 +644,14 @@ export default function Orders() {
               ...branches.map(b => ({ value: b.id, label: b.name }))
             ]}
           />
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            options={[
-              { value: 'all', label: 'All Status' },
-              { value: 'completed', label: 'Completed' },
-              { value: 'refunded', label: 'Refunded' },
-              { value: 'cancelled', label: 'Cancelled' },
-            ]}
+          <Input
+            placeholder="Created By"
+            value={createdByFilter}
+            onChange={(e) => setCreatedByFilter(e.target.value)}
           />
         </div>
-        <div className="flex flex-col sm:flex-row gap-4">
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="flex-1">
             <p className="text-[10px] text-tertiary font-black uppercase tracking-widest mb-1.5 ml-1">Start Date</p>
             <Input
@@ -579,36 +672,73 @@ export default function Orders() {
               className="bg-[#0A0A0A] border-base text-tertiary"
             />
           </div>
-          <div className="items-end hidden sm:flex pb-1">
-             {(startDate || endDate) && (
-               <Button variant="outline" onClick={() => { setStartDate(''); setEndDate(''); }} className="h-[46px] border-base text-tertiary">
-                 Clear Dates
-               </Button>
-             )}
+          <div className="flex-1">
+            <p className="text-[10px] text-tertiary font-black uppercase tracking-widest mb-1.5 ml-1">Start Time</p>
+            <Input
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="bg-[#0A0A0A] border-base text-tertiary"
+            />
+          </div>
+          <div className="flex-1">
+            <p className="text-[10px] text-tertiary font-black uppercase tracking-widest mb-1.5 ml-1">End Time</p>
+            <Input
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className="bg-[#0A0A0A] border-base text-tertiary"
+            />
           </div>
         </div>
-        <div className="sm:hidden block">
-           {(startDate || endDate) && (
-             <Button variant="outline" fullWidth onClick={() => { setStartDate(''); setEndDate(''); }} className="border-base text-tertiary">
-               Clear Dates
-             </Button>
-           )}
+        
+        <div className="flex justify-end pt-2">
+          <Button 
+            variant="outline" 
+            onClick={resetFilters} 
+            className="border-base text-tertiary hover:text-white"
+            icon={<RotateCcw className="w-4 h-4" />}
+          >
+            Reset All Filters
+          </Button>
         </div>
-      </div>
       
       {/* Orders Table */}
       <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0">
-        <Table columns={columns} data={filteredOrders} />
+        <Table columns={columns} data={orders} />
       </Card>
       
-      {/* Footer Info */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-sm text-tertiary">
-          Total Found: <span className="text-white font-black">{filteredOrders.length}</span> orders
-        </p>
-        <div className="flex items-center gap-2">
+      {/* Footer Info & Pagination */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-6 bg-secondary/50 border border-base p-6 rounded-2xl">
+        <div className="flex flex-col gap-1">
+          <p className="text-sm text-tertiary uppercase tracking-widest font-black">
+            Total Orders Found: <span className="text-white drop-shadow-glow-accent">{totalOrders}</span>
+          </p>
+          <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-[#B3B3B3]">Live Syncing</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-[#808080]">Real-time API Link</span>
+          </div>
+        </div>
+
+        {totalOrders > pageSize && (
+          <Pagination 
+            currentPage={page} 
+            totalPages={Math.ceil(totalOrders / pageSize)} 
+            onPageChange={(p) => setPage(p)} 
+          />
+        )}
+        
+        <div className="flex items-center gap-4">
+           <p className="text-[10px] text-tertiary uppercase font-black tracking-widest">Show</p>
+           <select 
+             value={pageSize} 
+             onChange={(e) => setPageSize(Number(e.target.value))}
+             className="bg-black/40 border border-base rounded-lg text-xs font-black text-white px-3 py-2 outline-none focus:border-accent transition-all"
+           >
+             <option value={20}>20</option>
+             <option value={50}>50</option>
+             <option value={100}>100</option>
+           </select>
         </div>
       </div>
 

@@ -2,8 +2,7 @@ import apiClient from '../lib/axios';
 
 /**
  * Report Service v2
- * Strictly follows the Unified Reporting API (v2) for executive metrics, 
- * performance analytics, and trend forecasting.
+ * Strictly follows the technical specification provided for /api/v1/v2/ endpoints.
  */
 
 export interface DashboardKPIs {
@@ -116,7 +115,7 @@ export interface ZReportV2Response {
   exceptions: Record<string, string>;
 }
 
-export const reportService = {
+export const reportServiceV2 = {
   getDashboardKPIs: async (params: { start_date: string; end_date: string }) => {
     const response = await apiClient.get<DashboardKPIs>('v1/v2/dashboard/', { params });
     return response.data;

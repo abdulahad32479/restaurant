@@ -1,141 +1,143 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
-import { Table, Pagination } from '@/src/components/Table';
+import React, { useState } from 'react';
+import { Table } from '@/src/components/Table';
 import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
 import { Modal } from '@/src/components/Modal';
-import { Plus, Search, Edit, Trash2, UserPlus, Phone, Mail, Shield, Store, Lock } from 'lucide-react';
+import { Search, Edit, Trash2, UserPlus, Phone, Briefcase, Calendar, Hash, DollarSign } from 'lucide-react';
 import { Card } from '@/src/components/Card';
-import { userService } from '@/src/services/user.service';
-import { branchService } from '@/src/services/branch.service';
-import { User, Branch } from '@/src/types';
+import { useStaff, useRoles } from '@/src/hooks/useStaff';
+import { StaffMember } from '@/src/types/staff';
+import { formatCurrency } from '@/src/utils/formatCurrency';
 import toast from 'react-hot-toast';
 
 export default function StaffManagement() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const [currentPage, setCurrentPage] = useState(1);
+  const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [isActiveFilter, setIsActiveFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
   
-  // New User Form State
-  const [newUser, setNewUser] = useState({
-    username: '',
-    email: '',
-    password: '',
-    role: 'staff' as any,
-    branch: '',
-    is_active: true
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+  
+  // The API uses pagination, so pass state
+  const { membersResponse, isLoadingMembers, createMember, isCreatingMember, updateMember, isUpdatingMember } = useStaff({
+    page,
+    page_size: 20,
+    search: searchQuery || undefined,
+    employment_status: statusFilter || undefined,
+    is_active: isActiveFilter === 'true' ? true : isActiveFilter === 'false' ? false : undefined,
+    role: roleFilter || undefined,
   });
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      const [uData, bData] = await Promise.all([
-        userService.getAll(),
-        branchService.getAll()
-      ]);
-      setUsers(uData);
-      setBranches(bData);
-    } catch (error) {
-      console.error('Failed to fetch staff data', error);
-      toast.error('Failed to load staff or branches');
-    } finally {
-      setIsLoading(false);
+  const { roles } = useRoles();
+
+  const [formData, setFormData] = useState<Partial<StaffMember>>({
+    user: null,
+    employee_code: '',
+    full_name: '',
+    phone: '',
+    role: '',
+    joining_date: new Date().toISOString().split('T')[0],
+    employment_status: 'active',
+    salary_type: 'monthly',
+    base_salary: '',
+    default_late_penalty: '',
+    default_meal_deduction: '',
+    address: '',
+    biometric_code: '',
+    is_active: true,
+    is_delivery_staff: false,
+    is_kitchen_staff: false,
+    is_cashier: false,
+    is_manager: false,
+  });
+
+  const handleOpenModal = (staff?: StaffMember) => {
+    if (staff) {
+      setEditingStaffId(staff.id);
+      setFormData({
+        user: staff.user || null,
+        employee_code: staff.employee_code,
+        full_name: staff.full_name,
+        phone: staff.phone || '',
+        role: typeof staff.role === 'object' ? staff.role?.id : staff.role,
+        joining_date: staff.joining_date,
+        employment_status: staff.employment_status,
+        salary_type: staff.salary_type,
+        base_salary: staff.base_salary,
+        default_late_penalty: staff.default_late_penalty || '',
+        default_meal_deduction: staff.default_meal_deduction || '',
+        address: staff.address || '',
+        biometric_code: staff.biometric_code || '',
+        is_active: staff.is_active,
+        is_delivery_staff: staff.is_delivery_staff || false,
+        is_kitchen_staff: staff.is_kitchen_staff || false,
+        is_cashier: staff.is_cashier || false,
+        is_manager: staff.is_manager || false,
+      });
+    } else {
+      setEditingStaffId(null);
+      setFormData({
+        user: null,
+        employee_code: '',
+        full_name: '',
+        phone: '',
+        role: roles && roles.length > 0 ? roles[0].id : '',
+        joining_date: new Date().toISOString().split('T')[0],
+        employment_status: 'active',
+        salary_type: 'monthly',
+        base_salary: '',
+        default_late_penalty: '',
+        default_meal_deduction: '',
+        address: '',
+        biometric_code: '',
+        is_active: true,
+        is_delivery_staff: false,
+        is_kitchen_staff: false,
+        is_cashier: false,
+        is_manager: false,
+      });
     }
+    setIsAddModalOpen(true);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-  
-  const filteredStaff = users.filter(staff => {
-    const matchesSearch = staff.username.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         staff.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === 'all' || staff.role === roleFilter;
-    
-    // Robust check: Hide only explicitly revoked users (is_active === false)
-    // If it's undefined or true, treat as active for this view.
-    const isActive = staff.is_active !== false;
-    
-    return matchesSearch && matchesRole && isActive;
-  });
-  
-  const handleSaveStaff = async () => {
-    // Only require password for new users
-    if (!newUser.username || !newUser.email || (!editingUserId && !newUser.password) || !newUser.branch) {
-      toast.error('Please fill in all required fields');
+  const handleSaveStaff = () => {
+    if (!formData.employee_code || !formData.full_name || !formData.role || !formData.base_salary) {
+      toast.error('Please fill in required fields: Code, Name, Role, Base Salary');
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      if (editingUserId) {
-        const dataToUpdate = { ...newUser } as any;
-        if (!dataToUpdate.password) {
-          delete dataToUpdate.password;
-        }
-        await userService.update(editingUserId, dataToUpdate);
-        toast.success('Staff member updated successfully!');
-      } else {
-        const dataToCreate = { ...newUser } as any;
-        await userService.create(dataToCreate);
-        toast.success('Staff member created successfully!');
-      }
-      setIsAddModalOpen(false);
-      setEditingUserId(null);
-      setNewUser({
-        username: '',
-        email: '',
-        password: '',
-        role: 'staff' as any,
-        branch: '',
-        is_active: true
-      });
-      fetchData();
-    } catch (error: any) {
-      console.error(editingUserId ? 'Failed to update staff' : 'Failed to create staff', error);
-      toast.error(error.response?.data?.detail || (editingUserId ? 'Failed to update staff member' : 'Failed to create staff member'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    const payload: Partial<StaffMember> = { ...formData };
+    if (payload.default_late_penalty === '') payload.default_late_penalty = null;
+    if (payload.default_meal_deduction === '') payload.default_meal_deduction = null;
 
-  const handleDeleteStaff = async (id: string, username: string) => {
-    if (!confirm(`Are you sure you want to delete ${username}?`)) return;
-    setIsDeletingId(id);
-    try {
-      await userService.delete(id);
-      toast.success('Staff member deleted successfully');
-      fetchData();
-    } catch (error) {
-      console.error('Failed to delete staff', error);
-      toast.error('Failed to delete staff member');
-    } finally {
-      setIsDeletingId(null);
+    if (editingStaffId) {
+      updateMember({ id: editingStaffId, data: payload }, {
+        onSuccess: () => setIsAddModalOpen(false)
+      });
+    } else {
+      createMember(payload, {
+        onSuccess: () => setIsAddModalOpen(false)
+      });
     }
   };
 
   const columns = [
     { 
-      key: 'username', 
-      header: 'User',
-      render: (value: string, row: User) => (
+      key: 'employee', 
+      header: 'Staff Member',
+      render: (_: any, row: StaffMember) => (
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center text-white font-black text-sm shadow-md">
-            {value.substring(0, 2).toUpperCase()}
+            {row.full_name?.substring(0, 2).toUpperCase() || 'EMP'}
           </div>
           <div>
-            <p className="font-bold text-white group-hover:text-accent transition-colors">{value}</p>
-            <p className="text-[10px] uppercase tracking-widest text-tertiary">{row.email}</p>
+            <p className="font-bold text-white group-hover:text-accent transition-colors">{row.full_name}</p>
+            <p className="text-[10px] uppercase tracking-widest text-tertiary">CODE: {row.employee_code}</p>
           </div>
         </div>
       )
@@ -143,25 +145,43 @@ export default function StaffManagement() {
     { 
       key: 'role', 
       header: 'Role',
-      render: (value: string) => (
-        <Badge variant="secondary" className="bg-black/40 text-accent border border-accent/20 font-black uppercase tracking-[0.2em] text-[10px]">
-          {value}
-        </Badge>
+      render: (_: any, row: StaffMember) => {
+        const roleName = typeof row.role === 'object' ? row.role?.name : roles?.find(r => r.id === row.role)?.name || row.role;
+        return (
+          <Badge variant="secondary" className="bg-black/40 text-accent border border-accent/20 font-black uppercase tracking-[0.2em] text-[10px]">
+            {roleName || 'Unknown'}
+          </Badge>
+        );
+      }
+    },
+    { 
+      key: 'salary', 
+      header: 'Salary',
+      render: (_: any, row: StaffMember) => (
+        <div>
+          <p className="text-white font-bold">{formatCurrency(row.base_salary)}</p>
+          <p className="text-[10px] uppercase text-tertiary">{row.salary_type}</p>
+        </div>
       )
     },
     { 
-      key: 'branch_name', 
-      header: 'Branch',
-      render: (value: string, row: User) => (
-        <span className="text-tertiary">{value || row.branch || '-'}</span>
-      )
-    },
-    { 
-      key: 'is_active', 
+      key: 'employment_status', 
       header: 'Status',
+      render: (value: string) => {
+        const color = value === 'active' ? 'success' : value === 'terminated' ? 'error' : 'secondary';
+        return (
+          <Badge variant={color} size="sm" className="font-black uppercase tracking-widest text-[9px]">
+            {value}
+          </Badge>
+        );
+      }
+    },
+    {
+      key: 'is_active',
+      header: 'System Access',
       render: (value: boolean) => (
         <Badge variant={value ? 'success' : 'error'} size="sm" className="font-black uppercase tracking-widest text-[9px]">
-          {value ? 'AUTHORIZED' : 'REVOKED'}
+          {value ? 'ENABLED' : 'DISABLED'}
         </Badge>
       )
     },
@@ -169,131 +189,125 @@ export default function StaffManagement() {
       key: 'actions',
       header: 'Actions',
       align: 'right' as const,
-      render: (value: any, row: User) => (
+      render: (_: any, row: StaffMember) => (
         <div className="flex items-center justify-end gap-2">
           <button 
             className="p-2.5 hover:bg-white/5 rounded-xl transition-all hover:text-accent"
-            onClick={() => {
-              setEditingUserId(row.id);
-              setNewUser({
-                username: row.username,
-                email: row.email,
-                password: '', // Don't explicitly pre-fill password
-                role: row.role as any,
-                branch: row.branch || '',
-                is_active: row.is_active === undefined ? true : row.is_active
-              });
-              setIsAddModalOpen(true);
-            }}
+            onClick={() => handleOpenModal(row)}
           >
             <Edit className="w-4 h-4" />
-          </button>
-          <button 
-            className={`p-2.5 hover:bg-error/10 rounded-xl transition-all text-error/60 hover:text-error ${isDeletingId === row.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-            onClick={() => handleDeleteStaff(row.id, row.username)}
-            disabled={isDeletingId === row.id}
-          >
-            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       )
     }
   ];
-  
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-black text-white mb-1  uppercase tracking-tighter">Staff Intelligence</h1>
-          <p className="text-sm md:text-base text-tertiary font-bold uppercase tracking-widest">Manage security clearances and branch deployments</p>
+          <h1 className="text-xl md:text-2xl font-black text-white mb-1 uppercase tracking-tighter">Staff Directory</h1>
+          <p className="text-sm md:text-base text-tertiary font-bold uppercase tracking-widest">Manage staff members and roles</p>
         </div>
         <Button 
           variant="primary" 
           size="sm"
           icon={<UserPlus className="w-5 h-5" />}
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => handleOpenModal()}
           className="font-black uppercase tracking-tighter shadow-lg shadow-primary/20"
         >
           Enlist Staff
         </Button>
       </div>
       
-      {/* Filters */}
       <div className="bg-secondary border border-base rounded-2xl p-5 md:p-6 shadow-xl">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="md:col-span-2">
             <Input
-              placeholder="Search by username or email..."
+              placeholder="Search by name or code..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
               icon={<Search className="w-5 h-5" />}
             />
           </div>
           <Select
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
+            onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
             options={[
-              { value: 'all', label: 'All Roles' },
-              { value: 'admin', label: 'Admin' },
-              { value: 'manager', label: 'Manager' },
-              { value: 'chef', label: 'Chef' },
-              { value: 'waiter', label: 'Waiter' },
-              { value: 'cashier', label: 'Cashier' },
+              { value: '', label: 'All Roles' },
+              ...(roles?.map(r => ({ value: r.id, label: r.name })) || [])
+            ]}
+          />
+          <Select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+            options={[
+              { value: '', label: 'All Statuses' },
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' },
+              { value: 'terminated', label: 'Terminated' },
+            ]}
+          />
+          <Select
+            value={isActiveFilter}
+            onChange={(e) => { setIsActiveFilter(e.target.value); setPage(1); }}
+            options={[
+              { value: '', label: 'System Access: All' },
+              { value: 'true', label: 'Access Enabled' },
+              { value: 'false', label: 'Access Disabled' },
             ]}
           />
         </div>
       </div>
       
-      {/* Staff Table */}
-      <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0">
-        <Table columns={columns} data={filteredStaff} />
+      <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0 min-h-[400px]">
+        {isLoadingMembers ? (
+          <div className="flex items-center justify-center p-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        ) : membersResponse?.results?.length === 0 ? (
+          <div className="p-10 text-center text-tertiary">No staff members found matching your criteria.</div>
+        ) : (
+          <Table columns={columns} data={membersResponse?.results || []} />
+        )}
       </Card>
       
-      {/* Pagination */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-sm text-tertiary">
-          Showing <span className="text-white font-bold">{filteredStaff.length}</span> staff members
-        </p>
-      </div>
+      {!isLoadingMembers && membersResponse && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-tertiary">
+            Showing <span className="text-white font-bold">{membersResponse.results?.length}</span> of <span className="text-white font-bold">{membersResponse.count}</span> staff members
+          </p>
+          <div className="flex gap-2">
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              disabled={!membersResponse.previous}
+              onClick={() => setPage(p => p - 1)}
+            >
+              Previous
+            </Button>
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              disabled={!membersResponse.next}
+              onClick={() => setPage(p => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
       
-      {/* Add/Edit Staff Modal */}
       <Modal
         isOpen={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setEditingUserId(null);
-          setNewUser({
-            username: '', email: '', password: '', role: 'staff' as any, branch: '', is_active: true
-          });
-        }}
-        title={editingUserId ? "Edit Staff Member" : "Add New Staff Member"}
+        onClose={() => setIsAddModalOpen(false)}
+        title={editingStaffId ? "Edit Staff Member" : "Add New Staff Member"}
         size="lg"
         footer={
           <>
-            <Button 
-              variant="secondary" 
-              onClick={() => {
-                setIsAddModalOpen(false);
-                setEditingUserId(null);
-                setNewUser({
-                  username: '', email: '', password: '', role: 'staff' as any, branch: '', is_active: true
-                });
-              }} 
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleSaveStaff} isLoading={isSubmitting}>
-              {editingUserId ? "Update Account" : "Create Account"}
+            <Button variant="secondary" onClick={() => setIsAddModalOpen(false)} disabled={isCreatingMember || isUpdatingMember}>Cancel</Button>
+            <Button variant="primary" onClick={handleSaveStaff} isLoading={isCreatingMember || isUpdatingMember}>
+              {editingStaffId ? "Update Member" : "Create Member"}
             </Button>
           </>
         }
@@ -301,68 +315,138 @@ export default function StaffManagement() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input 
-              label="Username" 
-              placeholder="e.g., johndoe" 
-              value={newUser.username}
-              onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+              label="Employee Code" 
+              placeholder="e.g., EMP-001" 
+              icon={<Hash className="w-4 h-4" />}
+              value={formData.employee_code}
+              onChange={(e) => setFormData({...formData, employee_code: e.target.value})}
             />
             <Input 
-              label="Email Address" 
-              placeholder="john@example.com" 
-              icon={<Mail className="w-4 h-4" />} 
-              value={newUser.email}
-              onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+              label="Full Name" 
+              placeholder="John Doe" 
+              value={formData.full_name}
+              onChange={(e) => setFormData({...formData, full_name: e.target.value})}
             />
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <Input 
-              label="Password" 
-              type="password" 
-              placeholder={editingUserId ? "Leave blank to keep current" : "********"} 
-              icon={<Lock className="w-4 h-4" />}
-              value={newUser.password}
-              onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+              label="Phone" 
+              placeholder="0300..." 
+              icon={<Phone className="w-4 h-4" />} 
+              value={formData.phone}
+              onChange={(e) => setFormData({...formData, phone: e.target.value})}
             />
-            <Select 
-              label="Branch" 
-              value={newUser.branch}
-              onChange={(e) => setNewUser({...newUser, branch: e.target.value})}
-              options={[
-                { value: '', label: 'Select Branch' },
-                ...branches.map(b => ({ value: b.id, label: b.name }))
-              ]} 
-              icon={<Store className="w-4 h-4" />}
+            <Input 
+              label="Address" 
+              placeholder="Full Address" 
+              value={formData.address}
+              onChange={(e) => setFormData({...formData, address: e.target.value})}
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <Select 
               label="Role" 
-              value={newUser.role}
-              onChange={(e) => setNewUser({...newUser, role: e.target.value as any})}
+              value={formData.role as string}
+              onChange={(e) => setFormData({...formData, role: e.target.value})}
               options={[
-                { value: 'staff', label: 'General Staff' },
-                { value: 'manager', label: 'Manager' },
-                { value: 'chef', label: 'Chef' },
-                { value: 'waiter', label: 'Waiter' },
-                { value: 'cashier', label: 'Cashier' },
-                { value: 'admin', label: 'Admin' },
+                { value: '', label: 'Select Role' },
+                ...(roles?.map(r => ({ value: r.id, label: r.name })) || [])
               ]} 
-              icon={<Shield className="w-4 h-4" />}
+              icon={<Briefcase className="w-4 h-4" />}
             />
-            <div className="flex items-end pb-3">
+            <Select 
+              label="Employment Status" 
+              value={formData.employment_status}
+              onChange={(e) => setFormData({...formData, employment_status: e.target.value as any})}
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+                { value: 'terminated', label: 'Terminated' },
+              ]} 
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input 
+              label="Joining Date" 
+              type="date"
+              icon={<Calendar className="w-4 h-4" />}
+              value={formData.joining_date}
+              onChange={(e) => setFormData({...formData, joining_date: e.target.value})}
+            />
+            <Input 
+               label="Biometric Code" 
+               placeholder="Exact Employee ID from K70"
+               value={formData.biometric_code}
+               onChange={(e) => setFormData({...formData, biometric_code: e.target.value})}
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <Input 
+              label="Base Salary" 
+              type="number" 
+              placeholder="e.g. 50000"
+              icon={<DollarSign className="w-4 h-4" />}
+              value={formData.base_salary as string}
+              onChange={(e) => setFormData({...formData, base_salary: e.target.value})}
+            />
+            <Select 
+              label="Salary Type" 
+              value={formData.salary_type}
+              onChange={(e) => setFormData({...formData, salary_type: e.target.value as any})}
+              options={[
+                { value: 'monthly', label: 'Monthly' },
+                { value: 'daily', label: 'Daily' },
+              ]} 
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input 
+              label="Default Late Penalty" 
+              type="number" 
+              placeholder="e.g. 200"
+              value={formData.default_late_penalty as string}
+              onChange={(e) => setFormData({...formData, default_late_penalty: e.target.value})}
+            />
+            <Input 
+              label="Default Meal Deduction" 
+              type="number" 
+              placeholder="e.g. 150"
+              value={formData.default_meal_deduction as string}
+              onChange={(e) => setFormData({...formData, default_meal_deduction: e.target.value})}
+            />
+          </div>
+
+          <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+            <h3 className="text-white text-sm font-bold mb-3">Roles & Permissions</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={newUser.is_active}
-                  onChange={(e) => setNewUser({...newUser, is_active: e.target.checked})}
-                  className="w-5 h-5 rounded bg-white/5 border-base text-primary focus:ring-primary"
-                />
-                <span className="text-sm font-bold text-white">Active Account</span>
+                <input type="checkbox" checked={formData.is_active} onChange={(e) => setFormData({...formData, is_active: e.target.checked})} className="w-4 h-4 rounded bg-white/5 border-base text-primary focus:ring-primary" />
+                <span className="text-xs font-bold text-white">System Access</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={formData.is_manager} onChange={(e) => setFormData({...formData, is_manager: e.target.checked})} className="w-4 h-4 rounded" />
+                <span className="text-xs font-bold text-white">Manager flag</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={formData.is_cashier} onChange={(e) => setFormData({...formData, is_cashier: e.target.checked})} className="w-4 h-4 rounded" />
+                <span className="text-xs font-bold text-white">Cashier flag</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={formData.is_kitchen_staff} onChange={(e) => setFormData({...formData, is_kitchen_staff: e.target.checked})} className="w-4 h-4 rounded" />
+                <span className="text-xs font-bold text-white">Kitchen Staff flag</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={formData.is_delivery_staff} onChange={(e) => setFormData({...formData, is_delivery_staff: e.target.checked})} className="w-4 h-4 rounded" />
+                <span className="text-xs font-bold text-white">Delivery Staff flag</span>
               </label>
             </div>
           </div>
+
         </div>
       </Modal>
     </div>

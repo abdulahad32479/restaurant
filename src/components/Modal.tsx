@@ -33,7 +33,7 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">{title}</DialogTitle>
         </DialogHeader>
-        <div className="py-4">
+        <div className="py-4 max-h-[calc(85vh-120px)] overflow-y-auto custom-scrollbar pr-1">
           {children}
         </div>
         {footer && (

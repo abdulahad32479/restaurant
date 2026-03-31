@@ -19,7 +19,11 @@ import {
   History,
   Store,
   Shield,
-  Bike
+  Bike,
+  Calendar,
+  Wallet,
+  DollarSign,
+  Briefcase
 } from "lucide-react"
 
 const sidebarItems = [
@@ -35,7 +39,11 @@ const sidebarItems = [
   { icon: Store, label: "Branches", href: "/dashboard/branches", permission: 'manage_branches' },
   { icon: ClipboardList, label: "Tables", href: "/dashboard/tables", permission: 'manage_tables' },
   { icon: Users, label: "Customers", href: "/dashboard/customers", permission: 'view_customers' },
+  { icon: Briefcase, label: "Staff Roles", href: "/dashboard/roles", permission: 'manage_staff' },
   { icon: Users, label: "Staff", href: "/dashboard/staff", permission: 'manage_staff' },
+  { icon: Calendar, label: "Attendance", href: "/dashboard/attendance", permission: 'manage_staff' },
+  { icon: Wallet, label: "Ledger", href: "/dashboard/ledger", permission: 'manage_staff' },
+  { icon: DollarSign, label: "Payroll", href: "/dashboard/payroll", permission: 'manage_staff' },
   { icon: Bike, label: "Delivery Persons", href: "/dashboard/delivery-persons", permission: 'manage_delivery' },
   { icon: Shield, label: "Admin Users", href: "/dashboard/admin/users", permission: 'manage_staff' },
   { icon: BarChart3, label: "Reports", href: "/dashboard/reports", permission: 'view_reports' },

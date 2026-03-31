@@ -202,7 +202,7 @@ export default function POS() {
         categoryService.getAll(),
         branchService.getAll(),
         tableService.getAll(),
-        orderService.getAll(['draft', 'confirmed', 'preparing', 'ready', 'served']),
+        orderService.getAll({ status: ['draft', 'confirmed', 'preparing', 'ready', 'served'] }),
         customerService.getAll().catch(() => []),
         userService.getAll().catch(() => []),
         apiClient.get('v1/delivery-persons/').then(res => res.data).catch(() => [])
@@ -232,7 +232,10 @@ export default function POS() {
         if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
         return nameA.localeCompare(nameB);
       }));
-      setActiveOrders(oData);
+      
+      // Robust handling of both array and paginated response
+      const orderList = Array.isArray(oData) ? oData : (oData as any)?.results || [];
+      setActiveOrders(orderList);
       setCustomers(custData);
       
       

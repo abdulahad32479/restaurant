@@ -144,6 +144,25 @@ export interface Order {
   discounts?: Discount[];
 }
 
+export interface OrderFilters {
+  status?: string | string[];
+  order_type?: string | string[];
+  created_by?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  date?: string;
+  delivery_person?: string;
+  end_date?: string;
+  end_time?: string;
+  order_number?: string;
+  ordering?: string;
+  page?: number;
+  page_size?: number;
+  search?: string;
+  start_date?: string;
+  start_time?: string;
+}
+
 export interface Discount {
   id: number;
   type: 'percentage' | 'fixed';

@@ -70,7 +70,7 @@ export default function KitchenDisplay() {
       
       // Add individual catch blocks to prevent one failure from blocking everything
       const [orderData, productData, tableData, customerData, userData, branchData] = await Promise.all([
-        orderService.getAll(['draft', 'confirmed', 'preparing', 'ready', 'served']),
+        orderService.getAll({ status: ['draft', 'confirmed', 'preparing', 'ready', 'served'] }),
         productService.getAll(1000).catch(() => []),
         tableService.getAll().catch(() => []),
         customerService.getAll().catch(() => []),
@@ -96,7 +96,8 @@ export default function KitchenDisplay() {
       setUsers(uMap);
       setBranches(branchData);
 
-      const relevantOrders = orderData;
+      // Robust handling of both array and paginated response
+      const relevantOrders = Array.isArray(orderData) ? orderData : (orderData as any)?.results || [];
 
       // FIFO Sorting: Oldest First
       const sortedOrders = relevantOrders.sort((a: any, b: any) => 
