@@ -12,12 +12,13 @@ import { usePayrollRunDetails, usePayrollRuns, usePayrollLines } from '@/src/hoo
 import { PayrollLine } from '@/src/types/staff';
 import { formatCurrency } from '@/src/utils/formatCurrency';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 
-export default function PayrollDetail({ params }: { params: { id: string } }) {
+export default function PayrollDetail() {
   const router = useRouter();
-  const { id } = params;
+  const params = useParams();
+  const id = params.id as string;
 
   const { data: runDetails, isLoading } = usePayrollRunDetails(id);
   const { finalizePayroll, isFinalizing } = usePayrollRuns();
