@@ -20,7 +20,7 @@ export default function PayrollDetail() {
   const params = useParams();
   const id = params.id as string;
 
-  const { data: runDetails, isLoading } = usePayrollRunDetails(id);
+  const { data: runDetails, isLoading, error } = usePayrollRunDetails(id);
   const { finalizePayroll, isFinalizing } = usePayrollRuns();
   const { markPaid, isMarkingPaid } = usePayrollLines();
 
@@ -111,6 +111,19 @@ export default function PayrollDetail() {
     return (
       <div className="flex items-center justify-center p-20">
         <Loader2 className="animate-spin text-primary w-12 h-12" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-10 text-center max-w-xl mx-auto space-y-4">
+        <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-2xl">
+          <p className="text-red-400 font-bold uppercase tracking-widest text-xs mb-2">Live Build Error Diagnostic</p>
+          <p className="text-white font-mono text-sm break-all">{(error as any)?.response?.data?.detail || (error as any)?.message || 'Unknown Server Error'}</p>
+          <p className="text-tertiary text-[10px] uppercase mt-4">Status: {(error as any)?.response?.status || '500'} | Request ID: {id}</p>
+        </div>
+        <Button onClick={() => router.back()} variant="secondary">Return to Payroll</Button>
       </div>
     );
   }
