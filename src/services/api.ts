@@ -1,10 +1,8 @@
 import axios from 'axios';
 
 // Get base URL from environment or use proxy
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://pos-backend-production-b659.up.railway.app";
-
-// --- Staff API Client (Strict Django REST Framework formatting) ---
-const API_BASE = "https://pos-backend-production-b659.up.railway.app";
+const rawBaseURL = process.env.NEXT_PUBLIC_API_URL || "https://pos-backend-production-b659.up.railway.app/api/";
+const API_BASE = rawBaseURL.replace(/\/api\/?$/, '');
 const STAFF_ROOT = "/api/staff";
 
 export const staffApi = axios.create({
