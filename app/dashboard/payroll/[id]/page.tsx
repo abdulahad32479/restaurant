@@ -14,6 +14,7 @@ import { formatCurrency } from '@/src/utils/formatCurrency';
 
 import { useRouter, useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
+import { useLedger } from '@/src/hooks/useLedger';
 
 export default function PayrollDetail() {
   const router = useRouter();
@@ -21,8 +22,19 @@ export default function PayrollDetail() {
   const id = params.id as string;
 
   const { data: runDetails, isLoading, error } = usePayrollRunDetails(id);
-  const { finalizePayroll, isFinalizing } = usePayrollRuns();
+  const { finalizePayroll, isFinalizing, generatePayroll, isGenerating } = usePayrollRuns();
   const { markPaid, isMarkingPaid } = usePayrollLines();
+
+  // Safely define year and month for filters
+  const currentYear = Number(runDetails?.year) || new Date().getFullYear();
+  const currentMonth = Number(runDetails?.month) || (new Date().getMonth() + 1);
+
+  // Fetch LIVE ledger entries to override backend zeros if needed
+  const { ledgerData } = useLedger({
+    payroll_year: currentYear,
+    payroll_month: currentMonth,
+    page_size: 200 // Ensure we get all entries for the month
+  });
 
   const [selectedLine, setSelectedLine] = useState<PayrollLine | null>(null);
   const [paidAmount, setPaidAmount] = useState('');
@@ -47,6 +59,18 @@ export default function PayrollDetail() {
     });
   };
 
+  const handleRefresh = () => {
+    if (!runDetails) return;
+    generatePayroll({ 
+      year: Number(runDetails.year), 
+      month: Number(runDetails.month) 
+    }, {
+      onSuccess: () => {
+        toast.success('Payroll data refreshed and recalculated');
+      }
+    });
+  };
+
   const columns = [
     { 
       key: 'staff', 
@@ -63,13 +87,23 @@ export default function PayrollDetail() {
     { 
       key: 'adjustments', 
       header: 'Additions / Deductions',
-      render: (_: any, row: PayrollLine) => (
-        <div className="text-xs">
-           <span className="text-green-500">+{formatCurrency(row.additions).replace('PKR ', '')}</span>
-           <span className="text-white/20 mx-2">|</span>
-           <span className="text-red-500">-{formatCurrency(row.deductions).replace('PKR ', '')}</span>
-        </div>
-      )
+      render: (_: any, row: PayrollLine) => {
+        // Use live ledger additions if row.additions is zero
+        const liveEntries = (ledgerData?.results || []).filter(e => e.staff === row.staff);
+        const liveAdditions = liveEntries.filter(e => e.direction === 'credit').reduce((s, e) => s + Number(e.amount), 0);
+        const liveDeductions = liveEntries.filter(e => e.direction === 'debit').reduce((s, e) => s + Number(e.amount), 0);
+        
+        const finalAdditions = Number(row.additions) || liveAdditions;
+        const finalDeductions = Number(row.deductions) || liveDeductions;
+
+        return (
+          <div className="text-xs">
+             <span className="text-green-500">+{formatCurrency(finalAdditions).replace('PKR ', '')}</span>
+             <span className="text-white/20 mx-2">|</span>
+             <span className="text-red-500">-{formatCurrency(finalDeductions).replace('PKR ', '')}</span>
+          </div>
+        );
+      }
     },
     { 
       key: 'net_salary', 
@@ -152,6 +186,35 @@ export default function PayrollDetail() {
     console.error('Date parsing error', e);
   }
 
+  // Merge live ledger data into the lines for summary calculations
+  const processedLines = lines.map(line => {
+    const liveEntries = (ledgerData?.results || []).filter(e => e.staff === line.staff);
+    const liveAdd = liveEntries.filter(e => e.direction === 'credit').reduce((s, e) => s + Number(e.amount || 0), 0);
+    const liveDed = liveEntries.filter(e => e.direction === 'debit').reduce((s, e) => s + Number(e.amount || 0), 0);
+    
+    return {
+      ...line,
+      additions: Number(line.additions) || liveAdd,
+      deductions: Number(line.deductions) || liveDed,
+      net_salary: Number(line.net_salary) || (Number(line.base_salary) + liveAdd - liveDed)
+    };
+  });
+
+  // Calculate totals from processed lines
+  const calculatedTotals = processedLines.reduce((acc, line) => {
+    acc.base_salary += Number(line.base_salary || 0);
+    acc.additions += Number(line.additions || 0);
+    acc.deductions += Number(line.deductions || 0);
+    acc.net_salary += Number(line.net_salary || 0);
+    return acc;
+  }, { base_salary: 0, additions: 0, deductions: 0, net_salary: 0 });
+
+  // Always use calculated totals to be safe
+  const totalBase = calculatedTotals.base_salary;
+  const totalAdditions = calculatedTotals.additions;
+  const totalDeductions = calculatedTotals.deductions;
+  const netPayable = calculatedTotals.net_salary;
+
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -171,41 +234,56 @@ export default function PayrollDetail() {
           </div>
         </div>
         
-        {status === 'draft' && (
-          <Button 
-            variant="primary" 
-            size="sm"
-            icon={<CheckCircle className="w-5 h-5" />}
-            onClick={handleFinalize}
-            isLoading={isFinalizing}
-            className="font-black uppercase tracking-tighter"
-          >
-            Finalize Payroll
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {status === 'draft' && (
+            <Button 
+              variant="secondary" 
+              size="sm"
+              icon={<Loader2 className={`w-5 h-5 ${isGenerating ? 'animate-spin' : ''}`} />}
+              onClick={handleRefresh}
+              isLoading={isGenerating}
+              className="font-bold uppercase tracking-widest text-[10px]"
+            >
+              Sync & Update
+            </Button>
+          )}
+          
+          {status === 'draft' && (
+            <Button 
+              variant="primary" 
+              size="sm"
+              icon={<CheckCircle className="w-5 h-5" />}
+              onClick={handleFinalize}
+              isLoading={isFinalizing}
+              className="font-black uppercase tracking-tighter"
+            >
+              Finalize Payroll
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-secondary p-5 rounded-2xl border border-base shadow-xl">
            <p className="text-[10px] text-tertiary uppercase tracking-widest mb-1">Total Base Salary</p>
-           <p className="text-xl text-white font-bold">{formatCurrency(runDetails.total_base_salary || 0)}</p>
+           <p className="text-xl text-white font-bold">{formatCurrency(totalBase)}</p>
         </div>
         <div className="bg-secondary p-5 rounded-2xl border border-base shadow-xl">
            <p className="text-[10px] text-tertiary uppercase tracking-widest mb-1">Total Additions</p>
-           <p className="text-xl text-green-500 font-bold">+{formatCurrency(runDetails.total_additions || 0).replace('PKR ', '')} PKR</p>
+           <p className="text-xl text-green-500 font-bold">+{formatCurrency(totalAdditions).replace('PKR ', '')} PKR</p>
         </div>
         <div className="bg-secondary p-5 rounded-2xl border border-base shadow-xl">
            <p className="text-[10px] text-tertiary uppercase tracking-widest mb-1">Total Deductions</p>
-           <p className="text-xl text-red-500 font-bold">-{formatCurrency(runDetails.total_deductions || 0).replace('PKR ', '')} PKR</p>
+           <p className="text-xl text-red-500 font-bold">-{formatCurrency(totalDeductions).replace('PKR ', '')} PKR</p>
         </div>
         <div className="bg-secondary p-5 rounded-transform border-2 border-primary/20 bg-primary/5 shadow-xl">
            <p className="text-[10px] text-primary uppercase tracking-widest font-bold mb-1">Net Payable</p>
-           <p className="text-2xl text-accent font-black tracking-tighter">{formatCurrency(runDetails.net_payable || 0)}</p>
+           <p className="text-2xl text-accent font-black tracking-tighter">{formatCurrency(netPayable)}</p>
         </div>
       </div>
       
       <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0 min-h-[400px]">
-         <Table columns={columns} data={lines} />
+         <Table columns={columns} data={processedLines} />
       </Card>
 
       <Modal

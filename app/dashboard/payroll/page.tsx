@@ -13,6 +13,49 @@ import { PayrollRun } from '@/src/types/staff';
 import { formatCurrency } from '@/src/utils/formatCurrency';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import { usePayrollRunDetails } from '@/src/hooks/usePayroll';
+
+const SummaryCell = ({ row }: { row: any }) => {
+  // If the list already has non-zero stats, show them immediately
+  const base = row.total_base_salary ?? row.totalBaseSalary ?? row.base_salary ?? row.total_base ?? 0;
+  const net = row.net_payable ?? row.netPayable ?? row.net_amount ?? row.payable_amount ?? row.total_net ?? 0;
+  
+  const displayBase = typeof base === 'string' ? parseFloat(base) : Number(base);
+  const displayNet = typeof net === 'string' ? parseFloat(net) : Number(net);
+
+  // If both are zero, we use the detailed hook to fetch the real data (which has lines)
+  const shouldFetch = (displayBase === 0 && displayNet === 0);
+  const { data: details, isLoading } = usePayrollRunDetails(shouldFetch ? row.id : '');
+
+  let finalBase = displayBase;
+  let finalNet = displayNet;
+
+  if (shouldFetch && details) {
+     const lines = Array.isArray(details.lines) ? details.lines : [];
+     // Calculate from lines
+     const calBase = lines.reduce((sum, l) => sum + Number(l.base_salary || 0), 0);
+     const calNet = lines.reduce((sum, l) => sum + Number(l.net_salary || 0), 0);
+     
+     finalBase = Number(details.total_base_salary) || calBase;
+     finalNet = Number(details.net_payable) || calNet;
+  }
+
+  if (shouldFetch && isLoading) {
+    return (
+      <div className="flex items-center gap-2 text-[10px] text-tertiary italic">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        <span>Calculating...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1 text-[10px] text-tertiary">
+      <p>Base: <span className="text-white font-mono">{formatCurrency(finalBase || 0).replace('PKR ', '')}</span></p>
+      <p>Net: <span className="text-accent font-bold font-mono">{formatCurrency(finalNet || 0)}</span></p>
+    </div>
+  );
+};
 
 export default function PayrollManagement() {
   const router = useRouter();
@@ -68,26 +111,34 @@ export default function PayrollManagement() {
     { 
       key: 'stats', 
       header: 'Summary',
-      render: (_: any, row: PayrollRun) => (
-        <div className="flex flex-col gap-1 text-xs text-tertiary">
-          <p>Base: <span className="text-white">{formatCurrency(row.total_base_salary || 0).replace('PKR ', '')}</span></p>
-          <p>Net Payable: <span className="text-accent font-bold">{formatCurrency(row.net_payable || 0)}</span></p>
-        </div>
-      )
+      render: (_: any, row: any) => <SummaryCell row={row} />
     },
     {
       key: 'actions',
-      header: 'Details',
+      header: 'Actions',
       align: 'right' as const,
       render: (_: any, row: PayrollRun) => (
-        <Button 
-          variant="secondary" 
-          size="sm"
-          onClick={() => router.push(`/dashboard/payroll/${row.id}`)}
-          className="uppercase tracking-widest text-[10px]"
-        >
-          View Details
-        </Button>
+        <div className="flex items-center gap-2 justify-end">
+          {row.status === 'draft' && (
+            <Button 
+               variant="secondary" 
+               size="sm"
+               icon={<Loader2 className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />}
+               onClick={() => generatePayroll({ year: row.year, month: row.month })}
+               isLoading={isGenerating}
+               className="p-2 aspect-square rounded-lg hover:bg-white/10"
+               title="Regenerate & Recalculate"
+            />
+          )}
+          <Button 
+            variant="secondary" 
+            size="sm"
+            onClick={() => router.push(`/dashboard/payroll/${row.id}`)}
+            className="uppercase tracking-widest text-[9px] px-4"
+          >
+            Details
+          </Button>
+        </div>
       )
     }
   ];
