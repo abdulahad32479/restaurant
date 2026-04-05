@@ -14,6 +14,7 @@ export const usePayrollRuns = (filters?: Record<string, any>) => {
     mutationFn: ({ year, month }: { year: number, month: number }) => PayrollService.generatePayroll(year, month),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });
+      queryClient.invalidateQueries({ queryKey: ['payrollRunDetails'] });
       toast.success('Payroll generated successfully');
     },
     onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to generate payroll'),
@@ -45,6 +46,7 @@ export const usePayrollRunDetails = (id: string) => {
     queryKey: ['payrollRunDetails', id],
     queryFn: () => PayrollService.getPayrollRunById(id),
     enabled: !!id,
+    staleTime: 1000 * 5, // 5 seconds of freshness
   });
 };
 
@@ -60,8 +62,10 @@ export const usePayrollLines = (filters?: Record<string, any>) => {
     mutationFn: ({ id, data }: { id: string, data: { paid_amount?: string | number, note?: string } }) => 
       PayrollService.markLinePaid(id, data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });
       queryClient.invalidateQueries({ queryKey: ['payrollLines'] });
       queryClient.invalidateQueries({ queryKey: ['payrollRunDetails'] });
+      queryClient.invalidateQueries({ queryKey: ['ledger'] });
       toast.success('Salary marked as paid');
     },
     onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to process payment'),

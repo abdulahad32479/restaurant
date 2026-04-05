@@ -15,6 +15,8 @@ export const useLedger = (filters?: Record<string, any>) => {
     mutationFn: (data: Partial<StaffLedgerEntry>) => LedgerService.createLedgerEntry(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ledger'] });
+      queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });
+      queryClient.invalidateQueries({ queryKey: ['payrollRunDetails'] });
       toast.success('Ledger entry created');
     },
     onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to create entry'),
@@ -25,6 +27,8 @@ export const useLedger = (filters?: Record<string, any>) => {
       LedgerService.updateLedgerEntry(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ledger'] });
+      queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });
+      queryClient.invalidateQueries({ queryKey: ['payrollRunDetails'] });
       toast.success('Ledger entry updated');
     },
     onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to update entry'),
