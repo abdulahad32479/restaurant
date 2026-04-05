@@ -188,15 +188,45 @@ export default function PayrollDetail() {
 
   // Merge live ledger data into the lines for summary calculations
   const processedLines = lines.map(line => {
+    // 1. Get base salary
+    const base = Number(line.base_salary || 0);
+
+    // 2. Identify API-provided additions and deductions (handling various backend field names)
+    // Additions: additions or total_credits or total_bonuses or total_reimbursements
+    const apiAdditions = Number(
+      line.additions || 
+      line.total_credits || 
+      line.total_bonuses || 
+      line.total_reimbursements || 
+      0
+    );
+    // Deductions: deductions or total_debits or total_advances or aggregate sum of specific penalties
+    const apiDeductions = Number(
+      line.deductions || 
+      line.total_debits || 
+      line.total_advances || 
+      (Number(line.total_meal_deductions || 0) + Number(line.total_late_penalties || 0) + Number(line.total_other_deductions || 0)) || 
+      0
+    );
+
+    // 3. Fetch LIVE ledger entries to see if anything changed since last payroll run
     const liveEntries = (ledgerData?.results || []).filter(e => e.staff === line.staff);
     const liveAdd = liveEntries.filter(e => e.direction === 'credit').reduce((s, e) => s + Number(e.amount || 0), 0);
     const liveDed = liveEntries.filter(e => e.direction === 'debit').reduce((s, e) => s + Number(e.amount || 0), 0);
     
+    // 4. Determine final values (prioritize live data if non-zero, otherwise use API data)
+    const finalAdd = liveAdd > 0 ? liveAdd : apiAdditions;
+    const finalDed = liveDed > 0 ? liveDed : apiDeductions;
+    
+    // 5. Calculate net salary: Base + Additions - Deductions
+    // We calculate locally to ensure consistent UI even if API net_salary is stale or incorrect
+    const calculatedNet = base + finalAdd - finalDed;
+    
     return {
       ...line,
-      additions: Number(line.additions) || liveAdd,
-      deductions: Number(line.deductions) || liveDed,
-      net_salary: Number(line.net_salary) || (Number(line.base_salary) + liveAdd - liveDed)
+      additions: finalAdd,
+      deductions: finalDed,
+      net_salary: calculatedNet
     };
   });
 

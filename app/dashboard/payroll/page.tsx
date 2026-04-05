@@ -32,12 +32,29 @@ const SummaryCell = ({ row }: { row: any }) => {
 
   if (shouldFetch && details) {
      const lines = Array.isArray(details.lines) ? details.lines : [];
-     // Calculate from lines
+     // Calculate from lines with robust field mapping
      const calBase = lines.reduce((sum, l) => sum + Number(l.base_salary || 0), 0);
-     const calNet = lines.reduce((sum, l) => sum + Number(l.net_salary || 0), 0);
+     const calNet = lines.reduce((sum, l) => {
+        const base = Number(l.base_salary || 0);
+        const adds = Number(l.additions || l.total_credits || l.total_bonuses || l.total_reimbursements || 0);
+        const ders = Number(
+          l.deductions || 
+          l.total_debits || 
+          l.total_advances || 
+          (Number(l.total_meal_deductions || 0) + Number(l.total_late_penalties || 0) + Number(l.total_other_deductions || 0)) || 
+          0
+        );
+        return sum + (base + adds - ders);
+     }, 0);
      
-     finalBase = Number(details.total_base_salary) || calBase;
-     finalNet = Number(details.net_payable) || calNet;
+     // Prefer calculated values if summary fields are 0/missing
+     finalBase = (displayBase > 0) ? displayBase : (Number(details.total_base_salary) || calBase);
+     finalNet = (displayNet !== 0) ? displayNet : (details.net_payable !== undefined ? Number(details.net_payable) : calNet);
+     
+     // If the summary net is still the same as base but we have lines with deductions, use the calculated net
+     if (finalNet === finalBase && calNet !== calBase && calNet < finalNet) {
+        finalNet = calNet;
+     }
   }
 
   if (shouldFetch && isLoading) {

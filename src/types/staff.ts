@@ -128,6 +128,17 @@ export interface PayrollLine {
   additions: string | number;
   deductions: string | number;
   net_salary: string | number;
+  
+  // Backend calculated fields (sometimes returned instead of above)
+  total_credits?: string | number;
+  total_debits?: string | number;
+  total_advances?: string | number;
+  total_bonuses?: string | number;
+  total_reimbursements?: string | number;
+  total_meal_deductions?: string | number;
+  total_late_penalties?: string | number;
+  total_other_deductions?: string | number;
+
   is_paid: boolean;
   paid_amount?: string | number;
   paid_at?: string | null;
