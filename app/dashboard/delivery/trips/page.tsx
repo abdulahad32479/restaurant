@@ -10,7 +10,7 @@ import { deliveryTripService } from '@/src/services/delivery-trip.service';
 import { DeliveryTrip, DeliveryPerson, TripStatus } from '@/src/types';
 import { 
   Plus, Truck, CheckCircle2, Bike, XCircle, Send, MoreVertical, 
-  MapPin, Clock, Calendar, Search, Filter, Phone, User as UserIcon, AlertCircle, ShoppingBag, Eye, Trash2, LayoutList, ChevronRight, Zap, Package
+  MapPin, Clock, Calendar, Search, Filter, Phone, User as UserIcon, AlertCircle, ShoppingBag, Eye, Trash2, LayoutList, ChevronRight, Zap, Package, X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/src/lib/axios';
