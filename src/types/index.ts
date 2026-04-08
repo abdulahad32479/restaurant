@@ -10,7 +10,7 @@ export interface User {
   created_at?: string;
   updated_at?: string;
   permissions?: string[];
-  permissions_list?: string; // String from backend e.g. "view_orders,add_order"
+  permissions_list?: string;
 }
 
 export interface AuthResponse {
@@ -87,7 +87,9 @@ export interface OrderItem {
   id?: string;
   product: string; // Product ID
   product_name?: string;
+  product_category?: string;
   order?: string;
+  sent_to_kitchen?: boolean;
   quantity: number;
   unit_price?: string;
   taxamount?: string;
@@ -100,7 +102,7 @@ export interface OrderItem {
 }
 
 export type OrderType = 'dine_in' | 'takeaway' | 'delivery';
-export type OrderStatus = 'draft' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'completed' | 'cancelled' | 'refunded';
+export type OrderStatus = 'draft' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'out_for_delivery' | 'completed' | 'cancelled' | 'refunded';
 
 export interface Order {
   id: string;
@@ -110,17 +112,27 @@ export interface Order {
   items: OrderItem[];
   order_type: OrderType;
   table?: string;
-  table_id?: string; // used for creation
+  table_id?: string;
   table_no?: string;
   customer?: string;
   created_by?: string;
+  created_by_name?: string;
   delivery_person?: string;
   delivery_person_name?: string;
   delivery_info?: {
     id?: string;
+    branch?: string;
+    branch_name?: string;
     name: string;
     address: string;
     phone: string;
+    delivery_route?: string;
+    delivery_route_name?: string;
+    delivery_zone?: string;
+    delivery_zone_name?: string;
+    zone_id: string; // Required for creation
+    created_at?: string;
+    updated_at?: string;
   };
   notes?: string;
   status: OrderStatus;
@@ -141,6 +153,21 @@ export interface Order {
   cancelled_at?: string;
   refunded_at?: string;
   paid_at?: string;
+  delivery_status?: 'unassigned' | 'assigned' | 'out_for_delivery' | 'delivered';
+  estimated_prep_minutes?: number;
+  promised_delivery_minutes?: number;
+  expected_ready_at?: string;
+  expected_delivery_at?: string;
+  assigned_at?: string;
+  out_for_delivery_at?: string;
+  delivered_at?: string;
+  priority_score?: number;
+  dispatch_bucket?: string;
+  delivery_route?: string;
+  delivery_route_name?: string;
+  delivery_zone?: string;
+  delivery_zone_name?: string;
+  delivery_trip?: string;
   discounts?: Discount[];
 }
 
@@ -183,39 +210,137 @@ export interface Payment {
   created_at?: string;
 }
 
-export interface InventoryItem {
+export interface DeliveryPerson {
   id: string;
-  branch: string;
-  branch_name?: string;
-  product: string;
-  product_name?: string;
-  quantity: number;
-  min_quantity?: number;
-  max_quantity?: number;
+  name: string;
+  phone_number: string;
+  whatsapp_number?: string;
+  status: 'available' | 'busy' | 'offline';
+  is_active: boolean;
   created_at?: string;
   updated_at?: string;
 }
 
-export interface StockMovement {
+export interface DeliveryRoute {
   id: string;
-  branch_name: string;
-  product_name: string;
-  by: string;
-  movement_types: 'incoming' | 'outgoing' | 'adjustment' | 'purchase' | 'sale' | 'return' | 'transfer';
-  reference_type: 'order' | 'manual' | 'adjustment' | 'transfer';
-  reference_id: string;
-  quantity: string;
-  quantity_before: string;
-  quantity_after: string;
-  notes?: string;
+  name: string;
+  sort_order: number;
+  default_travel_minutes: number;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
 
-export interface SalesSummary {
+export interface DeliveryZone {
+  id: string;
+  name: string;
+  route: string;
+  route_name?: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type TripStatus = 'draft' | 'assigned' | 'out' | 'completed' | 'cancelled';
+
+export interface TripOrder {
+  id: string;
+  order: string;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  delivery_zone_name: string;
+  address: string;
+  created_at: string;
+}
+
+export interface DeliveryTrip {
+  id: string;
+  trip_number?: string;
+  branch?: string;
+  route: string;
+  route_name?: string;
+  delivery_person?: string;
+  delivery_person_name?: string;
+  status: TripStatus;
+  is_custom?: boolean;
+  notes?: string;
+  assigned_at?: string;
+  out_for_delivery_at?: string;
+  completed_at?: string;
+  cancelled_at?: string;
+  created_at: string;
+  updated_at: string;
+  total_orders?: string | number;
+  trip_orders?: TripOrder[];
+  orders?: Order[];
+}
+
+export interface DispatchBoardItem {
+  id: string;
+  route: string;
+  zone: string;
+  priority_score: number;
+  dispatch_bucket: string;
+  orders: Order[];
+}
+
+export interface TripSuggestion {
+  id: string;
+  order_ids: string[];
+  route: string;
   total_orders: number;
-  total_sales: string;
-  total_items_sold?: number;
+  reason?: string;
+  suggested_rider?: string;
+}
+
+export interface WhatsAppLog {
+  id: string;
+  target_type: 'order' | 'trip';
+  target_id: string;
+  delivery_person: string;
+  delivery_person_name: string;
+  phone_number: string;
+  message_text?: string;
+  provider: string;
+  provider_message_id?: string;
+  status: 'pending' | 'sent' | 'failed' | 'delivered' | 'read';
+  error_message?: string;
+  created_at: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  product: string;
+  product_name: string;
+  product_sku: string;
+  branch: string;
+  branch_name: string;
+  quantity: number | string;
+  min_quantity: number | string;
+  max_quantity?: number | string;
+  last_received_date?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockMovement {
+  id: string;
+  product: string;
+  product_name: string;
+  branch: string;
+  branch_name: string;
+  movement_types: 'incoming' | 'outgoing' | 'adjustment' | 'return' | 'order';
+  quantity: number | string;
+  quantity_after?: number | string;
+  notes?: string;
+  reference_type?: string;
+  reference_id?: string;
+  by?: string;
+  created_by?: string;
+  created_by_name?: string;
+  created_at: string;
 }
 
 export interface ZReport {
@@ -231,51 +356,23 @@ export interface ZReport {
   total_other: string;
   counted_cash: string;
   cash_difference: string;
-  start_time: string;
-  end_time: string;
+  start_time?: string;
+  end_time?: string;
   is_locked: boolean;
   branch: string;
   closed_by: string;
   created_at: string;
 }
 
-export interface LowStockReport {
-  product__id: number;
-  product__name: string;
-  quantity: number;
-  min_quantity: number;
-}
-
-export interface SalesByBranchReport {
-  branch__id: number;
-  branch__name: string;
-  total_orders: number;
-  total_sales: string;
-}
-
-export interface SalesByProductReport {
-  product__id: number;
-  product__name: string;
-  quantity_sold: number;
-  revenue: string;
-}
-
-export interface PaymentSummaryReport {
-  method: string;
-  total: string;
-}
-
-export interface DeliveryPerson {
-  id: string;
-  name: string;
-  phone_number: string;
-  is_active: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
-
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
   message?: string;
+}
+
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
 }

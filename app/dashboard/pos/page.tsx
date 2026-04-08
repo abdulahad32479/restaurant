@@ -15,7 +15,7 @@ import { tableService } from '@/src/services/table.service';
 import { orderService } from '@/src/services/order.service';
 import { customerService } from '@/src/services/customer.service';
 import { userService } from '@/src/services/user.service';
-import { Product, Category, Branch, Table, OrderType, Order, Customer, DeliveryPerson, User, Discount } from '@/src/types';
+import { Product, Category, Branch, Table, OrderType, Order, Customer, DeliveryPerson, User, Discount, DeliveryZone } from '@/src/types';
 import { Modal } from '@/src/components/Modal';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useReactToPrint } from 'react-to-print';
@@ -88,6 +88,7 @@ export default function POS() {
   
   // Delivery Person state
   const [deliveryPersons, setDeliveryPersons] = useState<DeliveryPerson[]>([]);
+  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([]);
   const [activeOrdersTypeFilter, setActiveOrdersTypeFilter] = useState<'all' | OrderType>('all');
   const [activeOrdersSearch, setActiveOrdersSearch] = useState('');
   const [expandedOrder, setExpandedOrder] = useState<Order | null>(null);
@@ -97,7 +98,8 @@ export default function POS() {
   const [deliveryInfo, setDeliveryInfo] = useState({
     name: '',
     phone: '',
-    address: ''
+    address: '',
+    zone_id: ''
   });
   const [deliveryDict, setDeliveryDict] = useState<Record<string, {phone: string, address: string, id?: string}>>({});
   const [deliveryPhoneSearch, setDeliveryPhoneSearch] = useState('');
@@ -205,7 +207,8 @@ export default function POS() {
         orderService.getAll({ status: ['draft', 'confirmed', 'preparing', 'ready', 'served'], page_size: 1000 }),
         customerService.getAll().catch(() => []),
         userService.getAll().catch(() => []),
-        apiClient.get('v1/delivery-persons/').then(res => res.data).catch(() => [])
+        apiClient.get('v1/delivery-persons/').then(res => res.data).catch(() => []),
+        orderService.getZones().catch(() => [])
       ]);
       
       const pData = results[0];
@@ -216,6 +219,7 @@ export default function POS() {
       const custData = results[5];
       const userData = results[6];
       const deliveryPersonsData = results[7] || [];
+      const deliveryZonesData = results[8] || [];
       
       const activeProducts = pData.filter((p: Product) => p.is_active);
       setProducts(activeProducts);
@@ -223,6 +227,7 @@ export default function POS() {
       setCategories(cData);
       setBranches(bData);
       setDeliveryPersons(deliveryPersonsData);
+      setDeliveryZones(deliveryZonesData);
       // Sort tables by name/number ascending
       setTables(tData.filter((t: Table) => t.is_active).sort((a: Table, b: Table) => {
         const nameA = a.name.toLowerCase();
@@ -565,7 +570,7 @@ export default function POS() {
     toast.error('Please select a table');
     return false;
   }
-   if (orderType === 'delivery' && (!deliveryInfo.name || !deliveryInfo.phone || !deliveryInfo.address)) {
+   if (orderType === 'delivery' && (!deliveryInfo.name || !deliveryInfo.phone || !deliveryInfo.address || !deliveryInfo.zone_id)) {
     setIsDeliveryModalOpen(true);
     return false;
   }
@@ -723,7 +728,7 @@ export default function POS() {
     setCart([]);
     setOrderType('');
     setSelectedTable('');
-    setDeliveryInfo({ name: '', phone: '', address: '' });
+    setDeliveryInfo({ name: '', phone: '', address: '', zone_id: '' });
     setOrderNotes('');
     setSelectedCustomer('');
     setEditingOrder(null);
@@ -777,7 +782,7 @@ export default function POS() {
     setCart([]);
     setOrderType('');
     setSelectedTable('');
-    setDeliveryInfo({ name: '', phone: '', address: '' });
+    setDeliveryInfo({ name: '', phone: '', address: '', zone_id: '' });
     setOrderNotes('');
     setSelectedCustomer('');
   } catch (error: any) {
@@ -849,7 +854,7 @@ const handleConfirmOrder = async () => {
     setCart([]);
     setOrderType('');
     setSelectedTable('');
-    setDeliveryInfo({ name: '', phone: '', address: '' });
+    setDeliveryInfo({ name: '', phone: '', address: '', zone_id: '' });
     setOrderNotes('');
     setSelectedCustomer('');
   } catch (error: any) {
@@ -1000,7 +1005,7 @@ const handleProcessPayment = async () => {
       setCart([]);
       setOrderType('');
       setSelectedTable('');
-      setDeliveryInfo({ name: '', phone: '', address: '' });
+      setDeliveryInfo({ name: '', phone: '', address: '', zone_id: '' });
       setOrderNotes('');
       setSelectedCustomer('');
       setIsPaymentModalOpen(false);
@@ -1214,7 +1219,7 @@ const handleProcessPayment = async () => {
                     <Store className="w-5 h-5 md:w-6 md:h-6 text-primary" />
                   </div>
                   <div>
-                    <h1 className="text-sm md:text-lg font-bold text-white uppercase tracking-tight">#{expandedOrder.order_number || expandedOrder.id.substring(0,8)}</h1>
+                    <h1 className="text-sm md:text-lg font-bold text-white uppercase tracking-tight">#{expandedOrder.order_number || expandedOrder.id?.substring(0,8) || 'DRAFT'}</h1>
                     <p className="text-[9px] md:text-[10px] text-tertiary uppercase tracking-widest font-black">
                       {expandedOrder.branch_name || 'Main Branch'} • {new Date(expandedOrder.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
@@ -2266,7 +2271,7 @@ const handleProcessPayment = async () => {
                     );
                     if (match) {
                       setMatchedCustomer(match);
-                      setDeliveryInfo({ name: match.name, phone: match.phone || match.phone_number || '', address: match.address || '' });
+                      setDeliveryInfo({ ...deliveryInfo, name: match.name, phone: match.phone || match.phone_number || '', address: match.address || '' });
                       setSelectedCustomer(match.id);
                     } else {
                       setMatchedCustomer(null);
@@ -2292,7 +2297,7 @@ const handleProcessPayment = async () => {
                     );
                     if (match) {
                       setMatchedCustomer(match);
-                      setDeliveryInfo({ name: match.name, phone: match.phone || match.phone_number || '', address: match.address || '' });
+                      setDeliveryInfo({ ...deliveryInfo, name: match.name, phone: match.phone || match.phone_number || '', address: match.address || '' });
                       setSelectedCustomer(match.id);
                     } else {
                       setMatchedCustomer(null);
@@ -2357,7 +2362,7 @@ const handleProcessPayment = async () => {
                   const match = customers.find(c => (c.phone || c.phone_number) === newPhone);
                   if (match) {
                     setMatchedCustomer(match);
-                    setDeliveryInfo({ name: match.name, phone: newPhone, address: match.address || '' });
+                    setDeliveryInfo({ ...deliveryInfo, name: match.name, phone: newPhone, address: match.address || '' });
                     setSelectedCustomer(match.id);
                   }
                 }
@@ -2374,6 +2379,34 @@ const handleProcessPayment = async () => {
             onChange={(e) => setDeliveryInfo({ ...deliveryInfo, address: e.target.value })}
             className="bg-[#0A0A0A] border-[#2A2A2A]"
           />
+
+          <div className="space-y-1">
+            <p className="text-[10px] font-black text-tertiary uppercase tracking-widest px-1">Delivery Zone *</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+              {deliveryZones.map((zone) => (
+                <button
+                  key={zone.id}
+                  type="button"
+                  onClick={() => setDeliveryInfo({ ...deliveryInfo, zone_id: zone.id })}
+                  className={`p-3 rounded-xl border-2 text-[10px] font-black uppercase tracking-tight transition-all text-left flex flex-col justify-between h-[60px] ${
+                    deliveryInfo.zone_id === zone.id
+                      ? 'border-primary bg-primary/10 text-primary shadow-glow-primary/20'
+                      : 'border-white/5 bg-[#0F0F0F] text-tertiary hover:border-white/20'
+                  }`}
+                >
+                  <span className="truncate w-full">{zone.name}</span>
+                  <span className={`text-[8px] opacity-60 truncate w-full ${deliveryInfo.zone_id === zone.id ? 'text-primary' : ''}`}>
+                    {zone.route_name || 'Fleet Route'}
+                  </span>
+                </button>
+              ))}
+              {deliveryZones.length === 0 && (
+                <div className="col-span-3 py-4 text-center text-[10px] text-tertiary italic bg-white/5 rounded-xl border border-dashed border-white/10">
+                  No delivery zones configured.
+                </div>
+              )}
+            </div>
+          </div>
           
           <div className="pt-4 border-t border-[#2A2A2A] flex justify-end gap-3">
             <Button variant="outline" onClick={() => {
@@ -2385,8 +2418,8 @@ const handleProcessPayment = async () => {
             <Button 
               variant="primary" 
               onClick={() => {
-                if (!deliveryInfo.name || !deliveryInfo.phone || !deliveryInfo.address) {
-                  toast.error('Name, phone, and address are required');
+                if (!deliveryInfo.name || !deliveryInfo.phone || !deliveryInfo.address || !deliveryInfo.zone_id) {
+                  toast.error('Name, phone, address, and delivery zone are required');
                   return;
                 }
                 setIsDeliveryModalOpen(false);
@@ -2695,7 +2728,7 @@ const handleProcessPayment = async () => {
         size="lg"
       >
         <div className="space-y-4">
-          <p className="text-xs text-tertiary uppercase tracking-widest">Select new table for Order <span className="text-white font-bold">{orderToChangeTable?.order_number || orderToChangeTable?.id.substring(0,6)}</span></p>
+          <p className="text-xs text-tertiary uppercase tracking-widest">Select new table for Order <span className="text-white font-bold">{orderToChangeTable?.order_number || orderToChangeTable?.id?.substring(0,6) || '...'}</span></p>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
             {tables
               .filter(t => !t.is_occupied || t.id === orderToChangeTable?.table)
@@ -2726,7 +2759,7 @@ const handleProcessPayment = async () => {
         onClose={() => setOrderToCancel(null)}
         onConfirm={() => orderToCancel && handleCancelOrderFromModal(orderToCancel)}
         title="Cancel Order"
-        message={`Cancel Order #${orderToCancel?.order_number || orderToCancel?.id?.substring(0,6)}?`}
+        message={`Cancel Order #${orderToCancel?.order_number || orderToCancel?.id?.substring(0,6) || '...'}?`}
         description="This action cannot be undone. The order will be marked as cancelled."
         confirmText="Yes, Cancel Order"
         cancelText="Keep Order"
@@ -2747,7 +2780,7 @@ const handleProcessPayment = async () => {
             <div className="bg-[#0A0A0A] rounded-2xl p-4 border border-white/5 flex justify-between items-center">
               <div>
                 <p className="text-[9px] font-bold text-tertiary uppercase tracking-widest">Order</p>
-                <p className="text-sm font-bold text-white mt-0.5">#{orderToDiscount.order_number || orderToDiscount.id.substring(0,6)}</p>
+                <p className="text-sm font-bold text-white mt-0.5">#{orderToDiscount?.order_number || orderToDiscount?.id?.substring(0,6) || '...'}</p>
               </div>
               <div className="text-right">
                 <p className="text-[9px] font-bold text-tertiary uppercase tracking-widest">Order Total</p>
@@ -2913,7 +2946,7 @@ const handleProcessPayment = async () => {
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-xs text-tertiary uppercase tracking-widest">Select driver for Order <span className="text-white font-bold">{orderToAssign?.order_number || orderToAssign?.id.substring(0,6)}</span></p>
+          <p className="text-xs text-tertiary uppercase tracking-widest">Select driver for Order <span className="text-white font-bold">{orderToAssign?.order_number || orderToAssign?.id?.substring(0,6) || '...'}</span></p>
           
           <div className="grid grid-cols-1 gap-2 max-h-[40vh] overflow-y-auto custom-scrollbar pr-1">
             {deliveryPersons.map(person => (
