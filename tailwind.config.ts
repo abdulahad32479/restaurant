@@ -58,6 +58,10 @@ const config: Config = {
         card: "var(--shadow-card)",
         active: "var(--shadow-active)",
         glow: "var(--shadow-glow-gold)",
+        "glow-primary": "0 0 20px rgba(139, 0, 0, 0.4)",
+        "glow-emerald": "0 0 20px rgba(16, 185, 129, 0.4)",
+        "glow-amber": "0 0 20px rgba(245, 158, 11, 0.4)",
+        "glow-info": "0 0 20px rgba(59, 130, 246, 0.4)",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "sans-serif"],

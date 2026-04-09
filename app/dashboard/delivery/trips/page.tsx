@@ -140,8 +140,8 @@ export default function DeliveryTripsPage() {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-8 animate-in fade-in duration-700">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#0F0F0F] p-5 rounded-2xl border border-white/5 relative overflow-hidden group">
+    <div className="max-w-[1600px] mx-auto p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 animate-in fade-in duration-700">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-[#0F0F0F] p-5 sm:p-6 rounded-2xl border border-white/5 relative overflow-hidden group">
         <div className="relative z-10 flex items-center gap-3">
           <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
             <Truck className="w-5 h-5 text-primary" />
@@ -174,7 +174,7 @@ export default function DeliveryTripsPage() {
       </div>
 
       {/* Logic Matrix Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-[#0F0F0F] p-4 rounded-3xl border border-white/5 shadow-xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 bg-[#0F0F0F] p-4 rounded-3xl border border-white/5 shadow-xl">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#555]" />
           <input 
@@ -222,7 +222,7 @@ export default function DeliveryTripsPage() {
       </div>
 
       {/* Grid of Command Cards */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
         {trips.length === 0 ? (
           <div className="col-span-full py-20 text-center bg-[#0F0F0F] rounded-2xl border border-dashed border-white/5">
             <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner group">
@@ -276,16 +276,16 @@ export default function DeliveryTripsPage() {
                 </div>
 
                 {/* Data Matrix */}
-                <div className="grid grid-cols-2 gap-8 mb-10">
-                  <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 shadow-inner group-hover:bg-white/[0.05] transition-all duration-500">
-                    <p className="text-[9px] font-black text-[#555] uppercase tracking-[0.4em] mb-4 flex items-center gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-8 sm:mb-10">
+                  <div className="p-4 sm:p-6 rounded-3xl bg-white/[0.03] border border-white/10 shadow-inner group-hover:bg-white/[0.05] transition-all duration-500">
+                    <p className="text-[9px] font-black text-[#555] uppercase tracking-[0.4em] mb-3 sm:mb-4 flex items-center gap-2">
                         <MapPin className="w-3.5 h-3.5" />
                         Target Route
                     </p>
                     <span className="text-sm font-black text-white uppercase tracking-widest truncate block">{trip.route_name || trip.route || 'Custom Deployment'}</span>
                   </div>
-                  <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/10 shadow-inner group-hover:bg-white/[0.05] transition-all duration-500">
-                    <p className="text-[9px] font-black text-[#555] uppercase tracking-[0.4em] mb-4 flex items-center gap-2">
+                  <div className="p-4 sm:p-6 rounded-3xl bg-white/[0.03] border border-white/10 shadow-inner group-hover:bg-white/[0.05] transition-all duration-500">
+                    <p className="text-[9px] font-black text-[#555] uppercase tracking-[0.4em] mb-3 sm:mb-4 flex items-center gap-2">
                         <UserIcon className="w-3.5 h-3.5" />
                         Lead Rider
                     </p>

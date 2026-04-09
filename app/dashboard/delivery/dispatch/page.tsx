@@ -8,7 +8,7 @@ import { Modal } from '@/src/components/Modal';
 import { Input, Select } from '@/src/components/Input';
 import { deliveryTripService } from '@/src/services/delivery-trip.service';
 import { Order, DispatchBoardItem, DeliveryPerson, TripSuggestion } from '@/src/types';
-import { MapPin, Truck, Plus, CheckCircle2, Package, Search, LayoutDashboard, Send, Zap, Clock } from 'lucide-react';
+import { MapPin, Truck, Plus, CheckCircle2, Package, Search, LayoutDashboard, Send, Zap, Clock, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/src/lib/axios';
@@ -97,6 +97,17 @@ export default function DispatchBoardPage() {
     }
   };
 
+  const handleSendWhatsApp = async (orderId: string) => {
+    try {
+      await deliveryTripService.sendOrderToRiderWhatsapp(orderId);
+      toast.success('Signal Transmitted to Rider');
+    } catch (e: any) { 
+      const msg = e.response?.data?.error || e.message || 'Transmission Failed';
+      toast.error(msg === 'Order has no assigned rider' ? 'Assign a rider before signaling' : msg); 
+    }
+  };
+
+
   if (isLoading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
@@ -112,8 +123,8 @@ export default function DispatchBoardPage() {
   const safeOrders: string[] = Array.isArray(selectedOrders) ? selectedOrders : [];
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 max-w-[1600px] mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#0F0F0F] p-5 rounded-2xl border border-white/5 relative overflow-hidden group">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-700 max-w-[1600px] mx-auto p-4 sm:p-6 md:p-8">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-[#0F0F0F] p-5 sm:p-6 rounded-2xl border border-white/5 relative overflow-hidden group">
         <div className="relative z-10 flex items-center gap-3">
           <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
             <Zap className="w-5 h-5 text-primary" />
@@ -146,9 +157,9 @@ export default function DispatchBoardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
         {/* Route Groupings */}
-        <div className="xl:col-span-2 space-y-8">
+        <div className="lg:col-span-2 space-y-6 sm:space-y-8">
           {boardItems.length === 0 ? (
             <div className="py-32 text-center bg-[#0F0F0F] rounded-3xl border-2 border-dashed border-white/5">
               <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
@@ -175,7 +186,7 @@ export default function DispatchBoardPage() {
                     <Card 
                       key={order.id}
                       onClick={() => toggleOrderSelection(order.id, routeItem.route)}
-                      className={`group relative p-6 transition-all duration-300 cursor-pointer border-2 overflow-hidden ${
+                      className={`group relative p-4 sm:p-6 transition-all duration-300 cursor-pointer border-2 overflow-hidden ${
                         safeOrders.includes(order.id) 
                         ? 'border-primary bg-primary/5 shadow-[0_0_30px_rgba(245,158,11,0.1)]' 
                         : selectedRoute && selectedRoute !== routeItem.route
@@ -194,11 +205,20 @@ export default function DispatchBoardPage() {
                           <p className="text-[10px] font-black text-[#555] uppercase tracking-[0.2em] leading-none mb-2">#{order.order_number || order.id?.substring(0,8)}</p>
                           <h4 className="text-base font-black text-white uppercase truncate max-w-[200px] tracking-tight">{order.delivery_info?.name}</h4>
                         </div>
-                        <Badge className={`${
-                          order.status === 'ready' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-warning/10 text-warning border-warning/20'
-                        } uppercase text-[8px] font-black px-2 py-0.5 rounded-lg`}>
-                          {order.status}
-                        </Badge>
+                        <div className="flex gap-2">
+                           <button 
+                             onClick={(e) => { e.stopPropagation(); handleSendWhatsApp(order.id); }}
+                             className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-500/60 hover:text-emerald-500 transition-all opacity-0 group-hover:opacity-100"
+                             title="WhatsApp Signal"
+                           >
+                             <MessageSquare className="w-3.5 h-3.5" />
+                           </button>
+                           <Badge className={`${
+                             order.status === 'ready' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-warning/10 text-warning border-warning/20'
+                           } uppercase text-[8px] font-black px-2 py-0.5 rounded-lg`}>
+                             {order.status}
+                           </Badge>
+                        </div>
                       </div>
                       
                       <div className="space-y-3">
@@ -226,8 +246,8 @@ export default function DispatchBoardPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-[#0F0F0F] rounded-2xl border border-white/5 p-5 sticky top-24 overflow-hidden">
-            <h3 className="text-[10px] font-bold text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+          <div className="bg-[#0F0F0F] rounded-2xl border border-white/5 p-5 lg:sticky lg:top-24 overflow-hidden shadow-2xl">
+            <h3 className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-widest mb-6 flex items-center gap-2">
               <div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
               </div>

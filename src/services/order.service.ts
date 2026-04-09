@@ -238,5 +238,10 @@ export const orderService = {
   getZones: async () => {
     const response = await apiClient.get<any>('v1/delivery-zones/');
     return response.data;
+  },
+
+  updateDeliveryZone: async (id: string, zone_id: string) => {
+    const response = await apiClient.post<Order>(`v1/orders/${id}/update_delivery_zone/`, { zone_id });
+    return response.data;
   }
 };

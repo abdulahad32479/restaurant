@@ -29,16 +29,9 @@ export const deliveryTripService = {
   assignTrip: async (data: { trip_id: string; person_id: string; send_whatsapp?: boolean }) => {
     const payload = {
       trip_id: data.trip_id,
-      trip: data.trip_id,
-      id: data.trip_id,
       person_id: data.person_id,
-      delivery_person_id: data.person_id,
-      delivery_person: data.person_id,
-      rider_id: data.person_id,
-      rider: data.person_id,
       send_whatsapp: data.send_whatsapp ?? true
     };
-    console.log('Dispatching Trip Assignment Payload:', payload);
     const response = await apiClient.post<DeliveryTrip>('v1/orders/assign_trip/', payload);
     return response.data;
   },
@@ -46,16 +39,9 @@ export const deliveryTripService = {
   reassignTrip: async (data: { trip_id: string; person_id: string; send_whatsapp?: boolean }) => {
     const payload = {
       trip_id: data.trip_id,
-      trip: data.trip_id,
-      id: data.trip_id,
       person_id: data.person_id,
-      delivery_person_id: data.person_id,
-      delivery_person: data.person_id,
-      rider_id: data.person_id,
-      rider: data.person_id,
       send_whatsapp: data.send_whatsapp ?? true
     };
-    console.log('Dispatching Trip Reassignment Payload:', payload);
     const response = await apiClient.post<DeliveryTrip>('v1/orders/reassign_trip/', payload);
     return response.data;
   },
@@ -78,16 +64,9 @@ export const deliveryTripService = {
   assignAndDispatchTrip: async (data: { trip_id: string; person_id: string; send_whatsapp?: boolean }) => {
     const payload = { 
       trip_id: data.trip_id, 
-      trip: data.trip_id,
-      id: data.trip_id,
       person_id: data.person_id, 
-      delivery_person_id: data.person_id,
-      delivery_person: data.person_id,
-      rider_id: data.person_id,
-      rider: data.person_id,
       send_whatsapp: data.send_whatsapp ?? true
     };
-    console.log('Dispatching Trip Assign & Dispatch Payload:', payload);
     const response = await apiClient.post<DeliveryTrip>('v1/orders/assign_and_dispatch_trip/', payload);
     return response.data;
   },
