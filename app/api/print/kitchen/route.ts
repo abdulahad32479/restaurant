@@ -20,6 +20,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Either text or order details are required.' }, { status: 400 });
     }
 
+ 
     const device = new escpos.Network(printerIp);
     const printer = new escpos.Printer(device);
 

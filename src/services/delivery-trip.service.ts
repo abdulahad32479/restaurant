@@ -13,7 +13,7 @@ export const deliveryTripService = {
   },
 
   createTrip: async (data: { order_ids: string[]; notes?: string; is_custom?: boolean }) => {
-    const payload: any = { order_ids: data.order_ids, is_custom: data.is_custom ?? true };
+    const payload: any = { order_ids: data.order_ids, is_custom: data.is_custom ?? false };
     if (data.notes && data.notes.trim() !== '') {
         payload.notes = data.notes;
     }
@@ -27,12 +27,36 @@ export const deliveryTripService = {
   },
 
   assignTrip: async (data: { trip_id: string; person_id: string; send_whatsapp?: boolean }) => {
-    const response = await apiClient.post<DeliveryTrip>('v1/orders/assign_trip/', data);
+    const payload = {
+      trip_id: data.trip_id,
+      trip: data.trip_id,
+      id: data.trip_id,
+      person_id: data.person_id,
+      delivery_person_id: data.person_id,
+      delivery_person: data.person_id,
+      rider_id: data.person_id,
+      rider: data.person_id,
+      send_whatsapp: data.send_whatsapp ?? true
+    };
+    console.log('Dispatching Trip Assignment Payload:', payload);
+    const response = await apiClient.post<DeliveryTrip>('v1/orders/assign_trip/', payload);
     return response.data;
   },
 
   reassignTrip: async (data: { trip_id: string; person_id: string; send_whatsapp?: boolean }) => {
-    const response = await apiClient.post<DeliveryTrip>('v1/orders/reassign_trip/', data);
+    const payload = {
+      trip_id: data.trip_id,
+      trip: data.trip_id,
+      id: data.trip_id,
+      person_id: data.person_id,
+      delivery_person_id: data.person_id,
+      delivery_person: data.person_id,
+      rider_id: data.person_id,
+      rider: data.person_id,
+      send_whatsapp: data.send_whatsapp ?? true
+    };
+    console.log('Dispatching Trip Reassignment Payload:', payload);
+    const response = await apiClient.post<DeliveryTrip>('v1/orders/reassign_trip/', payload);
     return response.data;
   },
 
@@ -52,7 +76,18 @@ export const deliveryTripService = {
   },
 
   assignAndDispatchTrip: async (data: { trip_id: string; person_id: string; send_whatsapp?: boolean }) => {
-    const payload = { trip_id: data.trip_id, person_id: data.person_id };
+    const payload = { 
+      trip_id: data.trip_id, 
+      trip: data.trip_id,
+      id: data.trip_id,
+      person_id: data.person_id, 
+      delivery_person_id: data.person_id,
+      delivery_person: data.person_id,
+      rider_id: data.person_id,
+      rider: data.person_id,
+      send_whatsapp: data.send_whatsapp ?? true
+    };
+    console.log('Dispatching Trip Assign & Dispatch Payload:', payload);
     const response = await apiClient.post<DeliveryTrip>('v1/orders/assign_and_dispatch_trip/', payload);
     return response.data;
   },
@@ -67,9 +102,17 @@ export const deliveryTripService = {
     return response.data;
   },
 
-  getDispatchBoard: async () => {
-    const response = await apiClient.get<DispatchBoardItem[]>('v1/orders/dispatch_board/');
-    return response.data;
+  getDispatchBoard: async (): Promise<DispatchBoardItem[]> => {
+    const response = await apiClient.get<any>('v1/orders/delivery_dispatch_board/');
+    // Handle DRF paginated response { count, results: [...] }
+    if (response.data && Array.isArray(response.data.results)) {
+      return response.data.results as DispatchBoardItem[];
+    }
+    // Handle direct array response
+    if (Array.isArray(response.data)) {
+      return response.data as DispatchBoardItem[];
+    }
+    return [];
   },
 
   getTripSuggestions: async () => {

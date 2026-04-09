@@ -31,11 +31,11 @@ export default function DispatchBoardPage() {
     else setIsRefreshing(true);
     try {
       const [boardData, suggestionsData] = await Promise.all([
-        deliveryTripService.getDispatchBoard(),
+        deliveryTripService.getDispatchBoard().catch(() => []),
         deliveryTripService.getTripSuggestions().catch(() => [])
       ]);
-      setBoardItems(boardData);
-      setSuggestions(suggestionsData);
+      setBoardItems(Array.isArray(boardData) ? boardData : []);
+      setSuggestions(Array.isArray(suggestionsData) ? suggestionsData : []);
     } catch (error) {
       console.error('Failed to fetch dispatch board', error);
       toast.error('Failed to load dispatch data');
@@ -108,6 +108,9 @@ export default function DispatchBoardPage() {
     );
   }
 
+  // Safe alias — guards against API suggestions setting state to undefined
+  const safeOrders: string[] = Array.isArray(selectedOrders) ? selectedOrders : [];
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700 max-w-[1600px] mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#0F0F0F] p-5 rounded-2xl border border-white/5 relative overflow-hidden group">
@@ -133,12 +136,12 @@ export default function DispatchBoardPage() {
           </Button>
           <Button 
             variant="primary" 
-            disabled={selectedOrders.length === 0}
+            disabled={safeOrders.length === 0}
             onClick={() => setIsCreateTripModalOpen(true)}
             className="h-10 px-8 uppercase tracking-widest text-[10px] font-bold shadow-lg shadow-primary/20 rounded-xl"
             icon={<Truck className="w-4 h-4" />}
           >
-            Create Trip ({selectedOrders.length})
+            Create Trip ({safeOrders.length})
           </Button>
         </div>
       </div>
@@ -155,7 +158,7 @@ export default function DispatchBoardPage() {
               <p className="text-tertiary text-xs uppercase tracking-widest font-black max-w-xs mx-auto opacity-50">No ready delivery orders found on the board at this moment.</p>
             </div>
           ) : (
-            boardItems.map((routeItem, idx) => (
+            (boardItems || []).map((routeItem, idx) => (
               <div key={idx} className="space-y-4 animate-in slide-in-from-bottom duration-500" style={{ animationDelay: `${idx * 100}ms` }}>
                 <div className="flex items-center justify-between px-4 pb-2 border-b border-white/5">
                    <div className="flex items-center gap-3">
@@ -173,7 +176,7 @@ export default function DispatchBoardPage() {
                       key={order.id}
                       onClick={() => toggleOrderSelection(order.id, routeItem.route)}
                       className={`group relative p-6 transition-all duration-300 cursor-pointer border-2 overflow-hidden ${
-                        selectedOrders.includes(order.id) 
+                        safeOrders.includes(order.id) 
                         ? 'border-primary bg-primary/5 shadow-[0_0_30px_rgba(245,158,11,0.1)]' 
                         : selectedRoute && selectedRoute !== routeItem.route
                         ? 'border-white/5 bg-[#0F0F0F] opacity-40 grayscale cursor-not-allowed'
@@ -181,7 +184,7 @@ export default function DispatchBoardPage() {
                       }`}
                     >
                       {/* Selection Indicator */}
-                      <div className={`absolute top-0 right-0 w-16 h-16 transition-all duration-500 ${selectedOrders.includes(order.id) ? 'translate-x-0' : 'translate-x-full'}`}>
+                      <div className={`absolute top-0 right-0 w-16 h-16 transition-all duration-500 ${safeOrders.includes(order.id) ? 'translate-x-0' : 'translate-x-full'}`}>
                          <div className="absolute top-0 right-0 w-0 h-0 border-t-[40px] border-l-[40px] border-t-primary border-l-transparent"></div>
                          <CheckCircle2 className="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-black" />
                       </div>
@@ -247,7 +250,17 @@ export default function DispatchBoardPage() {
                       <Button 
                         size="sm" 
                         variant="primary" 
-                        onClick={() => { setSelectedOrders(s.order_ids); setSelectedRoute(s.route); setIsCreateTripModalOpen(true); }}
+                        onClick={() => { 
+                          const sData: any = s;
+                          const routeOrders = Array.isArray(sData.order_ids) ? sData.order_ids : (Array.isArray(sData.orders) ? sData.orders.map((o: any) => o?.id || o) : []);
+                          if (routeOrders.length === 0) {
+                            toast.error("This suggestion has no valid orders");
+                            return;
+                          }
+                          setSelectedOrders(routeOrders); 
+                          setSelectedRoute(s.route); 
+                          setIsCreateTripModalOpen(true); 
+                        }}
                         className="h-8 text-[8px] font-black px-4 bg-primary/10 border-primary/20 text-primary hover:bg-primary hover:text-white"
                       >
                         Auto-Form
@@ -276,16 +289,16 @@ export default function DispatchBoardPage() {
               <div className="grid grid-cols-2 gap-3">
                  <div className="p-4 rounded-2xl bg-black/40 border border-white/5">
                     <p className="text-[8px] font-black text-[#555] uppercase mb-1">Payload</p>
-                    <p className="text-xl font-black text-white">{selectedOrders.length}</p>
+                    <p className="text-xl font-black text-white">{safeOrders.length}</p>
                  </div>
                  <div className="p-4 rounded-2xl bg-black/40 border border-white/5">
                     <p className="text-[8px] font-black text-[#555] uppercase mb-1">Active Zones</p>
                     <p className="text-xl font-black text-white">
                         {(() => {
                         const routes = new Set();
-                        boardItems.forEach(ri => {
+                        (boardItems || []).forEach(ri => {
                             (ri.orders || []).forEach(o => {
-                            if (selectedOrders.includes(o.id)) routes.add(ri.route);
+                            if (safeOrders.includes(o.id)) routes.add(ri.route);
                             });
                         });
                         return routes.size;
@@ -297,10 +310,10 @@ export default function DispatchBoardPage() {
                 variant="primary" 
                 fullWidth 
                 onClick={() => setIsCreateTripModalOpen(true)}
-                disabled={selectedOrders.length === 0}
+                disabled={safeOrders.length === 0}
                 className="mt-6 h-12 font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 rounded-xl bg-primary text-black"
               >
-                Form Trip & Deploy ({selectedOrders.length})
+                Form Trip & Deploy ({safeOrders.length})
               </Button>
             </div>
           </div>
@@ -321,7 +334,7 @@ export default function DispatchBoardPage() {
             </div>
             <div>
               <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Payload Ready</p>
-              <h3 className="text-base font-bold text-white mt-0.5 uppercase tracking-tight">{selectedOrders.length} Ready Deliveries Grouped</h3>
+              <h3 className="text-base font-bold text-white mt-0.5 uppercase tracking-tight">{safeOrders.length} Ready Deliveries Grouped</h3>
             </div>
           </div>
 

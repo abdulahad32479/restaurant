@@ -87,9 +87,14 @@ export default function DeliveryTripsPage() {
       setSelectedTrip(null);
       setSelectedRider('');
       fetchData(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to process trip assignment', error);
-      toast.error('Failed to process trip assignment');
+      const serverMsg = error.response?.data?.detail 
+         || (error.response?.data && typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : null)
+         || (error.response?.data && typeof error.response.data === 'string' ? error.response.data.substring(0, 300) : null)
+         || error.message 
+         || 'Unknown error';
+      toast.error(`Assignment Failed: ${serverMsg}`);
     } finally {
       setIsProcessing(false);
     }
