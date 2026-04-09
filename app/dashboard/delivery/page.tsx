@@ -26,27 +26,27 @@ import { cn } from '@/src/lib/utils';
 
 // --- SHARED UI ---
 
-const TEXT_META = "text-[10px] uppercase font-bold text-tertiary tracking-widest mb-1";
+const TEXT_META = "text-[10px] 2xl:text-xs uppercase font-bold text-tertiary tracking-widest mb-1";
 
 const TabButton = ({ active, onClick, icon: Icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) => (
   <button 
     onClick={onClick}
     className={cn(
-      "flex items-center gap-2 px-3 sm:px-6 py-3 sm:py-4 border-b-2 transition-all duration-200 outline-none flex-1 sm:flex-none justify-center sm:justify-start",
+      "flex items-center gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b-2 transition-all duration-200 outline-none flex-1 sm:flex-none justify-center",
       active 
         ? "border-primary text-primary bg-primary/5 font-bold" 
         : "border-transparent text-secondary hover:text-white hover:bg-white/[0.02] font-medium"
     )}
   >
-    <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
-    <span className="text-[10px] sm:text-sm whitespace-nowrap uppercase tracking-wider">{label}</span>
+    <Icon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+    <span className="text-[10px] 2xl:text-base whitespace-nowrap uppercase tracking-wider hidden sm:block">{label}</span>
   </button>
 );
 
 const SectionHeading = ({ title, subtitle }: { title: string, subtitle: string }) => (
-  <div className="mb-6">
-    <h2 className="text-2xl font-bold text-white tracking-tight">{title}</h2>
-    <p className="text-sm text-tertiary mt-1">{subtitle}</p>
+  <div className="mb-6 sm:mb-8">
+    <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-tight">{title}</h2>
+    <p className="text-xs sm:text-sm text-tertiary mt-1 opacity-70">{subtitle}</p>
   </div>
 );
 
@@ -136,8 +136,8 @@ const DispatchTab = ({ onTripCreated }: { onTripCreated: () => void }) => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8">
-      <div className="lg:col-span-3 space-y-6 sm:space-y-10 order-2 lg:order-1">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6 2xl:gap-8">
+      <div className="md:col-span-2 xl:col-span-2 2xl:col-span-3 space-y-6 sm:space-y-10 order-2 lg:order-1">
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-tertiary" />
@@ -173,7 +173,7 @@ const DispatchTab = ({ onTripCreated }: { onTripCreated: () => void }) => {
                     key={order.id} 
                     onClick={() => toggleSelection(order.id, route.route)}
                     className={cn(
-                      "p-4 sm:p-6 rounded-2xl border-2 transition-all cursor-pointer bg-card group",
+                      "p-5 sm:p-6 rounded-2xl border-2 transition-all cursor-pointer bg-card group",
                       selectedOrders.includes(order.id) ? "border-primary bg-primary/[0.03] shadow-lg" : "border-base hover:border-white/20"
                     )}
                   >
@@ -198,14 +198,14 @@ const DispatchTab = ({ onTripCreated }: { onTripCreated: () => void }) => {
                       </div>
                     </div>
                     <div className="mb-5">
-                      <h4 className="text-lg font-bold text-white mb-1 truncate">{order.delivery_info?.name}</h4>
-                      <p className="text-xs text-emerald-500 font-bold flex items-center gap-2"><Phone className="w-3.5 h-3.5" /> {order.delivery_info?.phone}</p>
+                      <h4 className="text-base sm:text-lg 2xl:text-xl font-bold text-white mb-1 truncate">{order.delivery_info?.name}</h4>
+                      <p className="text-[10px] sm:text-xs 2xl:text-sm text-emerald-500 font-bold flex items-center gap-2"><Phone className="w-3.5 h-3.5" /> {order.delivery_info?.phone}</p>
                     </div>
                     <div className="pt-4 border-t border-base space-y-4">
-                       <p className="text-sm text-tertiary leading-snug line-clamp-2 min-h-[40px]">{order.delivery_info?.address}</p>
+                       <p className="text-xs sm:text-sm 2xl:text-base text-tertiary leading-snug line-clamp-2 min-h-[40px]">{order.delivery_info?.address}</p>
                        <div className="flex justify-between items-center bg-surface/50 p-2.5 rounded-xl">
                           <span className="text-xs font-bold text-tertiary">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          <span className={cn("text-xs font-bold uppercase", (order.priority_score || 0) > 70 ? 'text-rose-500' : 'text-primary')}>Score: {order.priority_score || '0'}</span>
+                          <span className={cn("text-[10px] sm:text-xs font-bold uppercase", (order.priority_score || 0) > 70 ? 'text-rose-500' : 'text-primary')}>Score: {order.priority_score || '0'}</span>
                        </div>
                     </div>
                   </div>
@@ -263,7 +263,7 @@ const DispatchTab = ({ onTripCreated }: { onTripCreated: () => void }) => {
       </div>
 
       <div className="space-y-6 order-1 lg:order-2">
-        <div className="p-6 sm:p-8 bg-card border border-base rounded-[2rem] space-y-6 sm:space-y-8 lg:sticky lg:top-8 shadow-xl">
+        <div className="p-5 sm:p-8 bg-card border border-base rounded-[1.5rem] sm:rounded-[2rem] space-y-6 sm:space-y-8 lg:sticky lg:top-8 shadow-xl">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <Zap className="w-6 h-6 text-primary" />
@@ -467,7 +467,7 @@ const TripsTab = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6 2xl:gap-10">
         {trips.length === 0 ? (
           <div className="col-span-full py-32 text-center border-2 border-dashed border-base rounded-[3rem] opacity-30">
             <Truck className="w-20 h-20 mx-auto mb-6 text-tertiary" />
@@ -476,14 +476,14 @@ const TripsTab = () => {
           </div>
         ) : (
           trips.map(trip => (
-            <Card key={trip.id} className="relative border-base bg-card hover:border-white/10 transition-all flex flex-col shadow-lg overflow-hidden rounded-[2.5rem]">
-              <div className="p-6 sm:p-8 space-y-6 sm:space-y-8 flex-1">
-                <div className="flex justify-between items-start">
+            <Card key={trip.id} className="relative border-base bg-card hover:border-white/10 transition-all flex flex-col shadow-lg overflow-hidden rounded-[2rem] sm:rounded-[2.5rem]">
+              <div className="p-5 sm:p-8 space-y-6 sm:space-y-8 flex-1">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                   <div>
-                    <p className="text-[10px] uppercase font-bold text-tertiary tracking-widest mb-1.5">Mission Code</p>
-                    <h3 className="text-2xl font-black text-white">#{trip.trip_number || trip.id.substring(0,8)}</h3>
+                    <p className="text-[10px] 2xl:text-xs uppercase font-bold text-tertiary tracking-widest mb-1.5">Mission Code</p>
+                    <h3 className="text-xl sm:text-2xl 2xl:text-3xl font-black text-white leading-none">#{trip.trip_number || trip.id.substring(0,8)}</h3>
                   </div>
-                  <Badge className={cn("px-4 py-1.5 rounded-full uppercase text-xs font-black tracking-widest border", 
+                  <Badge className={cn("px-4 py-1.5 rounded-full uppercase text-[10px] font-black tracking-widest border shrink-0", 
                     trip.status === 'out' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : 
                     trip.status === 'completed' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : 
                     "bg-white/5 text-secondary border-white/5")}>
@@ -845,54 +845,87 @@ const LogsTab = () => {
         </button>
       </div>
 
-      <div className="bg-card border border-base rounded-[2rem] overflow-hidden shadow-sm">
-        <div className="overflow-x-auto custom-scrollbar">
+      <div className="bg-card border border-base rounded-[2rem] overflow-hidden shadow-xl">
+        {/* MOBILE CARDS FOR LOGS */}
+        <div className="block lg:hidden divide-y divide-base">
+          {loading ? (
+             <div className="py-20 text-center opacity-30 text-[12px] font-bold uppercase tracking-[1em]">Scanning Signals...</div>
+          ) : filtered.length === 0 ? (
+             <div className="py-20 text-center opacity-30">Frequency Static</div>
+          ) : filtered.map(log => (
+             <div key={log.id} className="p-6 space-y-4">
+                <div className="flex justify-between items-start">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-surface border border-base flex items-center justify-center text-primary"><UserIcon className="w-5 h-5" /></div>
+                      <div>
+                         <p className="font-bold text-white text-sm uppercase">{log.delivery_person_name || 'Rider'}</p>
+                         <p className="text-[10px] font-semibold text-tertiary opacity-40">{log.phone_number}</p>
+                      </div>
+                   </div>
+                   <Badge className={cn("px-3 py-1 rounded-full text-[9px] font-black uppercase border", 
+                      ['sent', 'delivered', 'read'].includes(log.status) ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20")}>
+                      {log.status.toUpperCase()}
+                   </Badge>
+                </div>
+                <div className="p-4 bg-surface rounded-xl border border-white/5 italic text-xs text-tertiary">
+                   "{log.message_text || 'System signal transmitted'}"
+                </div>
+                <div className="flex justify-between items-center text-[9px] font-black text-tertiary uppercase tracking-wider opacity-30">
+                   <span>{log.target_type}: {log.target_id.split('-')[0]}</span>
+                   <span>{new Date(log.created_at).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}</span>
+                </div>
+             </div>
+          ))}
+        </div>
+
+        {/* DESKTOP TABLE FOR LOGS */}
+        <div className="hidden lg:block overflow-x-auto custom-scrollbar">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-surface/50 text-[11px] font-black text-white/20 uppercase tracking-[0.4em] border-b border-base">
-                <th className="px-4 sm:px-10 py-6 sm:py-10">Signal Node</th>
-                <th className="px-4 sm:px-10 py-6 sm:py-10">Object Reference</th>
-                <th className="px-4 sm:px-10 py-6 sm:py-10">Status Flux</th>
-                <th className="px-4 sm:px-10 py-6 sm:py-10">Decrypted Payload</th>
-                <th className="px-4 sm:px-10 py-6 sm:py-10">Registry Clock</th>
+                <th className="px-10 py-8">Signal Node</th>
+                <th className="px-10 py-8">Object Reference</th>
+                <th className="px-10 py-8">Status Flux</th>
+                <th className="px-10 py-8">Decrypted Payload</th>
+                <th className="px-10 py-8">Registry Clock</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-base">
               {loading ? (
-                <tr><td colSpan={5} className="py-20 sm:py-40 text-center opacity-30 text-[12px] font-bold uppercase tracking-[2em]">Analyzing frequencies...</td></tr>
+                <tr><td colSpan={5} className="py-20 text-center opacity-30 text-[12px] font-bold uppercase tracking-[2em]">Analyzing...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} className="py-20 sm:py-40 text-center opacity-30">Frequency Static: No Logs Found</td></tr>
+                <tr><td colSpan={5} className="py-20 text-center opacity-30 italic">No Logs Recovered</td></tr>
               ) : filtered.map(log => (
                 <tr key={log.id} className="hover:bg-white/[0.015] transition-all group">
-                  <td className="px-4 sm:px-10 py-6 sm:py-10">
+                  <td className="px-10 py-8">
                     <div className="flex items-center gap-4">
-                       <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-surface border border-base flex items-center justify-center text-white/10 group-hover:text-primary transition-colors"><UserIcon className="w-5 h-5 sm:w-6 sm:h-6" /></div>
+                       <div className="w-12 h-12 rounded-2xl bg-surface border border-base flex items-center justify-center text-white/10 group-hover:text-primary transition-colors"><UserIcon className="w-6 h-6" /></div>
                        <div>
-                          <p className="font-bold text-white text-sm sm:text-base leading-tight uppercase group-hover:text-primary transition-colors">{log.delivery_person_name || 'Rider'}</p>
-                          <p className="text-[10px] sm:text-xs font-semibold text-tertiary opacity-40">{log.phone_number}</p>
+                          <p className="font-bold text-white text-base leading-tight uppercase group-hover:text-primary transition-colors">{log.delivery_person_name || 'Rider'}</p>
+                          <p className="text-xs font-semibold text-tertiary opacity-40">{log.phone_number}</p>
                        </div>
                     </div>
                   </td>
-                  <td className="px-4 sm:px-10 py-6 sm:py-10">
+                  <td className="px-10 py-8">
                      <div className="flex flex-col">
                         <span className="text-[10px] font-black text-primary uppercase tracking-widest">{log.target_type}</span>
                         <span className="text-xs font-bold text-white/40 truncate max-w-[120px]">{log.target_id.split('-')[0]}...</span>
                      </div>
                   </td>
-                  <td className="px-4 sm:px-10 py-6 sm:py-10">
-                    <Badge className={cn("px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[8px] sm:text-[10px] font-black tracking-widest uppercase border", 
+                  <td className="px-10 py-8">
+                    <Badge className={cn("px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase border", 
                       ['sent', 'delivered', 'read'].includes(log.status) ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20")}>
                       {log.status.toUpperCase()}
                     </Badge>
                   </td>
-                  <td className="px-4 sm:px-10 py-6 sm:py-10 max-w-sm xl:max-w-lg">
-                    <div className="p-3 sm:p-4 bg-surface rounded-2xl border border-white/5 group-hover:border-white/10 transition-all">
-                      <p className="text-xs sm:text-sm text-tertiary font-medium leading-relaxed italic opacity-80 group-hover:opacity-100">"{log.message_text || 'System signal transmitted'}"</p>
+                  <td className="px-10 py-8 max-w-lg">
+                    <div className="p-4 bg-surface rounded-2xl border border-white/5 group-hover:border-white/10 transition-all">
+                      <p className="text-sm text-tertiary font-medium leading-relaxed italic opacity-80 group-hover:opacity-100">"{log.message_text || 'System signal transmitted'}"</p>
                     </div>
                   </td>
-                  <td className="px-4 sm:px-10 py-6 sm:py-10">
-                     <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold text-tertiary opacity-40">
-                        <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <td className="px-10 py-8">
+                     <div className="flex items-center gap-2 text-xs font-bold text-tertiary opacity-40">
+                        <Clock className="w-4 h-4" />
                         {new Date(log.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                      </div>
                   </td>
@@ -1036,27 +1069,26 @@ export default function UnifiedLogisticsDashboard() {
   const [tab, setTab] = useState<'dispatch' | 'trips' | 'people' | 'logs' | 'setup'>('dispatch');
 
   return (
-    <div className="p-4 sm:p-6 md:p-12 max-w-[1700px] mx-auto min-h-screen bg-bg-main text-white selection:bg-primary selection:text-white">
-      {/* PROFESSIONAL HEADER */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8 md:gap-10 mb-8 md:mb-12">
-        <div className="flex items-center gap-4 sm:gap-8 group">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 rounded-2xl sm:rounded-[1.8rem] flex items-center justify-center border border-primary/20 shadow-glow-primary/5 transition-all duration-700 hover:rounded-2xl hover:scale-105 active:scale-95 group-hover:bg-primary/20">
-             <Truck className="w-6 h-6 sm:w-8 sm:h-8 text-primary shadow-glow-primary" />
+    <div className="p-3 sm:p-6 md:p-8 2xl:p-12 max-w-[1800px] mx-auto min-h-screen bg-bg-main text-white selection:bg-primary selection:text-white">
+      {/* MOBILE-OPTIC HEADER */}
+      <div className="flex flex-col xl:flex-row justify-between items-center sm:items-start xl:items-center gap-6 sm:gap-10 mb-8 sm:mb-16">
+        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 group text-center sm:text-left">
+          <div className="w-20 h-20 sm:w-16 sm:h-16 bg-primary/10 rounded-[2rem] sm:rounded-[1.8rem] flex items-center justify-center border border-primary/20 shadow-glow-primary/10 transition-all duration-700 hover:scale-105 active:scale-95 group-hover:bg-primary/20 mb-2 sm:mb-0">
+             <Truck className="w-10 h-10 sm:w-8 sm:h-8 text-primary shadow-glow-primary" />
           </div>
-          <div className="space-y-0.5 sm:space-y-1">
-            <h1 className="text-2xl sm:text-4xl font-black tracking-tighter uppercase group-hover:text-primary transition-colors">Fleet Central</h1>
-            <div className="flex items-center gap-3 sm:gap-4">
-               <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-emerald-500/5 border border-emerald-500/20">
+          <div className="space-y-1">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase group-hover:text-primary transition-colors">Fleet Central</h1>
+            <div className="flex items-center justify-center sm:justify-start gap-3 sm:gap-4">
+               <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 rounded-full bg-emerald-500/5 border border-emerald-500/20">
                   <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-glow-emerald"></div>
                   <span className="text-[8px] sm:text-[10px] font-black text-emerald-500 uppercase tracking-widest opacity-80">Sync Online</span>
                </div>
-               <span className="text-[8px] sm:text-[10px] font-black text-white/10 uppercase tracking-[0.2em] sm:tracking-[0.5em] group-hover:text-white/20 transition-colors">V: BRANCH-LOGS.4</span>
             </div>
           </div>
         </div>
         
         {/* CLEAN TAB NAVIGATION */}
-        <div className="bg-card w-full lg:w-auto p-1.5 rounded-[2rem] border border-base shadow-lg flex overflow-x-auto no-scrollbar scroll-smooth">
+        <div className="bg-card w-full md:w-auto p-1 rounded-2xl sm:rounded-[2rem] border border-base shadow-lg flex overflow-x-auto no-scrollbar scroll-smooth">
           <TabButton active={tab === 'dispatch'} onClick={() => setTab('dispatch')} icon={LayoutDashboard} label="Dispatch" />
           <TabButton active={tab === 'trips'} onClick={() => setTab('trips')} icon={Truck} label="Missions" />
           <TabButton active={tab === 'people'} onClick={() => setTab('people')} icon={Bike} label="Personnel" />
@@ -1066,8 +1098,8 @@ export default function UnifiedLogisticsDashboard() {
       </div>
 
       {/* DYNAMIC CONTENT AREA */}
-      <div className="bg-card rounded-[2rem] sm:rounded-[3rem] border border-base shadow-[0_48px_96px_rgba(0,0,0,0.5)] overflow-hidden">
-        <div className="p-5 sm:p-8 md:p-12 lg:p-16">
+      <div className="bg-card rounded-2xl sm:rounded-[3rem] border border-base shadow-[0_48px_96px_rgba(0,0,0,0.5)] overflow-hidden">
+        <div className="p-3 sm:p-6 md:p-8 2xl:p-16">
           {tab === 'dispatch' && <DispatchTab onTripCreated={() => setTab('trips')} />}
           {tab === 'trips' && <TripsTab />}
           {tab === 'people' && <PersonnelTab />}
@@ -1076,22 +1108,6 @@ export default function UnifiedLogisticsDashboard() {
         </div>
       </div>
 
-      {/* STRATEGIC FOOTER */}
-      <div className="mt-20 pt-10 border-t border-base flex flex-col md:flex-row justify-between items-center gap-8 opacity-10 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-1000 select-none">
-         <div className="flex items-center gap-6">
-            <div className="w-20 h-px bg-white/20"></div>
-            <p className="text-[11px] font-black uppercase tracking-[0.8em] whitespace-nowrap">Operational Command Central Infrastructure</p>
-         </div>
-         <div className="flex gap-10">
-           {['Network', 'Auth', 'Sync'].map(tag => (
-             <div key={tag} className="flex items-center gap-3">
-               <div className="w-1.5 h-1.5 rounded-full bg-primary/40"></div>
-               <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{tag} OK</span>
-             </div>
-           ))}
-         </div>
-         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/10 hover:text-white/30 truncate transition-colors">© 2026 DUKE'S CLOUD LOGISTICS INC.</p>
-      </div>
     </div>
   );
 }
