@@ -141,7 +141,7 @@ export default function DeliveryTripsPage() {
 
   return (
     <div className="max-w-[1600px] mx-auto p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 animate-in fade-in duration-700">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-[#0F0F0F] p-5 sm:p-6 rounded-2xl border border-white/5 relative overflow-hidden group">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-secondary p-5 sm:p-6 rounded-2xl border border-base relative overflow-hidden group">
         <div className="relative z-10 flex items-center gap-3">
           <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
             <Truck className="w-5 h-5 text-primary" />
@@ -158,7 +158,7 @@ export default function DeliveryTripsPage() {
             variant="outline" 
             onClick={() => fetchData(true)}
             isLoading={isRefreshing}
-            className="border-white/10 hover:bg-white/5 h-10 px-6 uppercase tracking-widest text-[10px] font-bold rounded-xl"
+            className="border-base hover:bg-surface h-10 px-6 uppercase tracking-widest text-[10px] font-bold rounded-xl"
           >
             System Sync
           </Button>
@@ -174,7 +174,7 @@ export default function DeliveryTripsPage() {
       </div>
 
       {/* Logic Matrix Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 bg-[#0F0F0F] p-4 rounded-3xl border border-white/5 shadow-xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 bg-secondary p-4 rounded-3xl border border-base shadow-xl">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#555]" />
           <input 
@@ -182,7 +182,7 @@ export default function DeliveryTripsPage() {
              placeholder="LOGISTIC SEARCH..."
              value={searchQuery}
              onChange={(e) => setSearchQuery(e.target.value)}
-             className="w-full h-12 bg-black/40 border border-white/5 rounded-2xl pl-12 pr-4 text-[10px] font-black text-white uppercase tracking-widest focus:border-primary/50 transition-all placeholder-[#333]"
+             className="w-full h-12 bg-[#0A0A0A] border border-base rounded-2xl pl-12 pr-4 text-[10px] font-black text-white uppercase tracking-widest focus:border-primary/50 transition-all placeholder-[#333]"
           />
         </div>
         <Select 
@@ -195,7 +195,7 @@ export default function DeliveryTripsPage() {
              { value: 'out', label: 'In Transit' },
              { value: 'completed', label: 'Mission Accomplished' }
            ]}
-           className="h-12 bg-black/40 border-white/5 text-[10px] font-black uppercase tracking-widest"
+           className="h-12 bg-surface border-base text-[10px] font-black uppercase tracking-widest"
         />
         <Select 
            value={riderFilter}
@@ -204,15 +204,15 @@ export default function DeliveryTripsPage() {
              { value: 'all', label: 'All Units' },
              ...riders.map(r => ({ value: r.id, label: r.name ? r.name.toUpperCase() : 'UNKNOWN' }))
            ]}
-           className="h-12 bg-black/40 border-white/5 text-[10px] font-black uppercase tracking-widest"
+           className="h-12 bg-surface border-base text-[10px] font-black uppercase tracking-widest"
         />
-        <div className="flex items-center justify-center p-3 bg-white/5 rounded-2xl border border-white/5 shadow-inner">
+        <div className="flex items-center justify-center p-3 bg-surface rounded-2xl border border-base shadow-inner">
           <div className="flex gap-8">
              <div className="text-center">
                <p className="text-xl font-black text-warning uppercase leading-none">{trips.filter(t => t.status === 'out').length}</p>
                <p className="text-[8px] font-black text-tertiary uppercase mt-1 tracking-widest opacity-40">ACTIVE TRIP</p>
              </div>
-             <div className="w-px h-8 bg-white/10"></div>
+             <div className="w-px h-8 bg-surface"></div>
              <div className="text-center">
                <p className="text-xl font-black text-emerald-300 uppercase leading-none">{trips.filter(t => t.status === 'completed').length}</p>
                <p className="text-[8px] font-black text-tertiary uppercase mt-1 tracking-widest opacity-40">DONE TODAY</p>
@@ -224,8 +224,8 @@ export default function DeliveryTripsPage() {
       {/* Grid of Command Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
         {trips.length === 0 ? (
-          <div className="col-span-full py-20 text-center bg-[#0F0F0F] rounded-2xl border border-dashed border-white/5">
-            <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner group">
+          <div className="col-span-full py-20 text-center bg-secondary rounded-2xl border border-dashed border-base">
+            <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner group">
               <ShoppingBag className="w-8 h-8 text-tertiary/20 group-hover:scale-110 transition-transform duration-500" />
             </div>
             <h3 className="text-lg font-bold text-white tracking-widest uppercase mb-2">No Logistic Movement</h3>
@@ -233,7 +233,7 @@ export default function DeliveryTripsPage() {
           </div>
         ) : (
           trips.map(trip => (
-            <Card key={trip.id} className={`group relative p-0 overflow-hidden border transition-all duration-300 rounded-2xl shadow-lg ${expandedTrip === trip.id ? 'border-primary/40 bg-[#0C0C0C]' : 'border-white/5 bg-[#0F0F0F]'}`}>
+            <Card key={trip.id} className={`group relative p-0 overflow-hidden border transition-all duration-300 rounded-2xl shadow-lg ${expandedTrip === trip.id ? 'border-primary/40 bg-card' : 'border-base bg-secondary'}`}>
               {/* Vertical Status Bar */}
               <div className={`absolute top-0 left-0 w-1.5 h-full transition-all duration-300 ${
                 trip.status === 'out' ? 'bg-warning shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 
@@ -243,10 +243,10 @@ export default function DeliveryTripsPage() {
               
               <div className="p-6">
                 {/* Deployment Header */}
-                <div className="flex justify-between items-start mb-6 pb-4 border-b border-white/5">
+                <div className="flex justify-between items-start mb-6 pb-4 border-b border-base">
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all duration-300 ${
-                      trip.status === 'out' ? 'bg-warning/15 border-warning/30' : 'bg-white/5 border-white/10'
+                      trip.status === 'out' ? 'bg-warning/15 border-warning/30' : 'bg-surface border-base'
                     }`}>
                       {trip.status === 'out' ? <Bike className="w-6 h-6 text-warning" /> : <Package className="w-6 h-6 text-[#777]" />}
                     </div>
@@ -259,7 +259,7 @@ export default function DeliveryTripsPage() {
                       </div>
                       <div className="flex items-center gap-4 text-tertiary text-[9px] font-black uppercase tracking-widest opacity-60">
                         <span className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5" /> {new Date(trip.created_at).toLocaleDateString()}</span>
-                        <span className="w-1 h-1 rounded-full bg-white/20"></span>
+                        <span className="w-1 h-1 rounded-full bg-surface"></span>
                         <span className="flex items-center gap-2"><Clock className="w-3.5 h-3.5" /> {new Date(trip.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                     </div>
@@ -268,7 +268,7 @@ export default function DeliveryTripsPage() {
                   <div className="flex gap-3">
                     <button 
                       onClick={() => setExpandedTrip(expandedTrip === trip.id ? null : trip.id)}
-                      className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all text-tertiary group/btn"
+                      className="w-12 h-12 rounded-2xl bg-surface border border-base flex items-center justify-center hover:bg-surface/50 transition-all text-tertiary group/btn"
                     >
                       {expandedTrip === trip.id ? <Trash2 className="w-5 h-5 group-hover:text-rose-500" /> : <Eye className="w-5 h-5 group-hover:text-primary" />}
                     </button>
@@ -277,14 +277,14 @@ export default function DeliveryTripsPage() {
 
                 {/* Data Matrix */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-8 sm:mb-10">
-                  <div className="p-4 sm:p-6 rounded-3xl bg-white/[0.03] border border-white/10 shadow-inner group-hover:bg-white/[0.05] transition-all duration-500">
+                  <div className="p-4 sm:p-6 rounded-3xl bg-surface/30 border border-base shadow-inner group-hover:bg-surface/50 transition-all duration-500">
                     <p className="text-[9px] font-black text-[#555] uppercase tracking-[0.4em] mb-3 sm:mb-4 flex items-center gap-2">
                         <MapPin className="w-3.5 h-3.5" />
                         Target Route
                     </p>
                     <span className="text-sm font-black text-white uppercase tracking-widest truncate block">{trip.route_name || trip.route || 'Custom Deployment'}</span>
                   </div>
-                  <div className="p-4 sm:p-6 rounded-3xl bg-white/[0.03] border border-white/10 shadow-inner group-hover:bg-white/[0.05] transition-all duration-500">
+                  <div className="p-4 sm:p-6 rounded-3xl bg-surface/30 border border-base shadow-inner group-hover:bg-surface/50 transition-all duration-500">
                     <p className="text-[9px] font-black text-[#555] uppercase tracking-[0.4em] mb-3 sm:mb-4 flex items-center gap-2">
                         <UserIcon className="w-3.5 h-3.5" />
                         Lead Rider
@@ -302,8 +302,22 @@ export default function DeliveryTripsPage() {
                   </div>
                 </div>
 
+                {/* Quick Item Preview */}
+                {(trip.orders || trip.trip_orders || []).length > 0 && (
+                  <div className="mb-8 px-4 py-3 bg-secondary/50 rounded-2xl border border-base/50">
+                    <p className="text-[8px] font-black text-tertiary uppercase tracking-widest mb-2 opacity-50">Payload Preview</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {(trip.orders || trip.trip_orders || []).slice(0, 5).map((order: any, i) => (
+                        <span key={i} className="text-[10px] font-bold text-white/80 uppercase tracking-tight truncate max-w-[120px]">
+                          {order.order_number || order.id?.substring(0,6)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Operations Ribbon */}
-                <div className="flex flex-wrap gap-4 pt-8 border-t border-white/5">
+                <div className="flex flex-wrap gap-4 pt-8 border-t border-base">
                   {trip.status === 'assigned' && (
                     <Button 
                        variant="primary" 
@@ -342,35 +356,43 @@ export default function DeliveryTripsPage() {
 
                 {/* Logistic Payload Details (Expanded) */}
                 {expandedTrip === trip.id && (
-                  <div className="mt-10 pt-10 border-t border-dashed border-white/10 animate-in slide-in-from-top duration-700">
+                  <div className="mt-10 pt-10 border-t border-dashed border-base animate-in slide-in-from-top duration-700">
                     <div className="flex items-center justify-between mb-6 px-4">
                        <h4 className="text-[10px] font-black text-tertiary uppercase tracking-[0.2em] flex items-center gap-2">
                            <LayoutList className="w-4 h-4" />
                            Payload Manifest
                        </h4>
-                       <span className="text-[10px] font-black text-white bg-white/5 border border-white/10 px-4 py-1.5 rounded-full">{(trip.trip_orders || trip.orders || []).length} Unit Load</span>
+                       <span className="text-[10px] font-black text-white bg-surface border border-base px-4 py-1.5 rounded-full">{(trip.trip_orders || trip.orders || []).length} Unit Load</span>
                     </div>
                     <div className="space-y-4">
                       {(trip.trip_orders || trip.orders || []).map((order: any, idx: number) => (
-                        <div key={idx} className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/5 rounded-3xl group/row hover:bg-white/[0.04] transition-all duration-300">
+                        <div key={idx} className="flex items-center justify-between p-6 bg-surface/40 border border-base rounded-3xl group/row hover:bg-surface/60 transition-all duration-300">
                           <div className="flex items-center gap-6">
-                            <div className="w-10 h-10 rounded-2xl bg-black/40 flex items-center justify-center text-[11px] font-black text-tertiary border border-white/5 font-mono">
+                            <div className="w-10 h-10 rounded-2xl bg-secondary flex items-center justify-center text-[11px] font-black text-tertiary border border-base font-mono">
                                {String(idx + 1).padStart(2, '0')}
                             </div>
                             <div>
                                <p className="text-xs font-black text-white uppercase tracking-widest mb-1">{order.order_number || order.id?.substring(0,8)}</p>
+                               <div className="space-y-1 my-2">
+                                 {(order.items || []).map((item:any, i:number) => (
+                                   <p key={i} className="text-[9px] font-bold text-primary uppercase flex justify-between gap-4">
+                                     <span className="opacity-70">{item.product_name}</span>
+                                     <span className="text-white">x{item.quantity}</span>
+                                   </p>
+                                 ))}
+                               </div>
                                <div className="flex items-center gap-3 text-[9px] text-tertiary font-black uppercase tracking-[0.1em] opacity-60">
                                  <span className="flex items-center gap-1.5"><UserIcon className="w-3 h-3" /> {order.customer_name}</span>
-                                 <span className="w-1.5 h-1.5 rounded-full bg-white/10"></span>
+                                 <span className="w-1.5 h-1.5 rounded-full bg-surface"></span>
                                  <span className="flex items-center gap-1.5"><MapPin className="w-3 h-3" /> {order.delivery_zone_name || 'Generic Zone'}</span>
                                </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 opacity-0 group-hover/row:opacity-100 transition-all duration-500 -translate-x-4 group-hover:translate-x-0">
-                             <Button size="sm" variant="outline" className="h-9 text-[9px] font-black uppercase px-6 rounded-xl border-white/10">View Mission</Button>
+                          <div className="flex items-center gap-2 opacity-0 group-hover/row:opacity-100 transition-all duration-500">
+                             <Button size="sm" variant="outline" className="h-9 text-[9px] font-black uppercase px-6 rounded-xl border-base">View Mission</Button>
                              {['draft', 'assigned'].includes(trip.status) && (
                                <button 
-                                 onClick={() => handleAction(trip.id, 'remove_order', order.id)}
+                                 onClick={() => handleAction(trip.id, 'remove_order', order.order || order.id)}
                                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all"
                                  title="Detach from Mission"
                                >
@@ -413,34 +435,40 @@ export default function DeliveryTripsPage() {
                 {riders.map(rider => (
                   <button
                     key={rider.id}
-                    onClick={() => setSelectedRider(rider.id)}
+                    onClick={() => {
+                      setSelectedRider(rider.id);
+                      setSendWhatsApp(!!(rider as any).whatsapp_number);
+                    }}
                     className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
                       selectedRider === rider.id 
                         ? 'border-info bg-info/10 text-info' 
-                        : 'border-white/5 bg-white/[0.02] text-tertiary hover:bg-white/5 hover:border-white/10'
+                        : 'border-base bg-surface text-tertiary hover:bg-surface/50 hover:border-base'
                     }`}
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-colors ${selectedRider === rider.id ? 'bg-info/20 border-info/20' : 'bg-black/40 border-white/5'}`}>
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-colors ${selectedRider === rider.id ? 'bg-info/20 border-info/20' : 'bg-secondary border-base'}`}>
                         <Bike className={`w-5 h-5 transition-all ${selectedRider === rider.id ? 'text-info' : 'opacity-40'}`} />
                       </div>
                       <div className="text-left">
                         <p className={`text-xs font-bold uppercase tracking-widest ${selectedRider === rider.id ? 'text-white' : 'text-tertiary'}`}>{rider.name}</p>
-                        <p className="text-[10px] font-bold opacity-60 tracking-widest text-[#777] mt-0.5">{rider.phone_number}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-[10px] font-bold opacity-60 tracking-widest text-[#777]">{rider.phone_number}</p>
+                          {(rider as any).whatsapp_number && <span className="text-[9px] font-bold text-emerald-500 uppercase">WhatsApp ✓</span>}
+                        </div>
                       </div>
                     </div>
                     {selectedRider === rider.id && <CheckCircle2 className="w-5 h-5 text-info animate-in zoom-in" />}
                   </button>
                 ))}
                 {riders.length === 0 && (
-                     <div className="text-center py-10 px-4 bg-white/[0.02] border border-dashed border-white/5 rounded-xl">
+                     <div className="text-center py-10 px-4 bg-surface border border-dashed border-base rounded-xl">
                         <p className="text-[10px] font-bold text-[#777] uppercase tracking-widest italic leading-relaxed">No active field personnel detected in current branch sectors.</p>
                      </div>
                 )}
              </div>
           </div>
 
-          <div className="bg-[#0F0F0F] p-4 rounded-xl border border-white/5 flex items-center justify-between">
+          <div className="bg-secondary p-4 rounded-xl border border-base flex items-center justify-between">
              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center border border-emerald-500/20">
                    <Phone className="w-5 h-5 text-emerald-500" />
@@ -452,13 +480,13 @@ export default function DeliveryTripsPage() {
              </div>
              <div 
                 onClick={() => setSendWhatsApp(!sendWhatsApp)}
-                className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-all duration-300 ${sendWhatsApp ? 'bg-emerald-500' : 'bg-[#333]'}`}
+                className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-all duration-300 ${sendWhatsApp ? 'bg-emerald-500' : 'bg-surface border border-base'}`}
              >
-                <div className={`w-4 h-4 rounded-full bg-white transition-all duration-300 shadow-sm ${sendWhatsApp ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                <div className={`w-4 h-4 rounded-full bg-[#B3B3B3] transition-all duration-300 shadow-sm ${sendWhatsApp ? 'translate-x-6' : 'translate-x-0'}`}></div>
              </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4 border-t border-white/5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4 border-t border-base">
             <Button 
                variant="outline" 
                fullWidth 
@@ -481,7 +509,7 @@ export default function DeliveryTripsPage() {
                Assign & Dispatch
             </Button>
           </div>
-          <Button variant="ghost" fullWidth onClick={() => setIsAssignModalOpen(false)} className="h-10 mt-1 font-bold uppercase tracking-widest text-[10px] text-tertiary hover:bg-white/5 rounded-xl">Cancel</Button>
+          <Button variant="ghost" fullWidth onClick={() => setIsAssignModalOpen(false)} className="h-10 mt-1 font-bold uppercase tracking-widest text-[10px] text-tertiary hover:bg-surface rounded-xl">Cancel</Button>
         </div>
       </Modal>
     </div>

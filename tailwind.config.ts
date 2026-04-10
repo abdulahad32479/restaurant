@@ -17,6 +17,13 @@ const config: Config = {
           DEFAULT: "var(--color-accent)",
           hover: "var(--color-accent-hover)",
         },
+        // Semantic background tokens at top level
+        surface: "var(--color-bg-layer-2)",
+        card: "var(--color-bg-layer-2)",
+        base: "var(--color-border-base)",
+        secondary: "var(--color-bg-layer-1)",
+        "bg-main": "var(--color-bg-layer-0)",
+        
         dukes: {
           bg: {
             main: "var(--bg-main)",

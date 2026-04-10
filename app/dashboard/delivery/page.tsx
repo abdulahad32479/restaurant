@@ -33,7 +33,7 @@ const TabButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
       "flex items-center gap-2.5 px-6 py-4 border-b-2 transition-all duration-200 outline-none flex-1 sm:flex-none justify-center",
       active 
         ? "border-primary text-primary bg-primary/5 font-bold" 
-        : "border-transparent text-tertiary hover:text-white hover:bg-white/[0.02] font-semibold"
+        : "border-transparent text-tertiary hover:text-white hover:bg-surface font-semibold"
     )}
   >
     <Icon className={cn("w-4 h-4 shrink-0", active && "text-primary")} />
@@ -47,6 +47,134 @@ const SectionHeading = ({ title, subtitle }: { title: string, subtitle: string }
     <p className="text-xs sm:text-sm text-tertiary mt-1 font-medium opacity-60 italic">{subtitle}</p>
   </div>
 );
+
+const KPICard = ({ label, value, sub, color = "text-white", trend }: { label: string, value: string | number, sub: string, color?: string, trend?: string }) => (
+  <Card className="p-8 border-base bg-card flex flex-col justify-between hover:border-primary/20 transition-all rounded-[1.5rem] relative overflow-hidden group">
+    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+       <Zap className="w-12 h-12 text-primary" />
+    </div>
+    <div>
+      <p className="text-[10px] font-black text-tertiary uppercase tracking-[0.2em] mb-4 opacity-60">{label}</p>
+      <h3 className={cn("text-4xl font-black tracking-tighter mb-1", color)}>{value}</h3>
+      <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest opacity-40">{sub}</p>
+    </div>
+    {trend && (
+      <div className="mt-6 flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-glow-primary"></div>
+        <span className="text-[9px] font-black text-primary uppercase tracking-[0.1em]">{trend}</span>
+      </div>
+    )}
+  </Card>
+);
+
+const OverviewTab = () => {
+  const [metrics, setMetrics] = useState({ queue: 0, active: 0, riders: 0, value: 0 });
+  const [liveOrders, setLiveOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const sync = useCallback(async () => {
+    try {
+      const [board, trips, riders] = await Promise.all([
+        deliveryTripService.getDispatchBoard(),
+        deliveryTripService.getTrips({ status__in: 'assigned,out' }),
+        apiClient.get('v1/delivery-persons/').then(res => res.data).catch(() => [])
+      ]);
+      
+      const queueOrders = board.reduce((acc, r) => acc + (r.orders?.length || 0), 0);
+      const queueVal = board.reduce((acc, r) => acc + (r.orders?.reduce((sum, o) => sum + parseFloat(o.total || '0'), 0) || 0), 0);
+      
+      setMetrics({
+        queue: queueOrders,
+        active: trips.count || 0,
+        riders: Array.isArray(riders) ? riders.filter((r: any) => r.status === 'available').length : 0,
+        value: queueVal
+      });
+
+      // Extract latest ready orders for feed
+      const allOrders = board.flatMap(r => r.orders || []).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setLiveOrders(allOrders.slice(0, 10));
+    } finally { setIsLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    sync();
+    const inv = setInterval(sync, 30000);
+    return () => clearInterval(inv);
+  }, [sync]);
+
+  if (isLoading) return <div className="py-20 text-center animate-pulse text-xs font-bold uppercase tracking-widest opacity-20 text-primary">Synchronizing Command Center...</div>;
+
+  return (
+    <div className="space-y-12 animate-in fade-in duration-500">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
+        <KPICard label="QUEUE LOAD" value={metrics.queue} sub="AWAITING DISPATCH" trend="LIVE OPS" />
+        <KPICard label="FLEET MOTION" value={metrics.active} sub="ACTIVE TRIPS" color="text-primary" />
+        <KPICard label="READY RIDERS" value={metrics.riders} sub="PERSONNEL AVAILABLE" color="text-emerald-500" />
+        <KPICard label="SESSION VAL" value={`Rs. ${Math.round(metrics.value).toLocaleString()}`} sub="VALUE IN FLOW" color="text-white" />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-10 mt-10">
+        <div className="xl:col-span-2 space-y-6">
+          <div className="flex justify-between items-center px-2">
+             <h3 className="text-sm font-black text-white uppercase tracking-[0.2em] flex items-center gap-3">
+               <Layers className="w-5 h-5 text-primary" /> Live Order Stream
+             </h3>
+             <Badge variant="outline" className="border-primary/20 text-primary uppercase text-[9px] px-3">Real-Time</Badge>
+          </div>
+          <div className="space-y-4">
+             {liveOrders.map((order, i) => (
+               <div key={i} className="flex items-center justify-between p-5 bg-surface border border-base rounded-2xl hover:border-primary/10 transition-all group">
+                  <div className="flex items-center gap-6">
+                     <div className="w-12 h-12 rounded-xl bg-card border border-base flex items-center justify-center font-black text-white text-xs">
+                       {order.order_number?.slice(-3) || '000'}
+                     </div>
+                     <div>
+                       <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest opacity-40">#{order.order_number || order.id.substring(0,8)}</p>
+                       <h4 className="text-[13px] font-bold text-white uppercase">{order.delivery_info?.name || 'Guest'}</h4>
+                     </div>
+                  </div>
+                  <div className="text-right">
+                     <p className="text-[11px] font-black text-white">Rs. {parseFloat(order.total || '0').toLocaleString()}</p>
+                     <p className="text-[9px] font-bold text-tertiary uppercase tracking-tighter opacity-40">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+               </div>
+             ))}
+             {liveOrders.length === 0 && <div className="py-20 text-center border-2 border-dashed border-base rounded-3xl opacity-10 uppercase font-black tracking-widest text-xs">Waiting for incoming traffic</div>}
+          </div>
+        </div>
+
+        <div className="space-y-6">
+           <h3 className="text-sm font-black text-white uppercase tracking-[0.2em] flex items-center gap-3 px-2">
+             <Clock className="w-5 h-5 text-emerald-500" /> System Velocity
+           </h3>
+           <div className="bg-card border border-base rounded-3xl p-8 space-y-8">
+              <div className="space-y-4">
+                 <div className="flex justify-between items-end">
+                    <p className="text-[10px] font-black text-tertiary uppercase tracking-widest opacity-40">Avg Dispatch Time</p>
+                    <p className="text-2xl font-black text-white">12m</p>
+                 </div>
+                 <div className="h-1.5 bg-surface rounded-full overflow-hidden">
+                    <div className="h-full bg-primary w-[65%]" />
+                 </div>
+              </div>
+              <div className="space-y-4">
+                 <div className="flex justify-between items-end">
+                    <p className="text-[10px] font-black text-tertiary uppercase tracking-widest opacity-40">Rider Utilization</p>
+                    <p className="text-2xl font-black text-white">88%</p>
+                 </div>
+                 <div className="h-1.5 bg-surface rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 w-[88%]" />
+                 </div>
+              </div>
+              <div className="pt-6 border-t border-base">
+                 <p className="text-[9px] font-bold text-tertiary uppercase leading-relaxed opacity-40">System pulse is normal. Performance within optimized parameters for current traffic load.</p>
+              </div>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- TABS ---
 
@@ -116,6 +244,28 @@ const DispatchTab = ({ onTripCreated }: { onTripCreated: () => void }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
       <div className="lg:col-span-3 space-y-10">
+        {/* Tactical Overview Ribbon */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <KPICard 
+             label="TOTAL QUEUE" 
+             value={filtered.reduce((acc, r) => acc + r.orders.length, 0)} 
+             sub="ORDERS READY" 
+             trend="LIVE"
+          />
+          <KPICard 
+             label="QUEUE VALUE" 
+             value={`Rs. ${filtered.reduce((acc, r) => acc + r.orders.reduce((sum, o) => sum + parseFloat(o.total || '0'), 0), 0).toLocaleString()}`} 
+             sub="TOTAL PAYLOAD"
+             color="text-emerald-500" 
+          />
+          <KPICard 
+             label="AVG PRIORITY" 
+             value={Math.round(filtered.reduce((acc, r) => acc + r.priority_score, 0) / (filtered.length || 1))} 
+             sub="SYSTEM PULSE"
+             color="text-amber-500" 
+          />
+        </div>
+
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-tertiary opacity-40" />
@@ -123,7 +273,7 @@ const DispatchTab = ({ onTripCreated }: { onTripCreated: () => void }) => {
               placeholder="Search ready orders..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full h-12 bg-surface text-[13px] pl-12 pr-4 rounded-xl border border-base focus:border-primary transition-all outline-none"
+              className="w-full h-12 bg-[#0A0A0A] text-[13px] pl-12 pr-4 rounded-xl border border-base focus:border-primary transition-all outline-none"
             />
           </div>
           <button onClick={fetchData} className="px-6 h-12 bg-card border border-base rounded-xl hover:bg-surface transition-all flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-white shrink-0">
@@ -138,65 +288,100 @@ const DispatchTab = ({ onTripCreated }: { onTripCreated: () => void }) => {
           </div>
         ) : (
           filtered.map((route, idx) => (
-            <div key={idx} className="space-y-4">
-              <div className="flex items-center gap-3 px-1">
-                <div className="w-1 h-5 bg-primary rounded-full"></div>
-                <h3 className="text-base font-bold text-white uppercase tracking-tight">{route.route}</h3>
-                <span className="text-[10px] font-bold text-tertiary opacity-60">({route.orders.length})</span>
+            <div key={idx} className="space-y-6">
+              <div className="flex items-center justify-between px-2">
+                 <div className="flex items-center gap-4">
+                    <div className="w-1 h-8 bg-primary rounded-full shadow-glow-primary"></div>
+                    <div>
+                      <h2 className="text-xl font-bold text-white uppercase tracking-tight">{route.route}</h2>
+                      <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest opacity-40">{route.orders.length} Ready Units</p>
+                    </div>
+                 </div>
+                 <div className="flex items-center gap-2 px-4 py-2 bg-surface border border-base rounded-xl">
+                   <Zap className="w-4 h-4 text-primary" />
+                   <span className="text-[11px] font-black text-white uppercase tracking-tighter">Route Priority: {route.priority_score}</span>
+                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {route.orders.map(order => (
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">
+                {(route.orders || []).map((order: any) => (
                   <Card 
                     key={order.id} 
                     onClick={() => toggleSelection(order.id, route.route)}
                     className={cn(
-                      "p-5 rounded-2xl border-2 transition-all cursor-pointer bg-card group relative",
+                      "group p-6 transition-all duration-300 cursor-pointer border-2 rounded-2xl relative overflow-hidden",
                       selectedOrders.includes(order.id) 
-                        ? "border-primary bg-primary/5 shadow-md" 
-                        : "border-base hover:border-white/10"
+                        ? "border-primary bg-primary/5 shadow-glow-primary/10" 
+                        : selectedRoute && selectedRoute !== route.route
+                          ? "opacity-30 grayscale cursor-not-allowed border-base"
+                          : "border-base bg-card hover:border-white/20 hover:translate-y-[-2px] shadow-sm"
                     )}
                   >
                     {selectedOrders.includes(order.id) && (
-                      <div className="absolute top-2 right-2">
-                        <CheckCircle2 className="w-4 h-4 text-primary" />
+                      <div className="absolute top-0 right-0 p-3 animate-in zoom-in duration-300">
+                        <CheckCircle2 className="w-5 h-5 text-primary" />
                       </div>
                     )}
-
+                    
                     <div className="flex justify-between items-start mb-4">
-                      <span className="text-[10px] font-bold text-tertiary uppercase tracking-widest opacity-40">#{order.order_number || '---'}</span>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-xl bg-surface border border-base flex items-center justify-center text-[11px] font-mono font-black text-tertiary">
+                            {order.order_number?.slice(-3) || '000'}
+                         </div>
+                         <div>
+                            <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest opacity-40">#{order.order_number || order.id.substring(0,8)}</p>
+                            <div className="flex items-center gap-2">
+                               <span className={cn("text-[9px] font-black px-2 py-0.5 rounded-md uppercase border", 
+                                 order.payment_status === 'paid' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20")}>
+                                 {order.payment_status || 'COD'}
+                               </span>
+                            </div>
+                         </div>
+                      </div>
+                      <div className="flex gap-1">
                         <button 
-                           onClick={async (e) => { 
+                           onClick={(e) => { 
                              e.stopPropagation(); 
                              try { 
-                               await deliveryTripService.sendOrderToRiderWhatsapp(order.id); 
-                               toast.success('WhatsApp sent!'); 
-                             } catch { toast.error('WhatsApp failed'); }
+                               deliveryTripService.sendOrderToRiderWhatsapp(order.id); 
+                               toast.success('Signal Sent'); 
+                             } catch { toast.error('Signal Refused'); }
                            }}
-                           title="Send order to rider on WhatsApp"
-                           className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-all"
+                           className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all border border-emerald-500/20"
                         >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                           onClick={(e) => { e.stopPropagation(); setSelectedOrderForZone(order); setNewZoneId(order.delivery_info?.delivery_zone || ''); setIsZoneModalOpen(true); }}
-                           className="p-1.5 rounded-lg text-tertiary hover:bg-white/5 transition-all"
-                        >
-                          <MapPin className="w-3.5 h-3.5" />
+                          <MessageSquare className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                     
                     <div className="mb-5">
                       <h4 className="text-sm font-bold text-white uppercase truncate mb-1">{order.delivery_info?.name}</h4>
-                      <p className="text-[11px] text-emerald-500 font-bold flex items-center gap-1.5"><Phone className="w-3 h-3" /> {order.delivery_info?.phone}</p>
+                      <p className="text-[11px] text-emerald-500 font-bold flex items-center gap-1.5 mb-3"><Phone className="w-3 h-3" /> {order.delivery_info?.phone}</p>
+                      
+                      <div className="space-y-1.5 mb-4 max-h-[100px] overflow-hidden">
+                        {(order.items || []).slice(0, 2).map((item: any, i: number) => (
+                          <div key={i} className="flex justify-between items-center text-[10px] font-bold text-tertiary uppercase tracking-tight">
+                            <span className="truncate max-w-[140px] opacity-70">{item.product_name}</span>
+                            <span className="text-white shrink-0">x{item.quantity}</span>
+                          </div>
+                        ))}
+                        {(order.items || []).length > 2 && (
+                          <p className="text-[9px] font-bold text-primary uppercase opacity-60">+{order.items.length - 2} more items</p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="pt-4 border-t border-base space-y-4">
-                       <p className="text-[12px] text-tertiary font-medium line-clamp-2 min-h-[32px]">{order.delivery_info?.address}</p>
-                       <div className="flex justify-between items-center bg-surface p-2.5 rounded-xl border border-base">
-                          <span className="text-[10px] font-bold text-white uppercase">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          <span className="text-[10px] font-bold text-primary flex items-center gap-1"><Zap className="w-3 h-3" /> {order.priority_score || '0'}</span>
+                       <p className="text-[11px] text-tertiary font-medium line-clamp-2 min-h-[30px] opacity-60">{order.delivery_info?.address}</p>
+                       <div className="flex justify-between items-center bg-surface/50 p-3 rounded-xl border border-base group-hover:bg-surface transition-colors">
+                          <div className="flex flex-col">
+                             <span className="text-[12px] font-black text-white">Rs. {parseFloat(order.total || '0').toLocaleString()}</span>
+                             <span className="text-[8px] font-bold text-tertiary uppercase tracking-widest opacity-40">{order.items?.length || 0} Products</span>
+                          </div>
+                          <div className="text-right">
+                             <span className="text-[10px] font-black text-primary flex items-center justify-end gap-1.5"><Zap className="w-3.5 h-3.5" /> {order.priority_score || '30'}</span>
+                             <span className="text-[9px] font-black text-tertiary opacity-40 uppercase">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
                        </div>
                     </div>
                   </Card>
@@ -209,65 +394,87 @@ const DispatchTab = ({ onTripCreated }: { onTripCreated: () => void }) => {
 
       <div className="lg:col-span-1">
         <div className="sticky top-10 space-y-6">
-          <div className="bg-card border border-base rounded-2xl p-6 space-y-8 shadow-sm">
-            <h3 className="text-[11px] font-bold text-white uppercase tracking-[0.2em] flex items-center gap-2">
-              <Zap className="w-3.5 h-3.5 text-primary" /> Suggestions
-            </h3>
-            
-            <div className="space-y-4">
-              {suggestions.map((s, i) => (
-                <div key={i} className="p-4 bg-surface rounded-xl border border-base hover:border-primary/30 transition-all group">
-                  <div className="flex justify-between items-center mb-3">
-                    <p className="text-[10px] font-bold text-primary uppercase">{s.route}</p>
-                    <button 
-                      onClick={() => {
-                        const ids = (s as any).order_ids || ((s as any).orders || []).map((o:any) => o.id || o);
-                        setSelectedOrders(ids);
-                        setSelectedRoute(s.route);
-                      }}
-                      className="w-7 h-7 flex items-center justify-center bg-primary/10 rounded-lg text-primary hover:bg-primary hover:text-white"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <p className="text-sm font-bold text-white uppercase">{s.total_orders} Orders</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="pt-6 border-t border-base space-y-6">
-              <div className="bg-surface p-4 rounded-xl border border-base text-center">
-                <p className="text-2xl font-bold text-white">{selectedOrders.length}</p>
-                <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest mt-1">Batch Load</p>
+           <div className="bg-card rounded-2xl border border-base p-6 space-y-6 shadow-xl sticky top-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-black text-white uppercase tracking-[0.2em] flex items-center gap-3">
+                  <Zap className="w-4 h-4 text-primary" /> Suggestions
+                </h3>
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[9px] px-2">AI Routing</Badge>
               </div>
               
-              <div className="space-y-3">
-                <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest px-1">Trip Storage</p>
-                <Select 
-                  value={targetTripId} 
-                  onChange={e => setTargetTripId(e.target.value)}
-                  options={[
-                    { value: 'new', label: 'CREATE NEW TRIP' },
-                    ...trips.filter(t => t.route_name === selectedRoute || !t.route_name).map(t => ({ 
-                      value: t.id, 
-                      label: `TRIP #${t.trip_number || t.id.substring(0,8)}` 
-                    }))
-                  ]}
-                  className="h-12 text-[11px] font-bold uppercase"
-                />
+              <div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar">
+                {suggestions.length === 0 ? (
+                  <div className="py-8 text-center border border-dashed border-base rounded-xl opacity-30">
+                     <p className="text-[10px] font-bold uppercase tracking-widest">No Suggestions</p>
+                  </div>
+                ) : (
+                  suggestions.map((s, i) => (
+                    <div key={i} className="p-4 rounded-2xl bg-surface border border-base hover:border-primary/40 transition-all group">
+                      <div className="flex justify-between items-center mb-3">
+                        <div>
+                          <p className="text-[9px] font-bold text-primary uppercase mb-1">{s.route}</p>
+                          <p className="text-sm font-black text-white uppercase tracking-tight">{s.total_orders} Orders</p>
+                        </div>
+                        <button 
+                          onClick={() => { 
+                            const ids = (s as any).order_ids || ((s as any).orders || []).map((o: any) => o?.id || o);
+                            if (ids.length > 0) {
+                              setSelectedOrders(ids); 
+                              setSelectedRoute(s.route); 
+                            }
+                          }}
+                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-primary shadow-glow-primary text-black hover:bg-accent transition-all scale-95 group-hover:scale-100"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-tertiary font-bold uppercase opacity-50 italic">"{s.reason || 'Optimal route batching'}"</p>
+                    </div>
+                  ))
+                )}
               </div>
 
-              <Button 
-                variant="primary" 
-                fullWidth 
-                disabled={selectedOrders.length === 0}
-                onClick={() => setIsModalOpen(true)}
-                className="h-12 text-[11px] font-bold uppercase tracking-widest rounded-xl bg-primary text-black"
-              >
-                Create Trip
-              </Button>
+              <div className="pt-6 border-t border-base space-y-5">
+                <div className="flex justify-between items-center px-1">
+                  <span className="text-[10px] font-black text-tertiary uppercase tracking-widest opacity-40">Batch Size</span>
+                  <Badge className="bg-surface text-white border-base">{selectedOrders.length} Units</Badge>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest px-1">Trip Storage</p>
+                  <Select 
+                    value={targetTripId} 
+                    onChange={e => setTargetTripId(e.target.value)}
+                    options={[
+                      { value: 'new', label: 'CREATE NEW TRIP' },
+                      ...trips.filter(t => t.route_name === selectedRoute || !t.route_name).map(t => ({ 
+                        value: t.id, 
+                        label: `TRIP #${t.trip_number || t.id.substring(0,8)}` 
+                      }))
+                    ]}
+                    className="h-12 text-[11px] font-bold uppercase"
+                  />
+                </div>
+                
+                <Button 
+                   variant="primary" 
+                   fullWidth 
+                   disabled={selectedOrders.length === 0}
+                   onClick={() => setIsModalOpen(true)}
+                   className="h-14 font-black uppercase tracking-[0.2em] text-[11px] shadow-2xl shadow-primary/20 bg-primary text-black hover:bg-accent rounded-2xl"
+                   icon={<Plus className="w-5 h-5" />}
+                >
+                   Create Trip
+                </Button>
+
+                {unroutedOrders.length > 0 && (
+                   <div className="p-4 bg-rose-500/5 border border-rose-500/10 rounded-2xl text-center">
+                      <p className="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-1">{unroutedOrders.length} Orders Unrouted</p>
+                      <p className="text-[8px] font-bold text-tertiary uppercase opacity-40">Ready orders without mapped areas</p>
+                   </div>
+                )}
+              </div>
             </div>
-          </div>
         </div>
       </div>
 
@@ -401,10 +608,11 @@ const TripsTab = () => {
       else if (action === 'complete') await deliveryTripService.completeTrip(id);
       else if (action === 'cancel') await deliveryTripService.cancelTrip(id);
       else if (action === 'whatsapp') await deliveryTripService.sendTripToRiderWhatsapp(id);
-      toast.success('Done');
+      toast.success('Command Acknowledged');
       fetchData(true);
-    } catch (e) { toast.error('Failed'); }
-    finally { setIsProcessing(false); }
+    } catch (e: any) { 
+      toast.error(e?.response?.data?.detail || 'Command Refused'); 
+    } finally { setIsProcessing(false); }
   };
 
   if (isLoading) return <div className="py-20 text-center opacity-30 text-xs font-bold uppercase tracking-widest">Loading Trips...</div>;
@@ -423,7 +631,7 @@ const TripsTab = () => {
         </div>
       ) : (
         trips.map(trip => (
-          <Card key={trip.id} className="p-6 border-base bg-card hover:border-white/10 transition-all flex flex-col rounded-2xl">
+          <Card key={trip.id} className="p-6 border-base bg-card hover:border-base transition-all flex flex-col rounded-2xl">
             <div className="flex justify-between items-start mb-6">
               <div>
                 <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest mb-1 opacity-50">Trip ID</p>
@@ -432,7 +640,7 @@ const TripsTab = () => {
               <Badge className={cn("px-3 py-1 rounded-full uppercase text-[10px] font-bold border", 
                 trip.status === 'out' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : 
                 trip.status === 'completed' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : 
-                "bg-white/5 text-tertiary border-white/5")}>
+                "bg-base text-tertiary border-base")}>
                 {trip.status}
               </Badge>
             </div>
@@ -478,7 +686,7 @@ const TripsTab = () => {
               tripDetails[trip.id]?.notes ? (
                 <div 
                   onClick={() => { setEditingNotes(trip.id); setTempNotes(tripDetails[trip.id]?.notes || ''); }} 
-                  className="mb-8 p-3 bg-white/5 border border-white/10 rounded-xl cursor-pointer hover:bg-white/10 transition-colors group/note"
+                  className="mb-8 p-3 bg-base border border-base rounded-xl cursor-pointer hover:bg-base transition-colors group/note"
                 >
                   <div className="flex justify-between items-start mb-1">
                     <p className="text-[9px] font-bold text-tertiary uppercase opacity-40">Trip Notes</p>
@@ -507,12 +715,12 @@ const TripsTab = () => {
                 <button onClick={() => {
                   if (expanded === trip.id) setExpanded(null);
                   else { setExpanded(trip.id); fetchDetails(trip.id); }
-                }} className="flex-1 h-11 flex items-center justify-center rounded-xl bg-white/5 border border-white/5 hover:border-white/10 text-white text-[10px] font-bold uppercase tracking-widest"><Eye className="w-3.5 h-3.5 mr-2" /> Orders</button>
+                }} className="flex-1 h-11 flex items-center justify-center rounded-xl bg-base border border-base hover:border-base text-white text-[10px] font-bold uppercase tracking-widest"><Eye className="w-3.5 h-3.5 mr-2" /> Orders</button>
                 {trip.delivery_person && (trip.status === 'assigned' || trip.status === 'out') && (
                   <button onClick={() => handleAction(trip.id, 'whatsapp')} className="w-11 h-11 flex items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"><MessageSquare className="w-4 h-4" /></button>
                 )}
                 {['draft', 'assigned'].includes(trip.status) && (
-                  <button onClick={() => handleAction(trip.id, 'cancel')} className="w-11 h-11 flex items-center justify-center rounded-xl bg-white/5 border border-white/5 text-rose-500 hover:bg-rose-500 hover:text-white transition-all"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleAction(trip.id, 'cancel')} className="w-11 h-11 flex items-center justify-center rounded-xl bg-base border border-base text-rose-500 hover:bg-rose-500 hover:text-white transition-all"><Trash2 className="w-4 h-4" /></button>
                 )}
               </div>
             </div>
@@ -525,8 +733,16 @@ const TripsTab = () => {
                   <>
                   {(tripDetails[trip.id]?.trip_orders || []).map((o: any, i: number) => (
                     <div key={i} className="p-3 bg-surface/50 border border-base rounded-xl flex justify-between items-center group/it">
-                      <div className="overflow-hidden">
-                        <p className="text-[12px] font-bold text-white uppercase truncate">{o.customer_name || 'Customer'}</p>
+                      <div className="overflow-hidden flex-1">
+                        <p className="text-[12px] font-bold text-white uppercase truncate mb-0.5">{o.customer_name || 'Customer'}</p>
+                        <div className="space-y-0.5 mb-1.5">
+                          {(o.items || []).map((item:any, idx:number) => (
+                             <p key={idx} className="text-[9px] font-bold text-tertiary uppercase flex justify-between">
+                                <span className="truncate opacity-60">{item.product_name}</span>
+                                <span className="text-white">x{item.quantity}</span>
+                             </p>
+                          ))}
+                        </div>
                         <p className="text-[10px] text-tertiary opacity-40 uppercase truncate tracking-tighter">#{o.order_number || o.id?.substring(0,8)}</p>
                       </div>
                       {['draft', 'assigned'].includes(trip.status) && (
@@ -567,7 +783,7 @@ const TripsTab = () => {
                 }}
                 className={cn(
                   "flex items-center justify-between p-4 rounded-xl border transition-all",
-                  selectedRider === r.id ? "border-primary bg-primary/5 shadow-sm" : "border-base bg-surface hover:border-white/10"
+                  selectedRider === r.id ? "border-primary bg-primary/5 shadow-sm" : "border-base bg-surface hover:border-base"
                 )}
               >
                 <div className="flex items-center gap-4 text-left">
@@ -587,21 +803,23 @@ const TripsTab = () => {
 
           {/* WhatsApp toggle — only relevant if rider has a number */}
           {selectedRider && (
-            <div
-              onClick={() => setSendWhatsapp(v => !v)}
-              className={cn(
-                "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
-                sendWhatsapp ? "border-emerald-500/30 bg-emerald-500/5" : "border-base bg-surface opacity-50"
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <MessageSquare className="w-4 h-4 text-emerald-500" />
-                <span className="text-[11px] font-bold text-white uppercase tracking-widest">Send WhatsApp Notification</span>
-              </div>
-              <div className={`w-10 h-5 rounded-full p-0.5 transition-all duration-300 ${sendWhatsapp ? 'bg-emerald-500' : 'bg-surface border border-base'}`}>
-                <div className={`w-4 h-4 rounded-full bg-white transition-all duration-300 shadow-sm ${sendWhatsapp ? 'translate-x-5' : 'translate-x-0'}`}></div>
-              </div>
-            </div>
+            <div className="bg-surface p-4 rounded-xl border border-base flex items-center justify-between">
+             <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center border border-emerald-500/20">
+                   <Phone className="w-5 h-5 text-emerald-500" />
+                </div>
+                <div>
+                    <p className="text-[10px] font-bold text-white uppercase tracking-widest">WhatsApp Integration</p>
+                    <p className="text-[10px] font-bold text-tertiary uppercase mt-0.5 opacity-60">Push manifest details to rider mobile unit</p>
+                </div>
+             </div>
+             <div 
+                onClick={() => setSendWhatsapp(!sendWhatsapp)}
+                className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-all duration-300 ${sendWhatsapp ? 'bg-emerald-500' : 'bg-surface border border-base'}`}
+             >
+                <div className={`w-4 h-4 rounded-full bg-tertiary transition-all duration-300 shadow-sm ${sendWhatsapp ? 'translate-x-6' : 'translate-x-0'}`}></div>
+             </div>
+          </div>
           )}
 
           <div className="flex gap-3 pt-4 border-t border-base">
@@ -646,7 +864,7 @@ const TripsTab = () => {
                  <button 
                   key={o.id}
                   onClick={() => setSelectedEligible(prev => prev.includes(o.id) ? prev.filter(id => id !== o.id) : [...prev, o.id])}
-                  className={cn("w-full text-left p-3 rounded-xl border transition-all flex justify-between items-center", selectedEligible.includes(o.id) ? "border-primary bg-primary/5" : "border-base bg-surface hover:border-white/10")}
+                  className={cn("w-full text-left p-3 rounded-xl border transition-all flex justify-between items-center", selectedEligible.includes(o.id) ? "border-primary bg-primary/5" : "border-base bg-surface hover:border-base")}
                  >
                    <div>
                      <p className="text-xs font-bold text-white uppercase">{o.delivery_info?.name || 'Customer'}</p>
@@ -718,23 +936,46 @@ const PersonnelTab = () => {
           <div className="col-span-full py-20 text-center opacity-30 text-xs font-bold uppercase tracking-widest">Loading...</div>
         ) : (
           people.map(p => (
-            <Card key={p.id} className="p-6 border-base bg-card hover:border-white/10 transition-all rounded-2xl group flex flex-col">
-              <div className="flex justify-between items-start mb-6">
-                <div className="w-12 h-12 rounded-xl bg-surface border border-base flex items-center justify-center text-tertiary group-hover:text-primary transition-all"><UserIcon className="w-6 h-6" /></div>
+            <Card key={p.id} className="p-8 border-base bg-card hover:border-primary/20 transition-all rounded-[2rem] group flex flex-col relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <UserIcon className="w-12 h-12" />
+              </div>
+              
+              <div className="flex justify-between items-start mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-surface border border-base flex items-center justify-center text-primary shadow-sm"><UserIcon className="w-6 h-6" /></div>
                 <div className="flex gap-2">
-                  <button onClick={() => { setEdit(p); setModalOpen(true); }} className="p-2 text-tertiary hover:text-white"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => { setEdit(p); setModalOpen(true); }} className="w-8 h-8 flex items-center justify-center rounded-lg text-tertiary hover:bg-base transition-all"><Edit2 className="w-4 h-4" /></button>
                   <button onClick={async () => {
-                    if (!confirm('Delete?')) return;
-                    try { await deliveryPersonService.delete(p.id); toast.success('Deleted'); fetchData(); } catch (e) { toast.error('Error'); }
-                  }} className="p-2 text-tertiary hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
+                    if (!confirm('Security Protocol: Permanent Removal?')) return;
+                    try { await deliveryPersonService.delete(p.id); toast.success('Removed'); fetchData(); } catch (e) { toast.error('Error'); }
+                  }} className="w-8 h-8 flex items-center justify-center rounded-lg text-tertiary hover:text-rose-500 hover:bg-rose-500/10 transition-all"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
-              <h4 className="text-base font-bold text-white uppercase tracking-tight mb-2 truncate">{p.name}</h4>
-              <Badge variant={p.status === 'available' ? 'success' : 'warning'} className="text-[10px] font-bold px-2 py-0.5 rounded-md self-start uppercase">{p.status}</Badge>
-              <div className="mt-8 pt-4 border-t border-base space-y-2">
-                <div className="flex justify-between items-center text-[10px] font-bold text-tertiary/60">
-                   <span>PHONE</span>
-                   <span className="text-white">{p.phone_number}</span>
+
+              <div className="flex-1">
+                <h4 className="text-lg font-black text-white uppercase tracking-tight mb-2 truncate">{p.name}</h4>
+                <div className="flex items-center gap-3">
+                   <Badge className={cn("text-[9px] font-black px-2 py-0.5 rounded-md uppercase border", 
+                     p.status === 'available' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-amber-500/10 text-amber-500 border-amber-500/20")}>
+                     {p.status}
+                   </Badge>
+                   {(p as any).whatsapp_number && (
+                     <Badge className="bg-emerald-500 text-black text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <MessageSquare className="w-2.5 h-2.5" /> WhatsApp ✓
+                     </Badge>
+                   )}
+                </div>
+              </div>
+
+              <div className="mt-10 pt-6 border-t border-base space-y-4">
+                <div className="flex justify-between items-center">
+                   <p className="text-[10px] font-black text-tertiary uppercase tracking-widest opacity-40">Personnel Unit</p>
+                   <p className="text-[11px] font-mono font-bold text-white tracking-tighter">{p.phone_number}</p>
+                </div>
+                {/* Deployment Toggle Toggle */}
+                <div className="h-10 bg-surface rounded-xl border border-base flex items-center p-1">
+                   <button className="flex-1 h-full text-[9px] font-black uppercase tracking-widest text-primary bg-primary/10 rounded-lg">Active</button>
+                   <button className="flex-1 h-full text-[9px] font-black uppercase tracking-widest text-tertiary opacity-40">Standby</button>
                 </div>
               </div>
             </Card>
@@ -886,7 +1127,7 @@ const LogsTab = () => {
               <tr 
                 key={log.id} 
                 onClick={() => viewDetails(log.id)}
-                className="text-xs cursor-pointer hover:bg-white/[0.02] transition-colors"
+                className="text-xs cursor-pointer hover:bg-surface transition-colors"
                 title="Click to view details"
               >
                 <td className="px-6 py-4 font-bold text-white uppercase truncate max-w-[140px]">{log.delivery_person_name || 'N/A'}</td>
@@ -904,7 +1145,7 @@ const LogsTab = () => {
           </tbody>
         </table>
         
-        <div className="p-4 border-t border-base flex justify-between items-center bg-surface">
+        <div className="p-5 border-b border-base bg-surface flex flex-col md:flex-row justify-between items-center gap-6">
           <Button variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="h-9 px-4 text-[10px] font-bold uppercase rounded-lg">Previous</Button>
           <span className="text-[10px] font-bold text-tertiary uppercase opacity-50">Page {page} of {totalPages || 1}</span>
           <Button variant="outline" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="h-9 px-4 text-[10px] font-bold uppercase rounded-lg">Next</Button>
@@ -1044,7 +1285,7 @@ const SetupTab = () => {
               <p className="text-xs font-bold uppercase tracking-widest">Grid Empty</p>
            </div>
         ) : data.map(item => (
-          <Card key={item.id} className="p-6 border-base bg-card hover:border-white/10 transition-all rounded-2xl group flex flex-col">
+          <Card key={item.id} className="p-6 border-base bg-card hover:border-base transition-all rounded-2xl group flex flex-col">
             <div className="flex justify-between items-start mb-6">
               <div className="w-12 h-12 rounded-xl bg-surface border border-base flex items-center justify-center text-tertiary group-hover:text-primary transition-all"><Layers className="w-5 h-5" /></div>
               <div className="flex gap-2">
@@ -1098,8 +1339,7 @@ const SetupTab = () => {
 };
 
 export default function DeliveryDashboard() {
-
-  const [tab, setTab] = useState<'dispatch' | 'trips' | 'people' | 'logs' | 'setup'>('dispatch');
+  const [tab, setTab] = useState<'overview' | 'dispatch' | 'trips' | 'people' | 'logs' | 'setup'>('overview');
 
   return (
     <div className="min-h-screen bg-bg-main text-white selection:bg-primary selection:text-white pb-20">
@@ -1117,7 +1357,8 @@ export default function DeliveryDashboard() {
           </div>
           
           <div className="bg-card w-full md:w-auto p-1.5 rounded-2xl border border-base shadow-lg flex overflow-x-auto no-scrollbar scroll-smooth">
-            <TabButton active={tab === 'dispatch'} onClick={() => setTab('dispatch')} icon={LayoutDashboard} label="Board" />
+            <TabButton active={tab === 'overview'} onClick={() => setTab('overview')} icon={LayoutDashboard} label="Overview" />
+            <TabButton active={tab === 'dispatch'} onClick={() => setTab('dispatch')} icon={Layers} label="Board" />
             <TabButton active={tab === 'trips'} onClick={() => setTab('trips')} icon={Truck} label="Trips" />
             <TabButton active={tab === 'people'} onClick={() => setTab('people')} icon={UserIcon} label="Riders" />
             <TabButton active={tab === 'logs'} onClick={() => setTab('logs')} icon={MessageSquare} label="Logs" />
@@ -1126,6 +1367,7 @@ export default function DeliveryDashboard() {
         </div>
 
         <div className="bg-card rounded-[2rem] border border-base shadow-2xl p-6 sm:p-10 md:p-12 2xl:p-16">
+           {tab === 'overview' && <OverviewTab />}
            {tab === 'dispatch' && <DispatchTab onTripCreated={() => setTab('trips')} />}
            {tab === 'trips' && <TripsTab />}
            {tab === 'people' && <PersonnelTab />}

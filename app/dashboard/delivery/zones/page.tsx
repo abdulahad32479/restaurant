@@ -107,7 +107,7 @@ export default function DeliveryZonesPage() {
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-10 animate-in fade-in duration-700">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#0F0F0F] p-5 rounded-2xl border border-white/5 relative overflow-hidden group">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-secondary p-5 rounded-2xl border border-base relative overflow-hidden group">
         <div className="relative z-10 flex items-center gap-3">
           <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center border border-amber-500/20">
             <Zap className="w-5 h-5 text-amber-500" />
@@ -124,7 +124,7 @@ export default function DeliveryZonesPage() {
             variant="outline" 
             onClick={() => fetchData(true)}
             isLoading={isRefreshing}
-            className="border-white/10 hover:bg-white/5 h-10 px-6 uppercase tracking-widest text-[10px] font-bold rounded-xl"
+            className="border-base hover:bg-base h-10 px-6 uppercase tracking-widest text-[10px] font-bold rounded-xl"
             icon={<RefreshCw className="w-4 h-4" />}
           >
             Refresh
@@ -143,8 +143,8 @@ export default function DeliveryZonesPage() {
       {/* Zones Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {zones.length === 0 ? (
-          <div className="col-span-full py-20 text-center bg-[#0F0F0F] rounded-2xl border border-dashed border-white/5 group">
-             <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner group-hover:scale-105 transition-all">
+          <div className="col-span-full py-20 text-center bg-secondary rounded-2xl border border-dashed border-base group">
+             <div className="w-16 h-16 bg-base rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner group-hover:scale-105 transition-all">
                 <Layers className="w-8 h-8 text-tertiary/20" />
              </div>
              <h3 className="text-lg font-bold text-white tracking-widest uppercase mb-2">No Zones Data</h3>
@@ -152,15 +152,15 @@ export default function DeliveryZonesPage() {
           </div>
         ) : (
           zones.map((zone, i) => (
-             <Card key={zone.id} className="group relative p-6 bg-[#0F0F0F] border border-white/5 rounded-2xl shadow-lg hover:border-amber-500/30 transition-all duration-300 animate-in zoom-in-95 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+             <Card key={zone.id} className="group relative p-6 bg-secondary border border-base rounded-2xl shadow-lg hover:border-amber-500/30 transition-all duration-300 animate-in zoom-in-95 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
                 <div className="flex justify-between items-start mb-6">
-                   <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 group-hover:bg-amber-500/20 group-hover:border-amber-500/20 transition-all duration-300">
+                   <div className="w-12 h-12 bg-base rounded-xl flex items-center justify-center border border-base group-hover:bg-amber-500/20 group-hover:border-amber-500/20 transition-all duration-300">
                       <Zap className="w-6 h-6 text-[#777] group-hover:text-amber-500 transition-colors duration-300" />
                    </div>
                    <div className="flex gap-2">
                       <button 
                         onClick={() => { setEditingZone(zone); setFormData({ name: zone.name, route: zone.route, sort_order: zone.sort_order, is_active: zone.is_active }); setIsModalOpen(true); }}
-                        className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-amber-500/20 hover:text-amber-500 transition-all shadow-md"
+                        className="w-10 h-10 rounded-xl bg-base border border-base flex items-center justify-center hover:bg-amber-500/20 hover:text-amber-500 transition-all shadow-md"
                       >
                          <Edit2 className="w-4 h-4" />
                       </button>
@@ -182,7 +182,7 @@ export default function DeliveryZonesPage() {
                       </p>
                    </div>
 
-                   <div className="py-4 border-y border-white/5">
+                   <div className="py-4 border-y border-base">
                       <div className="flex justify-between items-center">
                         <span className="text-[9px] font-black text-tertiary uppercase tracking-widest opacity-50">Sort Rank</span>
                         <span className="text-base font-black text-white font-mono">#{String(zone.sort_order).padStart(2, '0')}</span>
@@ -224,7 +224,7 @@ export default function DeliveryZonesPage() {
                 placeholder="e.g. BLOCK A, SECTOR 7..."
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value.toUpperCase() })}
-                className="bg-black/60 border-white/10 text-white font-bold uppercase tracking-widest placeholder-[#444]"
+                className="bg-black/60 border-base text-white font-bold uppercase tracking-widest placeholder-[#444]"
               />
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -237,7 +237,7 @@ export default function DeliveryZonesPage() {
                         { value: '', label: 'SELECT PARENT ROUTE...' },
                         ...routes.map(r => ({ value: r.id, label: r.name.toUpperCase() }))
                     ]}
-                    className="h-10 bg-black/60 border-white/10 text-[10px] font-bold uppercase tracking-widest"
+                    className="h-10 bg-black/60 border-base text-[10px] font-bold uppercase tracking-widest"
                     />
                 </div>
                 <Input 
@@ -246,14 +246,14 @@ export default function DeliveryZonesPage() {
                   placeholder="Rank..."
                   value={formData.sort_order}
                   onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })}
-                  className="bg-black/60 border-white/10"
+                  className="bg-black/60 border-base"
                 />
               </div>
            </div>
 
-           <div className="flex items-center justify-between p-4 bg-black/40 rounded-xl border border-white/5 shadow-inner">
+           <div className="flex items-center justify-between p-4 bg-black/40 rounded-xl border border-base shadow-inner">
               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 bg-white/5 rounded-lg flex items-center justify-center border border-white/10">
+                 <div className="w-10 h-10 bg-base rounded-lg flex items-center justify-center border border-base">
                     <ShieldCheck className="w-5 h-5 text-emerald-500" />
                  </div>
                  <div>
@@ -265,12 +265,12 @@ export default function DeliveryZonesPage() {
                 onClick={() => setFormData({ ...formData, is_active: !formData.is_active })}
                 className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-all duration-300 ${formData.is_active ? 'bg-emerald-500' : 'bg-[#333]'}`}
               >
-                <div className={`w-4 h-4 rounded-full bg-white transition-all duration-300 shadow-sm ${formData.is_active ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                <div className={`w-4 h-4 rounded-full bg-[#B3B3B3] transition-all duration-300 shadow-sm ${formData.is_active ? 'translate-x-6' : 'translate-x-0'}`}></div>
               </div>
            </div>
 
-           <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
-              <Button variant="outline" fullWidth onClick={() => setIsModalOpen(false)} className="h-10 font-bold uppercase tracking-widest text-[10px] rounded-xl border-white/10 hover:bg-white/5">Cancel</Button>
+           <div className="grid grid-cols-2 gap-3 pt-4 border-t border-base">
+              <Button variant="outline" fullWidth onClick={() => setIsModalOpen(false)} className="h-10 font-bold uppercase tracking-widest text-[10px] rounded-xl border-base hover:bg-base">Cancel</Button>
               <Button 
                 variant="primary" 
                 fullWidth 

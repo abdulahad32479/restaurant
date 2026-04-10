@@ -162,7 +162,7 @@ export default function DispatchBoardPage() {
                    <div className="flex items-center gap-3">
                      <div className="w-1 h-6 bg-primary rounded-full"></div>
                      <h2 className="text-lg font-bold text-white uppercase tracking-tight">{route.route}</h2>
-                     <Badge className="text-[10px] bg-white/5 border-base text-tertiary px-2 py-0.5">{route.orders.length}</Badge>
+                     <Badge className="text-[10px] bg-surface border-base text-tertiary px-2 py-0.5">{route.orders.length}</Badge>
                    </div>
                    <div className="flex items-center gap-2 text-primary">
                       <Zap className="w-3.5 h-3.5" />
@@ -321,7 +321,7 @@ export default function DispatchBoardPage() {
               placeholder="e.g. Please deliver the food warm..."
               value={tripNotes}
               onChange={(e) => setTripNotes(e.target.value)}
-              className="w-full min-h-[100px] p-4 bg-surface border border-base rounded-xl text-sm text-white focus:border-primary transition-all outline-none resize-none"
+              className="w-full min-h-[100px] p-4 bg-[#0A0A0A] border border-base rounded-xl text-sm text-white focus:border-primary transition-all outline-none resize-none"
             />
           </div>
 

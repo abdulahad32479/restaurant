@@ -24,7 +24,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             className={cn( 
-              "flex h-12 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-[#808080] focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/10 focus:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300 drop-shadow-sm",
+              "flex h-12 w-full rounded-xl border border-base bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder:text-[#808080] focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/10 focus:bg-[#111111] disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300 drop-shadow-sm",
               icon && "pl-10",
               className
             )}
@@ -52,7 +52,7 @@ export const TextArea = React.forwardRef<HTMLTextAreaElement, TextAreaProps>(
         <textarea
           ref={ref}
           className={cn(
-            "flex w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-[#808080] focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/10 focus:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300 min-h-[80px] drop-shadow-sm",
+            "flex w-full rounded-xl border border-base bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder:text-[#808080] focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/10 focus:bg-[#111111] disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300 min-h-[80px] drop-shadow-sm",
             className
           )}
           {...props}
@@ -86,14 +86,14 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           <select
             ref={ref}
             className={cn(
-              "flex h-12 w-full appearance-none rounded-xl border border-white/10 bg-[#1F1F1F] px-4 py-2 pr-10 text-sm text-white focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-300 shadow-xl backdrop-blur-md",
+              "flex h-12 w-full appearance-none rounded-xl border border-base bg-surface px-4 py-2 pr-10 text-sm text-white focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all duration-300 shadow-xl backdrop-blur-md",
               icon && "pl-11",
               className
             )}
             {...props}
           >
             {options.map((opt) => (
-              <option key={opt.value} value={opt.value} className="bg-secondary text-white">
+              <option key={opt.value} value={opt.value} className="bg-surface text-white">
                 {opt.label}
               </option>
             ))}

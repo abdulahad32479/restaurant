@@ -62,13 +62,12 @@ export const deliveryTripService = {
   },
 
   assignAndDispatchTrip: async (data: { trip_id: string; person_id: string; send_whatsapp?: boolean }) => {
-    const payload = { 
-      trip_id: data.trip_id, 
-      person_id: data.person_id,
-      send_whatsapp: data.send_whatsapp ?? true
-    };
-    const response = await apiClient.post<DeliveryTrip>('v1/orders/assign_and_dispatch_trip/', payload);
-    return response.data;
+    // Stage 1: Assign Personnel
+    await deliveryTripService.assignTrip(data);
+    
+    // Stage 2: Tactical Dispatch
+    const response = await deliveryTripService.dispatchTrip(data.trip_id);
+    return response;
   },
 
   addOrdersToTrip: async (data: { trip_id: string; order_ids: string[] }) => {
