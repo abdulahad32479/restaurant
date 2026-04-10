@@ -11,7 +11,7 @@ import {
   Search, RefreshCw, Plus, Clock, Bike, 
   CheckCircle2, Package, User as UserIcon, Phone, 
   Eye, Trash2, Edit2, Zap, AlertTriangle, X,
-  ExternalLink, ChevronRight, Filter, Settings
+  Settings
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { deliveryTripService } from '@/src/services/delivery-trip.service';
@@ -26,27 +26,25 @@ import { cn } from '@/src/lib/utils';
 
 // --- SHARED UI ---
 
-const TEXT_META = "text-[10px] 2xl:text-xs uppercase font-bold text-tertiary tracking-widest mb-1";
-
 const TabButton = ({ active, onClick, icon: Icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) => (
   <button 
     onClick={onClick}
     className={cn(
-      "flex items-center gap-2 px-3 sm:px-5 py-2.5 sm:py-3.5 border-b-2 transition-all duration-200 outline-none flex-1 sm:flex-none justify-center",
+      "flex items-center gap-2.5 px-6 py-4 border-b-2 transition-all duration-200 outline-none flex-1 sm:flex-none justify-center",
       active 
         ? "border-primary text-primary bg-primary/5 font-bold" 
-        : "border-transparent text-secondary hover:text-white hover:bg-white/[0.02] font-medium"
+        : "border-transparent text-tertiary hover:text-white hover:bg-white/[0.02] font-semibold"
     )}
   >
-    <Icon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-    <span className="text-[10px] 2xl:text-base whitespace-nowrap uppercase tracking-wider hidden sm:block">{label}</span>
+    <Icon className={cn("w-4 h-4 shrink-0", active && "text-primary")} />
+    <span className="text-[11px] 2xl:text-xs uppercase tracking-widest">{label}</span>
   </button>
 );
 
 const SectionHeading = ({ title, subtitle }: { title: string, subtitle: string }) => (
-  <div className="mb-6 sm:mb-8">
-    <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-tight">{title}</h2>
-    <p className="text-xs sm:text-sm text-tertiary mt-1 opacity-70">{subtitle}</p>
+  <div className="mb-8">
+    <h2 className="text-xl sm:text-2xl font-bold text-white uppercase tracking-tight">{title}</h2>
+    <p className="text-xs sm:text-sm text-tertiary mt-1 font-medium opacity-60 italic">{subtitle}</p>
   </div>
 );
 
@@ -85,7 +83,7 @@ const DispatchTab = ({ onTripCreated }: { onTripCreated: () => void }) => {
       setTrips(tripsData.results || []);
       setUnroutedOrders(Array.isArray(allReadyOrders) ? allReadyOrders : (allReadyOrders?.results || []));
       setZones(Array.isArray(zonesData) ? zonesData : (zonesData?.results || []));
-    } catch (error) { toast.error('Failed to sync board'); }
+    } catch (error) { toast.error('Sync failed'); }
     finally { setIsLoading(false); }
   }, []);
 
@@ -93,7 +91,7 @@ const DispatchTab = ({ onTripCreated }: { onTripCreated: () => void }) => {
 
   const toggleSelection = (orderId: string, route: string) => {
     if (selectedRoute && selectedRoute !== route) {
-      toast.error(`Restriction: Select orders from ${selectedRoute} only`);
+      toast.error(`Area: ${selectedRoute}`);
       return;
     }
     setSelectedOrders(prev => {
@@ -113,301 +111,225 @@ const DispatchTab = ({ onTripCreated }: { onTripCreated: () => void }) => {
     )
   })).filter(item => item.orders.length > 0);
 
-  if (isLoading) return <div className="py-40 text-center opacity-30 text-lg">Initializing board...</div>;
-
-  const handleSendWhatsApp = async (orderId: string) => {
-    try {
-      await deliveryTripService.sendOrderToRiderWhatsapp(orderId);
-      toast.success('Signal Transmitted to Rider');
-    } catch (e: any) { 
-      const msg = e.response?.data?.error || e.message || 'Transmission Failed';
-      toast.error(msg === 'Order has no assigned rider' ? 'Assign a rider before signaling' : msg); 
-    }
-  };
-
-  const handleUpdateZone = async () => {
-    if (!selectedOrderForZone || !newZoneId) return;
-    try {
-      await orderService.updateDeliveryZone(selectedOrderForZone.id, newZoneId);
-      toast.success('Vector Calibrated: Zone Updated');
-      setIsZoneModalOpen(false);
-      fetchData();
-    } catch (e) { toast.error('Calibration Failed'); }
-  };
+  if (isLoading) return <div className="py-20 text-center opacity-30 text-xs font-bold uppercase tracking-widest">Loading...</div>;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6 2xl:gap-8">
-      <div className="md:col-span-2 xl:col-span-2 2xl:col-span-3 space-y-6 sm:space-y-10 order-2 lg:order-1">
-        <div className="flex flex-col sm:flex-row gap-4 items-center">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-tertiary" />
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="lg:col-span-3 space-y-10">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-tertiary opacity-40" />
             <input 
-              placeholder="Search ready orders by name or #ID..." 
+              placeholder="Search ready orders..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full h-12 bg-surface text-sm pl-12 pr-4 rounded-xl border border-base focus:border-primary transition-all outline-none"
+              className="w-full h-12 bg-surface text-[13px] pl-12 pr-4 rounded-xl border border-base focus:border-primary transition-all outline-none"
             />
           </div>
-          <button onClick={fetchData} className="px-4 py-3 bg-card border border-base rounded-xl hover:bg-surface transition-all flex items-center gap-2 text-sm font-semibold">
-            <RefreshCw className="w-4 h-4" /> Refresh
+          <button onClick={fetchData} className="px-6 h-12 bg-card border border-base rounded-xl hover:bg-surface transition-all flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-white shrink-0">
+            <RefreshCw className="w-4 h-4" /> Reset
           </button>
         </div>
 
         {filtered.length === 0 ? (
-          <div className="py-24 text-center border-2 border-dashed border-base rounded-3xl opacity-30">
-            <Package className="w-16 h-16 mx-auto mb-6 text-tertiary" />
-            <h3 className="text-xl font-bold text-white mb-2">No Ready Orders</h3>
-            <p className="text-sm">When orders are marked as ready for delivery, they will appear here.</p>
+          <div className="py-20 text-center border-2 border-dashed border-base rounded-2xl opacity-20">
+            <Package className="w-10 h-10 mx-auto mb-3" />
+            <p className="text-xs font-bold uppercase tracking-widest">Board Clear</p>
           </div>
         ) : (
           filtered.map((route, idx) => (
             <div key={idx} className="space-y-4">
               <div className="flex items-center gap-3 px-1">
-                <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-                <h3 className="text-lg font-bold text-white uppercase">{route.route}</h3>
-                <span className="px-3 py-1 bg-white/5 rounded-full text-xs font-bold text-tertiary">{route.orders.length} Ready</span>
+                <div className="w-1 h-5 bg-primary rounded-full"></div>
+                <h3 className="text-base font-bold text-white uppercase tracking-tight">{route.route}</h3>
+                <span className="text-[10px] font-bold text-tertiary opacity-60">({route.orders.length})</span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {route.orders.map(order => (
-                  <div 
+                  <Card 
                     key={order.id} 
                     onClick={() => toggleSelection(order.id, route.route)}
                     className={cn(
-                      "p-5 sm:p-6 rounded-2xl border-2 transition-all cursor-pointer bg-card group",
-                      selectedOrders.includes(order.id) ? "border-primary bg-primary/[0.03] shadow-lg" : "border-base hover:border-white/20"
+                      "p-5 rounded-2xl border-2 transition-all cursor-pointer bg-card group relative",
+                      selectedOrders.includes(order.id) 
+                        ? "border-primary bg-primary/5 shadow-md" 
+                        : "border-base hover:border-white/10"
                     )}
                   >
-                    <div className="flex justify-between items-start mb-3 sm:mb-4">
-                      <span className="text-[11px] font-bold text-tertiary uppercase tracking-wider">#{order.order_number || order.id.substring(0,8)}</span>
-                      <div className="flex gap-2 items-center">
+                    {selectedOrders.includes(order.id) && (
+                      <div className="absolute top-2 right-2">
+                        <CheckCircle2 className="w-4 h-4 text-primary" />
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-start mb-4">
+                      <span className="text-[10px] font-bold text-tertiary uppercase tracking-widest opacity-40">#{order.order_number || '---'}</span>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                         <button 
-                          onClick={(e) => { e.stopPropagation(); setSelectedOrderForZone(order); setNewZoneId(order.delivery_info?.delivery_zone || ''); setIsZoneModalOpen(true); }}
-                          className="p-1.5 bg-white/5 rounded-lg text-tertiary hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                          title="Recalibrate Zone"
+                           onClick={async (e) => { 
+                             e.stopPropagation(); 
+                             try { 
+                               await deliveryTripService.sendOrderToRiderWhatsapp(order.id); 
+                               toast.success('WhatsApp sent!'); 
+                             } catch { toast.error('WhatsApp failed'); }
+                           }}
+                           title="Send order to rider on WhatsApp"
+                           className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-all"
                         >
-                          <MapPin className="w-3 h-3" />
+                          <MessageSquare className="w-3.5 h-3.5" />
                         </button>
                         <button 
-                          onClick={(e) => { e.stopPropagation(); handleSendWhatsApp(order.id); }}
-                          className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-500/60 hover:text-emerald-500 transition-all opacity-0 group-hover:opacity-100"
-                          title="WhatsApp Signal"
+                           onClick={(e) => { e.stopPropagation(); setSelectedOrderForZone(order); setNewZoneId(order.delivery_info?.delivery_zone || ''); setIsZoneModalOpen(true); }}
+                           className="p-1.5 rounded-lg text-tertiary hover:bg-white/5 transition-all"
                         >
-                          <MessageSquare className="w-3 h-3" />
+                          <MapPin className="w-3.5 h-3.5" />
                         </button>
-                        {selectedOrders.includes(order.id) ? <CheckCircle2 className="w-5 h-5 text-primary" /> : <div className="w-5 h-5 rounded-full border border-base group-hover:border-white/20" />}
                       </div>
                     </div>
+                    
                     <div className="mb-5">
-                      <h4 className="text-base sm:text-lg 2xl:text-xl font-bold text-white mb-1 truncate">{order.delivery_info?.name}</h4>
-                      <p className="text-[10px] sm:text-xs 2xl:text-sm text-emerald-500 font-bold flex items-center gap-2"><Phone className="w-3.5 h-3.5" /> {order.delivery_info?.phone}</p>
+                      <h4 className="text-sm font-bold text-white uppercase truncate mb-1">{order.delivery_info?.name}</h4>
+                      <p className="text-[11px] text-emerald-500 font-bold flex items-center gap-1.5"><Phone className="w-3 h-3" /> {order.delivery_info?.phone}</p>
                     </div>
+
                     <div className="pt-4 border-t border-base space-y-4">
-                       <p className="text-xs sm:text-sm 2xl:text-base text-tertiary leading-snug line-clamp-2 min-h-[40px]">{order.delivery_info?.address}</p>
-                       <div className="flex justify-between items-center bg-surface/50 p-2.5 rounded-xl">
-                          <span className="text-xs font-bold text-tertiary">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          <span className={cn("text-[10px] sm:text-xs font-bold uppercase", (order.priority_score || 0) > 70 ? 'text-rose-500' : 'text-primary')}>Score: {order.priority_score || '0'}</span>
+                       <p className="text-[12px] text-tertiary font-medium line-clamp-2 min-h-[32px]">{order.delivery_info?.address}</p>
+                       <div className="flex justify-between items-center bg-surface p-2.5 rounded-xl border border-base">
+                          <span className="text-[10px] font-bold text-white uppercase">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-[10px] font-bold text-primary flex items-center gap-1"><Zap className="w-3 h-3" /> {order.priority_score || '0'}</span>
                        </div>
                     </div>
-                  </div>
+                  </Card>
                 ))}
               </div>
             </div>
           ))
         )}
+      </div>
 
-        {unroutedOrders.length > 0 && (
-          <div className="space-y-4 pt-10 border-t border-dashed border-base">
-            <div className="flex items-center gap-3 px-1">
-              <div className="w-1.5 h-6 bg-rose-500 rounded-full animate-pulse"></div>
-              <h3 className="text-lg font-bold text-white uppercase">Un-routed Payload</h3>
-              <span className="px-3 py-1 bg-rose-500/10 rounded-full text-xs font-bold text-rose-500 border border-rose-500/20">{unroutedOrders.length} Detection(s)</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
-              {unroutedOrders.map(order => (
-                <div key={order.id} className="p-6 rounded-2xl border-2 border-rose-500/20 bg-rose-500/[0.02] shadow-sm hover:border-rose-500/40 transition-all group relative overflow-hidden">
-                   <div className="flex justify-between items-start mb-4">
-                      <span className="text-[11px] font-bold text-tertiary uppercase tracking-wider">#{order.order_number || order.id.substring(0,8)}</span>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); setSelectedOrderForZone(order); setNewZoneId(order.delivery_info?.delivery_zone || ''); setIsZoneModalOpen(true); }}
-                          className="p-1.5 bg-white/5 rounded-lg text-tertiary hover:text-white transition-all"
-                          title="Assign Zone"
-                        >
-                          <MapPin className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleSendWhatsApp(order.id); }}
-                          className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-500/60 hover:text-emerald-500 transition-all"
-                          title="WhatsApp Signal"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                   </div>
-                   <div className="mb-5">
-                      <h4 className="text-lg font-bold text-white mb-1 truncate">{order.delivery_info?.name}</h4>
-                      <p className="text-xs text-emerald-500 font-bold flex items-center gap-2"><Phone className="w-3.5 h-3.5" /> {order.delivery_info?.phone}</p>
-                   </div>
-                   <div className="pt-4 border-t border-rose-500/10 space-y-4">
-                      <p className="text-sm text-tertiary leading-snug line-clamp-2 min-h-[40px]">{order.delivery_info?.address}</p>
-                      <div className="flex justify-between items-center bg-black/20 p-2.5 rounded-xl">
-                         <span className="text-xs font-bold text-tertiary">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                         <span className="text-xs font-black text-rose-500 uppercase tracking-widest">MISSING ZONE</span>
-                      </div>
-                   </div>
+      <div className="lg:col-span-1">
+        <div className="sticky top-10 space-y-6">
+          <div className="bg-card border border-base rounded-2xl p-6 space-y-8 shadow-sm">
+            <h3 className="text-[11px] font-bold text-white uppercase tracking-[0.2em] flex items-center gap-2">
+              <Zap className="w-3.5 h-3.5 text-primary" /> Suggestions
+            </h3>
+            
+            <div className="space-y-4">
+              {suggestions.map((s, i) => (
+                <div key={i} className="p-4 bg-surface rounded-xl border border-base hover:border-primary/30 transition-all group">
+                  <div className="flex justify-between items-center mb-3">
+                    <p className="text-[10px] font-bold text-primary uppercase">{s.route}</p>
+                    <button 
+                      onClick={() => {
+                        const ids = (s as any).order_ids || ((s as any).orders || []).map((o:any) => o.id || o);
+                        setSelectedOrders(ids);
+                        setSelectedRoute(s.route);
+                      }}
+                      className="w-7 h-7 flex items-center justify-center bg-primary/10 rounded-lg text-primary hover:bg-primary hover:text-white"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <p className="text-sm font-bold text-white uppercase">{s.total_orders} Orders</p>
                 </div>
               ))}
             </div>
-          </div>
-        )}
-      </div>
 
-      <div className="space-y-6 order-1 lg:order-2">
-        <div className="p-5 sm:p-8 bg-card border border-base rounded-[1.5rem] sm:rounded-[2rem] space-y-6 sm:space-y-8 lg:sticky lg:top-8 shadow-xl">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Zap className="w-6 h-6 text-primary" />
-              <h3 className="text-lg font-bold">Suggested Trips</h3>
-            </div>
-            <p className="text-sm text-tertiary">Grouped orders based on location sector.</p>
-          </div>
-          
-          <div className="space-y-4">
-            {suggestions.map((s, i) => (
-              <div key={i} className="p-5 bg-surface rounded-2xl border border-base hover:border-primary/40 transition-all cursor-default group">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-xs font-bold text-primary uppercase tracking-widest">{s.route}</span>
-                  <button 
-                    onClick={() => {
-                      const ids = (s as any).order_ids || ((s as any).orders || []).map((o:any) => o.id || o);
-                      setSelectedOrders(ids);
-                      setSelectedRoute(s.route);
-                      setIsModalOpen(true);
-                    }}
-                    className="px-4 py-1.5 bg-primary text-black text-[11px] font-bold rounded-lg hover:bg-white transition-all shadow-md active:scale-95"
-                  >
-                    SELECT
-                  </button>
-                </div>
-                <p className="text-base font-bold text-white mb-2">{s.total_orders} Linked Orders</p>
-                {s.reason && <p className="text-xs text-tertiary italic leading-relaxed bg-black/20 p-3 rounded-xl">"{s.reason}"</p>}
-              </div>
-            ))}
-            {suggestions.length === 0 && <div className="text-center py-12 opacity-30 text-sm">Searching for efficient routes...</div>}
-          </div>
-
-          <div className="pt-8 border-t border-base">
-            <div className="grid grid-cols-2 gap-4 mb-8">
-              <div className="bg-surface p-4 rounded-2xl border border-base text-center">
-                <p className="text-[10px] text-tertiary uppercase font-bold tracking-widest mb-1">Payload</p>
+            <div className="pt-6 border-t border-base space-y-6">
+              <div className="bg-surface p-4 rounded-xl border border-base text-center">
                 <p className="text-2xl font-bold text-white">{selectedOrders.length}</p>
+                <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest mt-1">Batch Load</p>
               </div>
-              <div className="bg-surface p-4 rounded-2xl border border-base text-center overflow-hidden">
-                <p className={TEXT_META}>Target Sector</p>
-                <p className="text-xs font-bold text-white truncate mt-1">{selectedRoute || '---'}</p>
+              
+              <div className="space-y-3">
+                <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest px-1">Trip Storage</p>
+                <Select 
+                  value={targetTripId} 
+                  onChange={e => setTargetTripId(e.target.value)}
+                  options={[
+                    { value: 'new', label: 'CREATE NEW TRIP' },
+                    ...trips.filter(t => t.route_name === selectedRoute || !t.route_name).map(t => ({ 
+                      value: t.id, 
+                      label: `TRIP #${t.trip_number || t.id.substring(0,8)}` 
+                    }))
+                  ]}
+                  className="h-12 text-[11px] font-bold uppercase"
+                />
               </div>
-            </div>
-            <div className="space-y-3 mb-6">
-              <p className="text-[10px] text-tertiary font-black uppercase tracking-widest px-1">Mission Strategy</p>
-              <Select 
-                value={targetTripId} 
-                onChange={e => setTargetTripId(e.target.value)}
-                options={[
-                  { value: 'new', label: '+ CREATE NEW TRIP' },
-                  ...trips.filter(t => t.route_name === selectedRoute || !t.route_name).map(t => ({ 
-                    value: t.id, 
-                    label: `ADD TO #${t.trip_number || t.id.substring(0,8)} (${t.delivery_person_name || 'NO RIDER'})` 
-                  }))
-                ]}
-                className="h-12 text-xs font-bold uppercase transition-all"
-              />
-            </div>
 
-            <Button 
-              variant="primary" 
-              fullWidth 
-              disabled={selectedOrders.length === 0}
-              onClick={() => setIsModalOpen(true)}
-              className="h-14 font-bold text-lg rounded-2xl"
-            >
-              {targetTripId === 'new' ? 'Assemble Trip' : 'Inject Orders'}
-            </Button>
-            <button 
-              onClick={() => { setSelectedOrders([]); setSelectedRoute(null); }}
-              className="w-full text-center text-xs text-tertiary mt-6 hover:text-white transition-colors"
-            >
-              Discard Selections
-            </button>
+              <Button 
+                variant="primary" 
+                fullWidth 
+                disabled={selectedOrders.length === 0}
+                onClick={() => setIsModalOpen(true)}
+                className="h-12 text-[11px] font-bold uppercase tracking-widest rounded-xl bg-primary text-black"
+              >
+                Create Trip
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={targetTripId === 'new' ? "Create Delivery Trip" : "Update Delivery Manifest"} size="md">
-        <div className="space-y-8 pt-2">
-          <div className="p-8 bg-primary/5 border border-primary/20 rounded-2xl flex items-center gap-6">
-            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20">
-               {targetTripId === 'new' ? <Truck className="w-8 h-8" /> : <Plus className="w-8 h-8" />}
-            </div>
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="New Delivery Trip" size="md">
+        <div className="space-y-6 pt-2">
+          <div className="bg-surface p-5 rounded-xl border border-base flex items-center gap-4">
+            <Truck className="w-6 h-6 text-primary" />
             <div>
-              <p className="text-sm text-primary font-bold">Preparation Summary</p>
-              <h3 className="text-2xl font-bold">{selectedOrders.length} Orders to {targetTripId === 'new' ? 'Initialize' : 'Inject'}</h3>
+              <p className="text-[10px] font-bold text-tertiary uppercase">Confirm Trip</p>
+              <h3 className="text-base font-bold text-white uppercase">{selectedOrders.length} Orders Loaded</h3>
             </div>
           </div>
-          {targetTripId === 'new' && (
-            <Input 
-              label="Internal Notes" 
-              placeholder="e.g. Call customer before arrival..." 
+          
+          <div className="space-y-2">
+            <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest px-1">Rider Instructions</p>
+            <textarea 
+              placeholder="Enter notes..." 
               value={tripNotes} 
               onChange={e => setTripNotes(e.target.value)}
-              className="h-14"
+              className="w-full min-h-[100px] p-4 bg-surface border border-base rounded-xl text-[13px] text-white outline-none focus:border-primary transition-all resize-none"
             />
-          )}
-          <div className="flex gap-4">
-            <Button variant="outline" fullWidth onClick={() => setIsModalOpen(false)} className="h-14 font-bold rounded-2xl">Abort</Button>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-base">
+            <Button variant="outline" fullWidth onClick={() => setIsModalOpen(false)} className="h-12 text-[11px] font-bold uppercase rounded-xl">Discard</Button>
             <Button variant="primary" fullWidth isLoading={isCreating} onClick={async () => {
               setIsCreating(true);
               try {
                 if (targetTripId === 'new') {
                   await deliveryTripService.createTrip({ order_ids: selectedOrders, notes: tripNotes, is_custom: true });
-                  toast.success('Trip Finalized');
                 } else {
                   await deliveryTripService.addOrdersToTrip({ trip_id: targetTripId, order_ids: selectedOrders });
-                  toast.success('Manifest Expanded');
                 }
                 setIsModalOpen(false); setSelectedOrders([]); setTripNotes(''); setTargetTripId('new');
                 fetchData(); onTripCreated();
-              } catch (e) { toast.error(targetTripId === 'new' ? 'Creation failed' : 'Update failed'); }
+                toast.success('Done');
+              } catch (e) { toast.error('Failed'); }
               finally { setIsCreating(false); }
-            }} className="h-14 font-bold rounded-2xl">Confirm Manifest</Button>
+            }} className="h-12 text-[11px] font-bold uppercase rounded-xl bg-primary text-black">Confirm</Button>
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={isZoneModalOpen} onClose={() => setIsZoneModalOpen(false)} title="Sector Calibration" size="sm">
+      <Modal isOpen={isZoneModalOpen} onClose={() => setIsZoneModalOpen(false)} title="Change Zone" size="sm">
         <div className="space-y-6 pt-2">
-           <div className="p-6 bg-primary/5 border border-primary/20 rounded-2xl flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary border border-primary/20">
-                 <MapPin className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-[10px] text-primary font-bold uppercase">Target: #{selectedOrderForZone?.order_number || '---'}</p>
-                <h3 className="text-xl font-bold uppercase tracking-tighter">Adjust Zone</h3>
-              </div>
-           </div>
-           
-           <div className="space-y-2">
-              <p className="text-[10px] font-bold text-tertiary uppercase px-1">Choose New Sector</p>
-              <Select 
-                value={newZoneId}
-                onChange={e => setNewZoneId(e.target.value)}
-                options={[{value:'', label:'UNSET / MANUAL'}, ...zones.map(z => ({value:z.id, label:z.name.toUpperCase()}))]}
-                className="h-14 font-bold uppercase"
-              />
-           </div>
-
-           <div className="flex gap-4 pt-4 border-t border-base">
-              <Button variant="outline" fullWidth onClick={() => setIsZoneModalOpen(false)} className="h-14 font-bold rounded-xl">Abort</Button>
-              <Button variant="primary" fullWidth onClick={handleUpdateZone} className="h-14 font-bold rounded-xl">Confirm Calibration</Button>
+           <Select 
+             value={newZoneId}
+             onChange={e => setNewZoneId(e.target.value)}
+             options={[{value:'', label:'CHOOSE ZONE...'}, ...zones.map(z => ({value:z.id, label:z.name.toUpperCase()}))]}
+             className="h-12 text-[11px] font-bold uppercase"
+           />
+           <div className="flex gap-3">
+              <Button variant="outline" fullWidth onClick={() => setIsZoneModalOpen(false)} className="h-12 text-[11px] font-bold uppercase rounded-xl">Cancel</Button>
+              <Button variant="primary" fullWidth onClick={async () => {
+                if (!selectedOrderForZone || !newZoneId) return;
+                try {
+                  await orderService.updateDeliveryZone(selectedOrderForZone.id, newZoneId);
+                  toast.success('Updated');
+                  setIsZoneModalOpen(false);
+                  fetchData();
+                } catch (e) { toast.error('Error'); }
+              }} className="h-12 text-[11px] font-bold uppercase rounded-xl bg-primary text-black">Save</Button>
            </div>
         </div>
       </Modal>
@@ -421,248 +343,332 @@ const TripsTab = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [assignModal, setAssignModal] = useState<DeliveryTrip | null>(null);
+  const [addOrderModal, setAddOrderModal] = useState<DeliveryTrip | null>(null);
+  const [eligibleOrders, setEligibleOrders] = useState<any[]>([]);
+  const [selectedEligible, setSelectedEligible] = useState<string[]>([]);
   const [selectedRider, setSelectedRider] = useState('');
+  const [sendWhatsapp, setSendWhatsapp] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [editingNotes, setEditingNotes] = useState<string | null>(null);
+  const [tempNotes, setTempNotes] = useState('');
+
+  const [tripDetails, setTripDetails] = useState<Record<string, DeliveryTrip>>({});
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [routeFilter, setRouteFilter] = useState('');
+  const [totalPages, setTotalPages] = useState(1);
 
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
+      const params: any = { page, page_size: 12 };
+      if (statusFilter) params.status = statusFilter;
+      if (routeFilter) params.route = routeFilter;
+      
       const [tripsData, ridersResponse] = await Promise.all([
-        deliveryTripService.getTrips({}),
+        deliveryTripService.getTrips(params),
         apiClient.get('v1/delivery-persons/').then(res => res.data).catch(() => [])
       ]);
       setTrips(tripsData.results || []);
+      setTotalPages(Math.ceil((tripsData.count || 1) / 12));
       setRiders(ridersResponse || []);
     } finally { setIsLoading(false); }
-  }, []);
+  }, [page, statusFilter, routeFilter]);
+
+  const fetchDetails = async (id: string) => {
+    try {
+       const detail = await deliveryTripService.getTripDetail(id);
+       setTripDetails(prev => ({ ...prev, [id]: detail }));
+    } catch (e) {}
+  };
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  useEffect(() => {
+    if (addOrderModal) {
+      deliveryTripService.getDispatchBoard().then(boards => {
+         const matchingRoute = boards.find(b => b.route === addOrderModal.route_name);
+         setEligibleOrders(matchingRoute?.orders || []);
+      });
+      setSelectedEligible([]);
+    }
+  }, [addOrderModal]);
+
   const handleAction = async (id: string, action: string) => {
-    if (action === 'cancel' && !confirm('Dissolve this trip? Orders will be returned to dispatch board.')) return;
     setIsProcessing(true);
     try {
       if (action === 'dispatch') await deliveryTripService.dispatchTrip(id);
       else if (action === 'complete') await deliveryTripService.completeTrip(id);
       else if (action === 'cancel') await deliveryTripService.cancelTrip(id);
       else if (action === 'whatsapp') await deliveryTripService.sendTripToRiderWhatsapp(id);
-      else if (action === 'whatsapp_order') await deliveryTripService.sendOrderToRiderWhatsapp(id);
-      else if (action === 'served') await orderService.markServed(id, {});
-      toast.success('Operation Successful');
+      toast.success('Done');
       fetchData(true);
-    } catch (e) { toast.error('Operation Failed'); }
+    } catch (e) { toast.error('Failed'); }
     finally { setIsProcessing(false); }
   };
 
-  const removeOrder = async (tripId: string, orderId: string) => {
-    if (!confirm('Remove this order from the manifest?')) return;
-    try {
-      await deliveryTripService.removeOrderFromTrip({ trip_id: tripId, order_id: orderId });
-      toast.success('Manifest Updated');
-      fetchData(true);
-    } catch (e) { toast.error('Action Failed'); }
-  };
-
-  if (isLoading) return <div className="py-40 text-center opacity-30 text-lg">Retrieving missions...</div>;
+  if (isLoading) return <div className="py-20 text-center opacity-30 text-xs font-bold uppercase tracking-widest">Loading Trips...</div>;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6 2xl:gap-10">
-        {trips.length === 0 ? (
-          <div className="col-span-full py-32 text-center border-2 border-dashed border-base rounded-[3rem] opacity-30">
-            <Truck className="w-20 h-20 mx-auto mb-6 text-tertiary" />
-            <h3 className="text-xl font-bold text-white">No Active Missions</h3>
-            <p className="text-sm text-tertiary mt-2">Active and pending trips will be listed here.</p>
-          </div>
-        ) : (
-          trips.map(trip => (
-            <Card key={trip.id} className="relative border-base bg-card hover:border-white/10 transition-all flex flex-col shadow-lg overflow-hidden rounded-[2rem] sm:rounded-[2.5rem]">
-              <div className="p-5 sm:p-8 space-y-6 sm:space-y-8 flex-1">
-                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                  <div>
-                    <p className="text-[10px] 2xl:text-xs uppercase font-bold text-tertiary tracking-widest mb-1.5">Mission Code</p>
-                    <h3 className="text-xl sm:text-2xl 2xl:text-3xl font-black text-white leading-none">#{trip.trip_number || trip.id.substring(0,8)}</h3>
-                  </div>
-                  <Badge className={cn("px-4 py-1.5 rounded-full uppercase text-[10px] font-black tracking-widest border shrink-0", 
-                    trip.status === 'out' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : 
-                    trip.status === 'completed' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : 
-                    "bg-white/5 text-secondary border-white/5")}>
-                    {trip.status}
-                  </Badge>
-                </div>
-
-                <div className="grid grid-cols-2 gap-5">
-                  <div className="p-4 bg-surface rounded-2xl border border-base">
-                    <p className="text-[10px] uppercase font-bold text-tertiary tracking-widest mb-1">Route Sector</p>
-                    <p className="text-sm font-bold text-white truncate">{trip.route_name || 'Generic'}</p>
-                  </div>
-                  <div className="p-4 bg-surface rounded-2xl border border-base overflow-hidden relative group/rider">
-                    <p className="text-[10px] uppercase font-bold text-tertiary tracking-widest mb-1">Assigned Rider</p>
-                    <div className="flex justify-between items-center gap-2">
-                      <p className={cn("text-sm font-bold truncate", trip.delivery_person_name ? "text-info" : "text-rose-500/60")}>
-                        {trip.delivery_person_name || 'NOT SET'}
-                      </p>
-                      {['assigned', 'out'].includes(trip.status) && (
-                        <button 
-                          onClick={() => setAssignModal(trip)}
-                          className="p-1.5 opacity-0 group-hover/rider:opacity-100 bg-white/5 hover:bg-white/10 rounded-lg text-tertiary hover:text-white transition-all"
-                          title="Change Rider"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-3 pt-4 border-t border-base">
-                  {trip.status === 'draft' && <Button variant="primary" fullWidth className="h-14 font-bold rounded-2xl text-base" onClick={() => setAssignModal(trip)}>Assign Rider</Button>}
-                  {trip.status === 'assigned' && <Button variant="primary" fullWidth className="h-14 font-bold rounded-2xl text-base bg-amber-500 border-amber-500 text-black shadow-lg" onClick={() => handleAction(trip.id, 'dispatch')} isLoading={isProcessing}>Launch Dispatch</Button>}
-                  {trip.status === 'out' && <Button variant="primary" fullWidth className="h-14 font-bold rounded-2xl text-base bg-emerald-500 border-emerald-500 text-black shadow-lg" onClick={() => handleAction(trip.id, 'complete')} isLoading={isProcessing}>Return Registry</Button>}
-                  
-                  <div className="flex w-full gap-3">
-                    {trip.delivery_person && (trip.status === 'assigned' || trip.status === 'out') && (
-                      <button 
-                        onClick={() => handleAction(trip.id, 'whatsapp')}
-                        className="flex-1 h-14 flex items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all active:scale-95"
-                        title="Re-send manifest to WhatsApp"
-                      >
-                        <MessageSquare className="w-6 h-6" />
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => setExpanded(expanded === trip.id ? null : trip.id)}
-                      className={cn("h-14 flex items-center justify-center rounded-2xl border transition-all active:scale-95", 
-                        expanded === trip.id ? "bg-primary border-primary text-black flex-[2]" : "bg-white/5 border-white/10 text-white/30 hover:text-white flex-1")}
-                    >
-                      <Eye className="w-6 h-6 mr-2" /> <span className={expanded === trip.id ? 'block' : 'hidden'}>Manifest</span>
-                    </button>
-                    {['draft', 'assigned'].includes(trip.status) && (
-                      <button 
-                        onClick={() => handleAction(trip.id, 'cancel')}
-                        className="flex-1 h-14 flex items-center justify-center rounded-2xl bg-rose-500/5 border border-rose-500/10 text-rose-500/60 hover:bg-rose-500 hover:text-white transition-all active:scale-95"
-                        title="Delete Trip"
-                      >
-                        <Trash2 className="w-6 h-6" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {expanded === trip.id && (
-                <div className="bg-black/20 border-t border-base p-8 space-y-4 animate-in slide-in-from-top-4 duration-300">
-                  <div className="flex justify-between items-center mb-2 px-1">
-                    <h4 className="text-[11px] uppercase font-black text-tertiary tracking-[0.2em]">Package Manifest</h4>
-                    <span className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">{(trip.trip_orders || trip.orders || []).length} Units</span>
-                  </div>
-                  {(trip.trip_orders || trip.orders || []).map((o: any, i: number) => (
-                    <div key={i} className="flex justify-between items-center p-5 bg-card border border-white/5 rounded-2xl hover:border-primary/40 transition-all group">
-                      <div className="overflow-hidden">
-                        <p className="text-base font-bold text-white mb-0.5">{o.customer_name || 'Unknown Client'}</p>
-                        <div className="flex items-center gap-4 text-xs font-semibold text-tertiary">
-                           <span className="opacity-40">#{o.order_number || o.id.substring(0,8)}</span>
-                           <span className="text-emerald-500/80 flex items-center gap-1.5"><Phone className="w-3 h-3" /> {o.customer_phone || o.delivery_info?.phone}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => handleAction(o.id, 'whatsapp_order')}
-                          className="w-10 h-10 rounded-xl bg-emerald-500/5 flex items-center justify-center text-emerald-500/40 hover:bg-emerald-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                          title="Send individual order to WhatsApp"
-                        >
-                          <MessageSquare className="w-5 h-5" />
-                        </button>
-                        {trip.status === 'out' && o.status !== 'served' && (
-                          <button 
-                            onClick={() => handleAction(o.id, 'served')}
-                            className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary/60 hover:bg-primary hover:text-black transition-all opacity-0 group-hover:opacity-100"
-                            title="Mark as Delivered"
-                          >
-                            <CheckCircle2 className="w-5 h-5" />
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => removeOrder(trip.id, o.id)}
-                          className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-rose-500/40 hover:bg-rose-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                          title="Remove from trip"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          ))
-        )}
+    <div className="space-y-6">
+      <div className="flex gap-4">
+        <Select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} options={[{value:'', label:'ALL STATUSES'},{value:'draft', label:'DRAFT'},{value:'assigned', label:'ASSIGNED'},{value:'out', label:'OUT'},{value:'completed', label:'COMPLETED'}]} className="h-11 w-48 text-[11px] font-bold uppercase" />
       </div>
 
-      <Modal isOpen={!!assignModal} onClose={() => setAssignModal(null)} title="Elite Fleet Selection" size="lg">
-        <div className="space-y-6 pt-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto pr-3 custom-scrollbar">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      {trips.length === 0 ? (
+        <div className="col-span-full py-20 text-center border-2 border-dashed border-base rounded-2xl opacity-20">
+          <Truck className="w-10 h-10 mx-auto mb-3" />
+          <p className="text-xs font-bold uppercase tracking-widest">No Active Trips</p>
+        </div>
+      ) : (
+        trips.map(trip => (
+          <Card key={trip.id} className="p-6 border-base bg-card hover:border-white/10 transition-all flex flex-col rounded-2xl">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest mb-1 opacity-50">Trip ID</p>
+                <h3 className="text-xl font-bold text-white tracking-tight">#{trip.trip_number || trip.id.substring(0,8)}</h3>
+              </div>
+              <Badge className={cn("px-3 py-1 rounded-full uppercase text-[10px] font-bold border", 
+                trip.status === 'out' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : 
+                trip.status === 'completed' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : 
+                "bg-white/5 text-tertiary border-white/5")}>
+                {trip.status}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="p-3 bg-surface rounded-xl border border-base">
+                <p className="text-[9px] font-bold text-tertiary uppercase mb-1 opacity-40">Area</p>
+                <p className="text-xs font-bold text-white truncate uppercase">{trip.route_name || 'HUB'}</p>
+              </div>
+              <div className="p-3 bg-surface rounded-xl border border-base flex justify-between items-center group/r">
+                <div className="overflow-hidden">
+                   <p className="text-[9px] font-bold text-tertiary uppercase mb-1 opacity-40">Rider</p>
+                   <p className={cn("text-xs font-bold truncate uppercase", trip.delivery_person_name ? "text-primary" : "text-rose-500/50")}>
+                    {trip.delivery_person_name || 'NONE'}
+                   </p>
+                 </div>
+                 {['draft', 'assigned'].includes(trip.status) && (
+                   <button onClick={() => setAssignModal(trip)} className="text-tertiary hover:text-white opacity-0 group-hover/r:opacity-100"><Edit2 className="w-3.5 h-3.5" /></button>
+                 )}
+               </div>
+            </div>
+
+            {editingNotes === trip.id ? (
+              <div className="mb-8 flex gap-2">
+                <input 
+                  autoFocus 
+                  value={tempNotes} 
+                  onChange={e => setTempNotes(e.target.value)} 
+                  placeholder="Trip Notes..." 
+                  className="w-full text-xs bg-surface border border-base rounded-xl px-3 outline-none focus:border-primary" 
+                />
+                <button onClick={async () => {
+                  try {
+                    await deliveryTripService.updateTrip({ trip_id: trip.id, notes: tempNotes });
+                    toast.success('Notes Updated');
+                    setEditingNotes(null);
+                    await fetchDetails(trip.id);
+                  } catch(e) { toast.error('Error'); }
+                }} className="px-3 bg-primary text-black text-[10px] font-bold uppercase rounded-xl">Save</button>
+                <button onClick={() => setEditingNotes(null)} className="px-3 bg-surface border border-base text-[10px] font-bold uppercase rounded-xl">X</button>
+              </div>
+            ) : (
+              tripDetails[trip.id]?.notes ? (
+                <div 
+                  onClick={() => { setEditingNotes(trip.id); setTempNotes(tripDetails[trip.id]?.notes || ''); }} 
+                  className="mb-8 p-3 bg-white/5 border border-white/10 rounded-xl cursor-pointer hover:bg-white/10 transition-colors group/note"
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <p className="text-[9px] font-bold text-tertiary uppercase opacity-40">Trip Notes</p>
+                    <Edit2 className="w-3 h-3 text-tertiary opacity-0 group-hover/note:opacity-100" />
+                  </div>
+                  <p className="text-xs text-white/80 italic">"{tripDetails[trip.id].notes}"</p>
+                </div>
+              ) : null
+            )}
+            
+            {/* If no notes, allow adding */}
+            {!tripDetails[trip.id]?.notes && editingNotes !== trip.id && (
+               <div className="mb-8">
+                 <button onClick={() => { setEditingNotes(trip.id); setTempNotes(''); }} className="text-[10px] font-bold text-tertiary hover:text-white uppercase flex items-center gap-1 opacity-50 hover:opacity-100 transition-all">
+                   <Plus className="w-3 h-3" /> Add Trip Notes
+                 </button>
+               </div>
+            )}
+
+            <div className="space-y-3 mt-auto">
+              {trip.status === 'draft' && <Button variant="primary" fullWidth className="h-11 font-bold rounded-xl text-[11px] uppercase" onClick={() => setAssignModal(trip)}>Assign Rider</Button>}
+              {trip.status === 'assigned' && <Button variant="primary" fullWidth className="h-11 font-bold rounded-xl text-[11px] bg-amber-500 border-amber-500 text-black uppercase" onClick={() => handleAction(trip.id, 'dispatch')} isLoading={isProcessing}>Start Trip</Button>}
+              {trip.status === 'out' && <Button variant="primary" fullWidth className="h-11 font-bold rounded-xl text-[11px] bg-emerald-500 border-emerald-500 text-black uppercase" onClick={() => handleAction(trip.id, 'complete')} isLoading={isProcessing}>Deliver All</Button>}
+              
+              <div className="flex gap-2">
+                <button onClick={() => {
+                  if (expanded === trip.id) setExpanded(null);
+                  else { setExpanded(trip.id); fetchDetails(trip.id); }
+                }} className="flex-1 h-11 flex items-center justify-center rounded-xl bg-white/5 border border-white/5 hover:border-white/10 text-white text-[10px] font-bold uppercase tracking-widest"><Eye className="w-3.5 h-3.5 mr-2" /> Orders</button>
+                {trip.delivery_person && (trip.status === 'assigned' || trip.status === 'out') && (
+                  <button onClick={() => handleAction(trip.id, 'whatsapp')} className="w-11 h-11 flex items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all"><MessageSquare className="w-4 h-4" /></button>
+                )}
+                {['draft', 'assigned'].includes(trip.status) && (
+                  <button onClick={() => handleAction(trip.id, 'cancel')} className="w-11 h-11 flex items-center justify-center rounded-xl bg-white/5 border border-white/5 text-rose-500 hover:bg-rose-500 hover:text-white transition-all"><Trash2 className="w-4 h-4" /></button>
+                )}
+              </div>
+            </div>
+
+            {expanded === trip.id && (
+              <div className="mt-6 pt-6 border-t border-base space-y-3 animate-in fade-in duration-200">
+                {!tripDetails[trip.id] ? (
+                  <div className="py-6 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary opacity-50">Fetching detail...</div>
+                ) : (
+                  <>
+                  {(tripDetails[trip.id]?.trip_orders || []).map((o: any, i: number) => (
+                    <div key={i} className="p-3 bg-surface/50 border border-base rounded-xl flex justify-between items-center group/it">
+                      <div className="overflow-hidden">
+                        <p className="text-[12px] font-bold text-white uppercase truncate">{o.customer_name || 'Customer'}</p>
+                        <p className="text-[10px] text-tertiary opacity-40 uppercase truncate tracking-tighter">#{o.order_number || o.id?.substring(0,8)}</p>
+                      </div>
+                      {['draft', 'assigned'].includes(trip.status) && (
+                         <button 
+                          onClick={async () => {
+                            try { await deliveryTripService.removeOrderFromTrip({ trip_id: trip.id, order_id: o.order }); toast.success('Removed'); await fetchDetails(trip.id); fetchData(true); } 
+                            catch (e) { toast.error('Error'); }
+                          }}
+                          className="p-1 text-tertiary hover:text-rose-500 opacity-0 group-hover/it:opacity-100"
+                         ><X className="w-3.5 h-3.5" /></button>
+                      )}
+                    </div>
+                  ))}
+                  {['draft', 'assigned'].includes(trip.status) && (
+                     <button onClick={() => setAddOrderModal(trip)} className="w-full mt-2 py-2.5 rounded-xl border border-dashed border-base text-[10px] font-bold uppercase text-tertiary hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-2">
+                       <Plus className="w-3 h-3" /> Add Eligible Orders
+                     </button>
+                  )}
+                  </>
+                )}
+              </div>
+            )}
+          </Card>
+        ))
+      )}
+      </div>
+
+      <Modal isOpen={!!assignModal} onClose={() => { setAssignModal(null); setSelectedRider(''); setSendWhatsapp(false); }} title="Select Rider" size="md">
+        <div className="space-y-4 pt-2">
+          <div className="grid grid-cols-1 gap-2 max-h-[40vh] overflow-y-auto pr-1">
             {riders.map(r => (
               <button 
                 key={r.id} 
-                onClick={() => setSelectedRider(r.id)}
+                onClick={() => {
+                  setSelectedRider(r.id);
+                  // Auto-enable WhatsApp only if rider has a WhatsApp number
+                  setSendWhatsapp(!!(r as any).whatsapp_number);
+                }}
                 className={cn(
-                  "flex items-center justify-between p-6 rounded-2xl border-2 transition-all",
-                  selectedRider === r.id ? "border-primary bg-primary/10" : "border-base bg-card hover:bg-surface"
+                  "flex items-center justify-between p-4 rounded-xl border transition-all",
+                  selectedRider === r.id ? "border-primary bg-primary/5 shadow-sm" : "border-base bg-surface hover:border-white/10"
                 )}
               >
-                <div className="flex items-center gap-6 text-left">
-                  <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center transition-all", 
-                    selectedRider === r.id ? "bg-primary text-black" : "bg-surface text-tertiary")}>
-                    <Bike className="w-7 h-7" />
-                  </div>
+                <div className="flex items-center gap-4 text-left">
+                  <div className="w-10 h-10 bg-card rounded-lg flex items-center justify-center border border-base"><Bike className="w-5 h-5" /></div>
                   <div>
-                    <p className="text-lg font-bold text-white mb-0.5">{r.name}</p>
-                    <div className="flex items-center gap-4 text-xs font-semibold text-tertiary opacity-60">
-                       <span className="flex items-center gap-1.5"><Phone className="w-3 h-3" /> {r.phone_number}</span>
-                       <Badge variant={r.status === 'available' ? 'success' : 'warning'} className="text-[10px] rounded-md">{r.status}</Badge>
+                    <p className="text-sm font-bold text-white uppercase tracking-tight">{r.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-[10px] font-bold text-tertiary opacity-40 tracking-widest">{r.phone_number}</p>
+                      {(r as any).whatsapp_number && <span className="text-[9px] font-bold text-emerald-500 uppercase">WhatsApp ✓</span>}
                     </div>
                   </div>
                 </div>
-                {selectedRider === r.id && <div className="bg-primary p-1.5 rounded-full shadow-lg"><CheckCircle2 className="w-5 h-5 text-black" /></div>}
+                {selectedRider === r.id && <CheckCircle2 className="w-4 h-4 text-primary" />}
               </button>
             ))}
           </div>
-          <div className="flex gap-4 pt-6 mt-2 border-t border-base">
-            <Button variant="outline" fullWidth onClick={async () => {
-              if (!selectedRider || !assignModal) return;
-              setIsProcessing(true);
-              try { 
-                if (assignModal.delivery_person) {
-                  await deliveryTripService.reassignTrip({ trip_id: assignModal.id, person_id: selectedRider, send_whatsapp: true });
-                } else {
-                  await deliveryTripService.assignTrip({ trip_id: assignModal.id, person_id: selectedRider, send_whatsapp: true });
-                }
-                toast.success(assignModal.delivery_person ? 'Personnel Reallocated' : 'Personnel Allocated'); 
-                setAssignModal(null); 
-                fetchData(true); 
-              } 
-              catch (e) { toast.error('Action Failed'); } finally { setIsProcessing(false); }
-            }} disabled={!selectedRider} className="h-16 font-bold text-base rounded-2xl">
-              {assignModal?.delivery_person ? 'RE-ASSIGN' : 'SOLO ASSIGN'}
-            </Button>
+
+          {/* WhatsApp toggle — only relevant if rider has a number */}
+          {selectedRider && (
+            <div
+              onClick={() => setSendWhatsapp(v => !v)}
+              className={cn(
+                "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                sendWhatsapp ? "border-emerald-500/30 bg-emerald-500/5" : "border-base bg-surface opacity-50"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <MessageSquare className="w-4 h-4 text-emerald-500" />
+                <span className="text-[11px] font-bold text-white uppercase tracking-widest">Send WhatsApp Notification</span>
+              </div>
+              <div className={`w-10 h-5 rounded-full p-0.5 transition-all duration-300 ${sendWhatsapp ? 'bg-emerald-500' : 'bg-surface border border-base'}`}>
+                <div className={`w-4 h-4 rounded-full bg-white transition-all duration-300 shadow-sm ${sendWhatsapp ? 'translate-x-5' : 'translate-x-0'}`}></div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-4 border-t border-base">
+            <Button variant="outline" fullWidth onClick={() => { setAssignModal(null); setSelectedRider(''); setSendWhatsapp(false); }} className="h-11 text-[11px] font-bold uppercase rounded-xl">Cancel</Button>
             <Button variant="primary" fullWidth onClick={async () => {
               if (!selectedRider || !assignModal) return;
               setIsProcessing(true);
               try { 
                 if (assignModal.delivery_person) {
-                  await deliveryTripService.reassignTrip({ trip_id: assignModal.id, person_id: selectedRider, send_whatsapp: true });
-                  await deliveryTripService.dispatchTrip(assignModal.id);
+                  await deliveryTripService.reassignTrip({ trip_id: assignModal.id, person_id: selectedRider, send_whatsapp: sendWhatsapp });
+                  toast.success('Reassigned');
                 } else {
-                  await deliveryTripService.assignAndDispatchTrip({ trip_id: assignModal.id, person_id: selectedRider, send_whatsapp: true });
+                  await deliveryTripService.assignTrip({ trip_id: assignModal.id, person_id: selectedRider, send_whatsapp: sendWhatsapp });
+                  toast.success('Assigned');
                 }
-                toast.success('Trip Deployed'); 
-                setAssignModal(null); 
-                fetchData(true); 
-              } 
-              catch (e) { toast.error('Action Failed'); } finally { setIsProcessing(false); }
-            }} disabled={!selectedRider} className="h-16 font-bold text-base rounded-2xl shadow-xl">
-              {assignModal?.delivery_person ? 'RE-ASSIGN & LAUNCH' : 'ASSIGN & LAUNCH'}
+                setAssignModal(null); setSelectedRider(''); fetchData(true); 
+              } catch (e: any) { 
+                toast.error(e?.response?.data?.detail || 'Assign failed');
+              } finally { setIsProcessing(false); }
+            }} disabled={!selectedRider || isProcessing} className="h-11 text-[11px] font-bold uppercase rounded-xl bg-primary/20 text-primary border border-primary/20 hover:bg-primary/30">Assign</Button>
+            <Button variant="primary" fullWidth onClick={async () => {
+              if (!selectedRider || !assignModal) return;
+              setIsProcessing(true);
+              try { 
+                await deliveryTripService.assignAndDispatchTrip({ trip_id: assignModal.id, person_id: selectedRider, send_whatsapp: sendWhatsapp });
+                toast.success('Dispatched!'); setAssignModal(null); setSelectedRider(''); fetchData(true); 
+              } catch (e: any) { 
+                toast.error(e?.response?.data?.detail || 'Dispatch failed');
+              } finally { setIsProcessing(false); }
+            }} disabled={!selectedRider || isProcessing} className="h-11 text-[11px] font-bold uppercase rounded-xl bg-primary text-black">Fast Dispatch</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={!!addOrderModal} onClose={() => setAddOrderModal(null)} title="Add Orders to Trip" size="md">
+        <div className="space-y-4 pt-2">
+           <div className="max-h-[50vh] overflow-y-auto space-y-2 pr-1">
+             {eligibleOrders.length === 0 ? (
+               <div className="py-10 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary opacity-50">No eligible orders for {addOrderModal?.route_name || 'THIS ROUTE'}</div>
+             ) : (
+               eligibleOrders.map(o => (
+                 <button 
+                  key={o.id}
+                  onClick={() => setSelectedEligible(prev => prev.includes(o.id) ? prev.filter(id => id !== o.id) : [...prev, o.id])}
+                  className={cn("w-full text-left p-3 rounded-xl border transition-all flex justify-between items-center", selectedEligible.includes(o.id) ? "border-primary bg-primary/5" : "border-base bg-surface hover:border-white/10")}
+                 >
+                   <div>
+                     <p className="text-xs font-bold text-white uppercase">{o.delivery_info?.name || 'Customer'}</p>
+                     <p className="text-[10px] text-tertiary uppercase">#{o.order_number || o.id.substring(0,8)}</p>
+                   </div>
+                   {selectedEligible.includes(o.id) && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                 </button>
+               ))
+             )}
+           </div>
+           
+          <div className="flex gap-3 pt-4 border-t border-base">
+            <Button variant="outline" fullWidth onClick={() => setAddOrderModal(null)} className="h-11 text-[11px] font-bold uppercase rounded-xl">Cancel</Button>
+            <Button variant="primary" fullWidth onClick={async () => {
+              if (!addOrderModal || selectedEligible.length === 0) return;
+              setIsProcessing(true);
+              try { 
+                await deliveryTripService.addOrdersToTrip({ trip_id: addOrderModal.id, order_ids: selectedEligible });
+                toast.success('Orders Added'); setAddOrderModal(null); fetchData(true); 
+              } catch (e) { toast.error('Error'); } finally { setIsProcessing(false); }
+            }} disabled={selectedEligible.length === 0} className="h-11 text-[11px] font-bold uppercase rounded-xl bg-primary text-black">
+              Add Selected ({selectedEligible.length})
             </Button>
           </div>
         </div>
@@ -681,7 +687,7 @@ const PersonnelTab = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try { const data = await deliveryPersonService.getAll(); setPeople(data || []); } 
-    catch (e) { toast.error('Registry sync failure'); }
+    catch (e) { toast.error('Error'); }
     finally { setIsLoading(false); }
   };
 
@@ -693,106 +699,56 @@ const PersonnelTab = () => {
     try {
       if (edit.id) await deliveryPersonService.update(edit.id, edit);
       else await deliveryPersonService.create(edit as any);
-      toast.success('Fleet registry updated');
-      setModalOpen(false);
-      fetchData();
-    } catch (e) { toast.error('Commit failed'); }
+      toast.success('Saved'); setModalOpen(false); fetchData();
+    } catch (e) { toast.error('Error'); }
     finally { setIsSaving(false); }
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-        <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">Fleet Registry</h2>
-          <p className="text-sm text-tertiary mt-1">Manage active logistic units and field personnel.</p>
-        </div>
-        <Button variant="primary" onClick={() => { setEdit({ is_active: true, status: 'available' }); setModalOpen(true); }} className="h-14 px-8 font-bold rounded-2xl text-base shadow-lg">
-          <Plus className="w-6 h-6 mr-3" /> Initialize Node
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold text-white uppercase tracking-tight">Riders</h2>
+        <Button variant="primary" onClick={() => { setEdit({ is_active: true, status: 'available' }); setModalOpen(true); }} className="h-11 px-6 font-bold rounded-xl text-[11px] uppercase bg-primary text-black">
+          <Plus className="w-4 h-4 mr-2" /> Add Rider
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {isLoading ? (
-          <div className="col-span-full py-40 text-center opacity-30 text-lg">Scanning nodes...</div>
-        ) : people.length === 0 ? (
-           <div className="col-span-full py-24 text-center border-2 border-dashed border-base rounded-3xl opacity-30">
-              <UserIcon className="w-16 h-16 mx-auto mb-6 opacity-10" />
-              <p className="text-lg font-bold">No registered personnel found</p>
-           </div>
-        ) : people.map(p => (
-          <div key={p.id} className="bg-card border border-base rounded-[2.5rem] p-6 sm:p-10 space-y-6 sm:space-y-8 shadow-sm hover:border-primary/40 hover:bg-surface/30 transition-all group relative overflow-hidden">
-            <div className="flex justify-between items-start relative z-10">
-              <div className="w-16 h-16 rounded-[1.5rem] bg-surface border border-base flex items-center justify-center text-tertiary group-hover:bg-primary group-hover:text-black transition-all">
-                <UserIcon className="w-8 h-8" />
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => { setEdit(p); setModalOpen(true); }} className="p-2.5 text-tertiary hover:text-white transition-all bg-white/5 rounded-xl"><Edit2 className="w-4 h-4" /></button>
-                <button 
-                  onClick={async () => {
-                    if (!confirm('Deregister personnel node? All active links will be severed.')) return;
-                    try { await deliveryPersonService.delete(p.id); toast.success('Identity Purged'); fetchData(); } catch (e) { toast.error('Action Failed'); }
-                  }} 
-                  className="p-2.5 text-tertiary hover:text-rose-500 transition-all bg-white/5 rounded-xl"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-6 relative z-10">
-              <div>
-                <h4 className="text-2xl font-black text-white mb-2 leading-tight uppercase tracking-tighter">{p.name}</h4>
-                <Badge className={cn("px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase border", 
-                  p.status === 'available' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20')}>
-                  {p.status}
-                </Badge>
-              </div>
-              
-              <div className="pt-6 border-t border-base space-y-3">
-                <div className="flex justify-between items-center bg-surface/40 p-3 rounded-2xl">
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5 text-tertiary opacity-40" />
-                    <span className="text-[10px] font-black text-tertiary uppercase tracking-widest">Phone</span>
-                  </div>
-                  <span className="text-xs font-bold text-white">{p.phone_number}</span>
+          <div className="col-span-full py-20 text-center opacity-30 text-xs font-bold uppercase tracking-widest">Loading...</div>
+        ) : (
+          people.map(p => (
+            <Card key={p.id} className="p-6 border-base bg-card hover:border-white/10 transition-all rounded-2xl group flex flex-col">
+              <div className="flex justify-between items-start mb-6">
+                <div className="w-12 h-12 rounded-xl bg-surface border border-base flex items-center justify-center text-tertiary group-hover:text-primary transition-all"><UserIcon className="w-6 h-6" /></div>
+                <div className="flex gap-2">
+                  <button onClick={() => { setEdit(p); setModalOpen(true); }} className="p-2 text-tertiary hover:text-white"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={async () => {
+                    if (!confirm('Delete?')) return;
+                    try { await deliveryPersonService.delete(p.id); toast.success('Deleted'); fetchData(); } catch (e) { toast.error('Error'); }
+                  }} className="p-2 text-tertiary hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
                 </div>
-                {p.whatsapp_number && (
-                  <div className="flex justify-between items-center bg-emerald-500/5 p-3 rounded-2xl border border-emerald-500/10">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="w-3.5 h-3.5 text-emerald-500/40" />
-                      <span className="text-[10px] font-black text-emerald-500/40 uppercase tracking-widest">WhatsApp</span>
-                    </div>
-                    <span className="text-xs font-bold text-emerald-500">{p.whatsapp_number}</span>
-                  </div>
-                )}
               </div>
-            </div>
-          </div>
-        ))}
+              <h4 className="text-base font-bold text-white uppercase tracking-tight mb-2 truncate">{p.name}</h4>
+              <Badge variant={p.status === 'available' ? 'success' : 'warning'} className="text-[10px] font-bold px-2 py-0.5 rounded-md self-start uppercase">{p.status}</Badge>
+              <div className="mt-8 pt-4 border-t border-base space-y-2">
+                <div className="flex justify-between items-center text-[10px] font-bold text-tertiary/60">
+                   <span>PHONE</span>
+                   <span className="text-white">{p.phone_number}</span>
+                </div>
+              </div>
+            </Card>
+          ))
+        )}
       </div>
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Fleet Node Registry Form" size="md">
-        <div className="space-y-8 pt-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input label="Full Identity Name *" value={edit?.name || ''} onChange={e => setEdit({...edit, name: e.target.value.toUpperCase()})} placeholder="E.G. JOHN SMITH" className="h-14 font-bold" />
-            <div className="space-y-2">
-              <p className="text-xs font-black text-tertiary uppercase tracking-widest px-1">Active Status</p>
-              <Select 
-                value={edit?.status || 'available'} 
-                onChange={e => setEdit({...edit, status: e.target.value as any})} 
-                options={[{value:'available', label:'READY / ACTIVE'}, {value:'busy', label:'OCCUPIED EN ROUTE'}, {value:'off_duty', label:'OFF-DUTY / INACTIVE'}]}
-                className="h-14 text-sm font-bold uppercase"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input label="Signal Phone *" value={edit?.phone_number || ''} onChange={e => setEdit({...edit, phone_number: e.target.value})} icon={<Phone className="w-4 h-4" />} placeholder="XXX-XXXXXXX" className="h-14" />
-            <Input label="WhatsApp Line" value={edit?.whatsapp_number || ''} onChange={e => setEdit({...edit, whatsapp_number: e.target.value})} icon={<MessageSquare className="w-4 h-4 text-emerald-500" />} placeholder="XXX-XXXXXXX" className="h-14" />
-          </div>
-          <div className="flex gap-4 pt-6 mt-4 border-t border-base">
-            <Button variant="outline" fullWidth onClick={() => setModalOpen(false)} className="h-16 font-bold rounded-2xl text-base">ABORT</Button>
-            <Button variant="primary" fullWidth isLoading={isSaving} onClick={handleSave} className="h-16 font-bold rounded-2xl text-base shadow-xl">COMMIT NODE</Button>
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Rider Details" size="sm">
+        <div className="space-y-6 pt-2">
+          <Input label="Name" value={edit?.name || ''} onChange={e => setEdit({...edit, name: e.target.value.toUpperCase()})} placeholder="FULL NAME" className="h-12 font-bold uppercase" />
+          <Input label="Phone" value={edit?.phone_number || ''} onChange={e => setEdit({...edit, phone_number: e.target.value})} placeholder="NUMBER" className="h-12 font-bold" />
+          <div className="flex gap-3">
+            <Button variant="outline" fullWidth onClick={() => setModalOpen(false)} className="h-12 text-[11px] font-bold uppercase rounded-xl">Cancel</Button>
+            <Button variant="primary" fullWidth isLoading={isSaving} onClick={handleSave} className="h-12 text-[11px] font-bold uppercase rounded-xl bg-primary text-black">Save</Button>
           </div>
         </div>
       </Modal>
@@ -803,147 +759,207 @@ const PersonnelTab = () => {
 const LogsTab = () => {
   const [logs, setLogs] = useState<WhatsAppLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  
+  // All filters matching backend swagger spec exactly
+  const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');       // target_type: order|trip
+  const [providerFilter, setProviderFilter] = useState(''); // webhook|twilio|meta
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  
+  const [selectedLog, setSelectedLog] = useState<WhatsAppLog | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`v1/whatsapp-logs/?page=${page}`);
-      const data = response.data;
-      if (data.results) {
-        setLogs(data.results);
-        setTotal(data.count || 0);
-      } else {
-        setLogs(Array.isArray(data) ? data : []);
-        setTotal(Array.isArray(data) ? data.length : 0);
-      }
+      const params: any = { page, page_size: 20 };
+      if (statusFilter)   params.status      = statusFilter;
+      if (typeFilter)     params.target_type = typeFilter;
+      if (providerFilter) params.provider    = providerFilter;
+      if (startDate)      params.start_date  = startDate;
+      if (endDate)        params.end_date    = endDate;
+      
+      const response = await apiClient.get('v1/whatsapp-logs/', { params });
+      setLogs(response.data.results || []);
+      setTotalPages(Math.ceil((response.data.count || 0) / 20));
     } finally { setLoading(false); }
-  }, [page]);
+  }, [page, statusFilter, typeFilter, providerFilter, startDate, endDate]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const filtered = logs.filter(l => l.phone_number?.includes(query) || l.message_text?.toLowerCase().includes(query.toLowerCase()) || l.delivery_person_name?.toLowerCase().includes(query.toLowerCase()));
+  const viewDetails = async (id: string) => {
+    setLoadingDetail(true);
+    setSelectedLog({} as WhatsAppLog);
+    try {
+      const response = await deliveryTripService.getWhatsAppLogDetail(id);
+      setSelectedLog(response);
+    } catch { 
+      toast.error("Failed to load details"); 
+      setSelectedLog(null);
+    }
+    finally { setLoadingDetail(false); }
+  };
+
+  const resetFilters = () => {
+    setStatusFilter(''); setTypeFilter(''); setProviderFilter('');
+    setStartDate(''); setEndDate(''); setPage(1);
+  };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <SectionHeading title="Communication Stream" subtitle="Audit log of all WhatsApp signals transmitted from this branch." />
-      
-      <div className="flex flex-col md:flex-row gap-4 items-center bg-card p-6 rounded-[2rem] border border-base shadow-sm">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-tertiary" />
-          <input 
-            placeholder="Search transmission logs by signal node or payload..." 
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="w-full h-16 bg-surface pl-16 pr-6 text-sm font-semibold rounded-2xl border border-base focus:border-primary transition-all outline-none"
+    <div className="space-y-6">
+      {/* Filter Bar — all 5 query filters from swagger */}
+      <div className="flex flex-col gap-3 bg-card p-4 rounded-xl border border-base shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* status: pending | sent | failed  (exact backend values) */}
+          <Select 
+            value={statusFilter} 
+            onChange={e => { setStatusFilter(e.target.value); setPage(1); }} 
+            options={[
+              {value: '', label: 'ALL STATUS'}, 
+              {value: 'pending',  label: 'PENDING'}, 
+              {value: 'sent',     label: 'SENT'}, 
+              {value: 'failed',   label: 'FAILED'}
+            ]}
+            className="h-11 font-bold uppercase text-[11px] sm:w-44"
+          />
+          {/* target_type: order | trip */}
+          <Select 
+            value={typeFilter} 
+            onChange={e => { setTypeFilter(e.target.value); setPage(1); }} 
+            options={[
+              {value: '', label: 'ALL TYPES'}, 
+              {value: 'order', label: 'ORDER'}, 
+              {value: 'trip',  label: 'TRIP'}
+            ]}
+            className="h-11 font-bold uppercase text-[11px] sm:w-44"
+          />
+          {/* provider: webhook | twilio | meta */}
+          <Select 
+            value={providerFilter} 
+            onChange={e => { setProviderFilter(e.target.value); setPage(1); }} 
+            options={[
+              {value: '',        label: 'ALL PROVIDERS'}, 
+              {value: 'webhook', label: 'WEBHOOK'}, 
+              {value: 'twilio',  label: 'TWILIO'}, 
+              {value: 'meta',    label: 'META'}
+            ]}
+            className="h-11 font-bold uppercase text-[11px] sm:w-44"
           />
         </div>
-        <button onClick={fetchData} className="px-8 h-16 bg-surface border border-base rounded-2xl hover:bg-card transition-all flex items-center gap-3 text-sm font-bold uppercase tracking-widest text-tertiary hover:text-primary">
-          <RefreshCw className="w-5 h-5" /> RE-SCAN
-        </button>
-      </div>
-
-      <div className="bg-card border border-base rounded-[2rem] overflow-hidden shadow-xl">
-        {/* MOBILE CARDS FOR LOGS */}
-        <div className="block lg:hidden divide-y divide-base">
-          {loading ? (
-             <div className="py-20 text-center opacity-30 text-[12px] font-bold uppercase tracking-[1em]">Scanning Signals...</div>
-          ) : filtered.length === 0 ? (
-             <div className="py-20 text-center opacity-30">Frequency Static</div>
-          ) : filtered.map(log => (
-             <div key={log.id} className="p-6 space-y-4">
-                <div className="flex justify-between items-start">
-                   <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-surface border border-base flex items-center justify-center text-primary"><UserIcon className="w-5 h-5" /></div>
-                      <div>
-                         <p className="font-bold text-white text-sm uppercase">{log.delivery_person_name || 'Rider'}</p>
-                         <p className="text-[10px] font-semibold text-tertiary opacity-40">{log.phone_number}</p>
-                      </div>
-                   </div>
-                   <Badge className={cn("px-3 py-1 rounded-full text-[9px] font-black uppercase border", 
-                      ['sent', 'delivered', 'read'].includes(log.status) ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20")}>
-                      {log.status.toUpperCase()}
-                   </Badge>
-                </div>
-                <div className="p-4 bg-surface rounded-xl border border-white/5 italic text-xs text-tertiary">
-                   "{log.message_text || 'System signal transmitted'}"
-                </div>
-                <div className="flex justify-between items-center text-[9px] font-black text-tertiary uppercase tracking-wider opacity-30">
-                   <span>{log.target_type}: {log.target_id.split('-')[0]}</span>
-                   <span>{new Date(log.created_at).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}</span>
-                </div>
-             </div>
-          ))}
-        </div>
-
-        {/* DESKTOP TABLE FOR LOGS */}
-        <div className="hidden lg:block overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-surface/50 text-[11px] font-black text-white/20 uppercase tracking-[0.4em] border-b border-base">
-                <th className="px-10 py-8">Signal Node</th>
-                <th className="px-10 py-8">Object Reference</th>
-                <th className="px-10 py-8">Status Flux</th>
-                <th className="px-10 py-8">Decrypted Payload</th>
-                <th className="px-10 py-8">Registry Clock</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-base">
-              {loading ? (
-                <tr><td colSpan={5} className="py-20 text-center opacity-30 text-[12px] font-bold uppercase tracking-[2em]">Analyzing...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} className="py-20 text-center opacity-30 italic">No Logs Recovered</td></tr>
-              ) : filtered.map(log => (
-                <tr key={log.id} className="hover:bg-white/[0.015] transition-all group">
-                  <td className="px-10 py-8">
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 rounded-2xl bg-surface border border-base flex items-center justify-center text-white/10 group-hover:text-primary transition-colors"><UserIcon className="w-6 h-6" /></div>
-                       <div>
-                          <p className="font-bold text-white text-base leading-tight uppercase group-hover:text-primary transition-colors">{log.delivery_person_name || 'Rider'}</p>
-                          <p className="text-xs font-semibold text-tertiary opacity-40">{log.phone_number}</p>
-                       </div>
-                    </div>
-                  </td>
-                  <td className="px-10 py-8">
-                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-primary uppercase tracking-widest">{log.target_type}</span>
-                        <span className="text-xs font-bold text-white/40 truncate max-w-[120px]">{log.target_id.split('-')[0]}...</span>
-                     </div>
-                  </td>
-                  <td className="px-10 py-8">
-                    <Badge className={cn("px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase border", 
-                      ['sent', 'delivered', 'read'].includes(log.status) ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-rose-500/10 text-rose-500 border-rose-500/20")}>
-                      {log.status.toUpperCase()}
-                    </Badge>
-                  </td>
-                  <td className="px-10 py-8 max-w-lg">
-                    <div className="p-4 bg-surface rounded-2xl border border-white/5 group-hover:border-white/10 transition-all">
-                      <p className="text-sm text-tertiary font-medium leading-relaxed italic opacity-80 group-hover:opacity-100">"{log.message_text || 'System signal transmitted'}"</p>
-                    </div>
-                  </td>
-                  <td className="px-10 py-8">
-                     <div className="flex items-center gap-2 text-xs font-bold text-tertiary opacity-40">
-                        <Clock className="w-4 h-4" />
-                        {new Date(log.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {!loading && total > 20 && (
-          <div className="px-10 py-6 bg-surface/30 border-t border-base flex justify-between items-center">
-            <p className="text-xs text-tertiary font-bold">Total Signals: {total}</p>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="h-10 px-4 rounded-xl">Previous</Button>
-              <Button size="sm" variant="outline" disabled={logs.length < 20 && page * 20 >= total} onClick={() => setPage(p => p + 1)} className="h-10 px-4 rounded-xl">Next</Button>
-            </div>
+        <div className="flex flex-col sm:flex-row gap-3 items-center">
+          {/* start_date / end_date */}
+          <div className="flex items-center gap-2 flex-1">
+            <span className="text-[10px] font-bold text-tertiary uppercase tracking-widest shrink-0">From</span>
+            <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setPage(1); }}
+              className="h-11 flex-1 bg-surface border border-base rounded-xl px-3 text-[11px] text-white font-bold outline-none focus:border-primary transition-all" />
           </div>
-        )}
+          <div className="flex items-center gap-2 flex-1">
+            <span className="text-[10px] font-bold text-tertiary uppercase tracking-widest shrink-0">To</span>
+            <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setPage(1); }}
+              className="h-11 flex-1 bg-surface border border-base rounded-xl px-3 text-[11px] text-white font-bold outline-none focus:border-primary transition-all" />
+          </div>
+          <Button variant="outline" onClick={resetFilters} className="h-11 px-5 text-[10px] font-bold uppercase rounded-xl shrink-0">Reset</Button>
+          <Button variant="outline" onClick={() => fetchData()} className="h-11 px-5 text-[10px] font-bold uppercase rounded-xl shrink-0">Refresh</Button>
+        </div>
       </div>
+
+      <div className="bg-card border border-base rounded-2xl overflow-hidden shadow-sm">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-surface/50 text-[10px] font-bold text-tertiary uppercase tracking-widest border-b border-base">
+              <th className="px-6 py-4">Rider</th>
+              <th className="px-6 py-4">Type</th>
+              <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4">Provider</th>
+              <th className="px-6 py-4">Time</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-base">
+            {loading ? (
+              <tr><td colSpan={5} className="py-20 text-center text-xs opacity-20 font-bold uppercase tracking-widest">Loading...</td></tr>
+            ) : logs.length === 0 ? (
+              <tr><td colSpan={5} className="py-20 text-center text-xs opacity-20 font-bold uppercase tracking-widest">No Logs Found</td></tr>
+            ) : logs.map(log => (
+              <tr 
+                key={log.id} 
+                onClick={() => viewDetails(log.id)}
+                className="text-xs cursor-pointer hover:bg-white/[0.02] transition-colors"
+                title="Click to view details"
+              >
+                <td className="px-6 py-4 font-bold text-white uppercase truncate max-w-[140px]">{log.delivery_person_name || 'N/A'}</td>
+                <td className="px-6 py-4 text-tertiary uppercase font-bold">{log.target_type}</td>
+                <td className="px-6 py-4">
+                   <Badge className={cn("px-2 py-0.5 rounded-md text-[9px] font-bold uppercase", 
+                    ['sent', 'delivered', 'read'].includes(log.status) ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500")}>
+                    {log.status}
+                   </Badge>
+                </td>
+                <td className="px-6 py-4 text-tertiary font-mono text-[10px] uppercase opacity-60">{log.provider || 'UNKNOWN'}</td>
+                <td className="px-6 py-4 text-tertiary opacity-40 italic">{new Date(log.created_at).toLocaleString([], { hour:'2-digit', minute:'2-digit', month: 'short', day: '2-digit' })}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        
+        <div className="p-4 border-t border-base flex justify-between items-center bg-surface">
+          <Button variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="h-9 px-4 text-[10px] font-bold uppercase rounded-lg">Previous</Button>
+          <span className="text-[10px] font-bold text-tertiary uppercase opacity-50">Page {page} of {totalPages || 1}</span>
+          <Button variant="outline" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="h-9 px-4 text-[10px] font-bold uppercase rounded-lg">Next</Button>
+        </div>
+      </div>
+
+      <Modal isOpen={!!selectedLog} onClose={() => setSelectedLog(null)} title="Communication Log" size="md">
+        <div className="space-y-6 pt-2">
+           {loadingDetail ? (
+             <div className="py-20 text-center text-[10px] font-bold uppercase tracking-widest text-primary animate-pulse">Decrypting Payload...</div>
+           ) : selectedLog?.id ? (
+             <>
+               <div className="bg-surface p-4 rounded-xl border border-base flex justify-between items-center">
+                 <div>
+                   <p className="text-[10px] text-tertiary font-bold uppercase mb-1">Rider</p>
+                   <p className="text-sm font-bold text-white uppercase">{selectedLog.delivery_person_name}</p>
+                 </div>
+                 <div className="text-right">
+                   <p className="text-[10px] text-tertiary font-bold uppercase mb-1">Phone</p>
+                   <p className="text-[11px] font-mono text-emerald-500">{selectedLog.phone_number}</p>
+                 </div>
+               </div>
+
+               <div className="space-y-4">
+                 <div className="space-y-2">
+                   <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest px-1">Message Content</p>
+                   <div className="p-4 bg-surface border border-base rounded-xl text-[12px] text-white leading-relaxed italic opacity-80 min-h-[80px]">
+                     {selectedLog.message_text || "No message content recorded."}
+                   </div>
+                 </div>
+
+                 {selectedLog.error_message && (
+                   <div className="space-y-2">
+                     <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest px-1">Error Information</p>
+                     <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 font-mono text-[11px] rounded-xl">
+                       {selectedLog.error_message}
+                     </div>
+                   </div>
+                 )}
+
+                 {selectedLog.provider_message_id && (
+                   <div className="flex justify-between items-center text-[10px] font-bold uppercase px-1">
+                     <span className="text-tertiary">Provider ID</span>
+                     <span className="text-white font-mono opacity-50 truncate max-w-[200px]">{selectedLog.provider_message_id}</span>
+                   </div>
+                 )}
+               </div>
+
+               <div className="pt-4 border-t border-base">
+                 <Button variant="outline" fullWidth onClick={() => setSelectedLog(null)} className="h-11 text-[11px] font-bold uppercase rounded-xl">Close log</Button>
+               </div>
+             </>
+           ) : null}
+        </div>
+      </Modal>
     </div>
   );
 };
@@ -954,18 +970,23 @@ const SetupTab = () => {
   const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<any>(null);
-  const [form, setForm] = useState<any>({ name: '', sort_order: 1, route: '', default_travel_minutes: 30 });
+  const [form, setForm] = useState<any>({ name: '', sort_order: 1, route: '', default_travel_minutes: 30, is_active: true });
+  const [filterRoute, setFilterRoute] = useState('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const endpoint = type === 'routes' 
+        ? 'v1/delivery-routes/' 
+        : `v1/delivery-zones/${filterRoute ? `?route_id=${filterRoute}` : ''}`;
+      
       const [res, rRes] = await Promise.all([
-        apiClient.get(type === 'routes' ? 'v1/delivery-routes/' : 'v1/delivery-zones/'),
+        apiClient.get(endpoint),
         apiClient.get('v1/delivery-routes/')
       ]);
       setData(res.data || []); setRoutes(rRes.data || []);
     } finally { setLoading(false); }
-  }, [type]);
+  }, [type, filterRoute]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -973,89 +994,102 @@ const SetupTab = () => {
     if (!form.name) return;
     try {
       const ep = type === 'routes' ? 'v1/delivery-routes/' : 'v1/delivery-zones/';
-      if (modal?.id) await apiClient.patch(`${ep}${modal.id}/`, form);
-      else await apiClient.post(ep, form);
-      toast.success('Matrix Configured'); setModal(null); fetchData();
-    } catch (e) { toast.error('Handshake Failed'); }
+      
+      // Strict payload typing matching swagger definition
+      const payload: any = { 
+        name: form.name, 
+        sort_order: form.sort_order, 
+        is_active: form.is_active 
+      };
+      
+      if (type === 'routes') payload.default_travel_minutes = form.default_travel_minutes;
+      if (type === 'zones') payload.route = form.route;
+
+      if (modal?.id) await apiClient.patch(`${ep}${modal.id}/`, payload);
+      else await apiClient.post(ep, payload);
+      
+      toast.success('Saved'); setModal(null); fetchData();
+    } catch (e) { toast.error('Error'); }
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8">
-        <div className="flex bg-card p-1.5 rounded-2xl border border-base shadow-inner">
-          <button onClick={() => setType('routes')} className={cn("px-10 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all", type === 'routes' ? "bg-primary text-black shadow-lg" : "text-tertiary hover:text-white")}>Matrix Routes</button>
-          <button onClick={() => setType('zones')} className={cn("px-10 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all", type === 'zones' ? "bg-primary text-black shadow-lg" : "text-tertiary hover:text-white")}>Sector Zones</button>
+    <div className="space-y-8">
+      <div className="flex justify-between items-center flex-wrap gap-4">
+        <div className="flex bg-surface p-1 rounded-xl border border-base">
+          <button onClick={() => { setType('routes'); setFilterRoute(''); }} className={cn("px-6 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-all", type === 'routes' ? "bg-primary text-black" : "text-tertiary hover:text-white")}>Matrix Routes</button>
+          <button onClick={() => setType('zones')} className={cn("px-6 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-all", type === 'zones' ? "bg-primary text-black" : "text-tertiary hover:text-white")}>Sector Zones</button>
         </div>
-        <Button variant="primary" onClick={() => { setForm({ name: '', sort_order: data.length + 1, route: '', default_travel_minutes: 30 }); setModal({}); }} className="h-14 px-8 font-bold rounded-2xl">
-          <Plus className="w-6 h-6 mr-3" /> Initialize Sector
-        </Button>
+        
+        <div className="flex items-center gap-3">
+          {type === 'zones' && (
+            <Select 
+              value={filterRoute} 
+              onChange={e => setFilterRoute(e.target.value)} 
+              options={[{value:'', label:'ALL ROUTES'}, ...routes.map(r => ({value:r.id, label:r.name.toUpperCase()}))]} 
+              className="h-11 w-48 text-[11px] font-bold uppercase" 
+            />
+          )}
+          <Button variant="primary" onClick={() => { setForm({ name: '', sort_order: data.length + 1, route: filterRoute || '', default_travel_minutes: 30, is_active: true }); setModal({}); }} className="h-11 px-6 font-bold rounded-xl text-[11px] uppercase bg-primary text-black">
+            <Plus className="w-4 h-4 mr-2" /> {type === 'routes' ? 'Initialize Matrix' : 'Initialize Sect'}
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loading ? (
-          <div className="col-span-full py-40 text-center opacity-30 text-lg uppercase tracking-[1em]">Decoding matrix...</div>
+          <div className="col-span-full py-20 text-center opacity-30 text-xs font-bold uppercase tracking-widest">Scanning Grid...</div>
         ) : data.length === 0 ? (
-           <div className="col-span-full py-24 text-center border-2 border-dashed border-base rounded-3xl opacity-30">
-              <Layers className="w-16 h-16 mx-auto mb-6 opacity-10" />
-              <p className="text-lg font-bold">No mapping sectors defined</p>
+           <div className="col-span-full py-20 text-center border-2 border-dashed border-base rounded-2xl opacity-20">
+              <Layers className="w-10 h-10 mx-auto mb-3" />
+              <p className="text-xs font-bold uppercase tracking-widest">Grid Empty</p>
            </div>
         ) : data.map(item => (
-          <div key={item.id} className="bg-card border border-base rounded-[2.5rem] p-6 sm:p-10 space-y-6 sm:space-y-10 hover:border-primary/40 hover:bg-surface/30 transition-all shadow-sm group relative overflow-hidden">
-            <div className="flex justify-between items-start relative z-10">
-              <div className="w-14 h-14 rounded-2xl bg-surface border border-base flex items-center justify-center text-white/20 group-hover:text-primary transition-all">
-                 <Layers className="w-6 h-6" />
-              </div>
+          <Card key={item.id} className="p-6 border-base bg-card hover:border-white/10 transition-all rounded-2xl group flex flex-col">
+            <div className="flex justify-between items-start mb-6">
+              <div className="w-12 h-12 rounded-xl bg-surface border border-base flex items-center justify-center text-tertiary group-hover:text-primary transition-all"><Layers className="w-5 h-5" /></div>
               <div className="flex gap-2">
-                <button onClick={() => { setModal(item); setForm(item); }} className="p-2.5 bg-white/5 rounded-xl text-tertiary hover:text-white transition-all"><Edit2 className="w-4 h-4" /></button>
+                <button onClick={() => { setModal(item); setForm(item); }} className="p-2 text-tertiary hover:text-white"><Edit2 className="w-3.5 h-3.5" /></button>
                 <button onClick={async () => {
-                  if (!confirm('Abort sector node? Registry link will be deleted.')) return;
-                  try { await apiClient.delete(`${type === 'routes' ? 'v1/delivery-routes/' : 'v1/delivery-zones/'}${item.id}/`); toast.success('Sector Purged'); fetchData(); } catch (e) { toast.error('Action Failed'); }
-                }} className="p-2.5 bg-white/5 rounded-xl text-tertiary hover:text-rose-500 transition-all"><Trash2 className="w-4 h-4" /></button>
+                  if (!confirm(`Delete ${type}?`)) return;
+                  try { await apiClient.delete(`${type === 'routes' ? 'v1/delivery-routes/' : 'v1/delivery-zones/'}${item.id}/`); toast.success('Deleted'); fetchData(); } catch (e) { toast.error('Error'); }
+                }} className="p-2 text-tertiary hover:text-rose-500"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             </div>
-            <div className="relative z-10">
-              <h4 className="text-2xl font-black text-white leading-tight uppercase tracking-tighter mb-1.5">{item.name}</h4>
-              <p className="text-[10px] text-primary font-black uppercase tracking-[0.3em] flex items-center gap-2 opacity-60">
-                 <MapPin className="w-3.5 h-3.5" /> {item.route_name || (type === 'routes' ? 'HUB ORIGIN' : 'ZONE NODE')}
-              </p>
+            
+            <h4 className="text-base font-bold text-white uppercase tracking-tight mb-1 truncate">{item.name}</h4>
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest">{item.route_name || (type === 'routes' ? 'ROOT MATRIX' : 'SUB-SECTOR')}</p>
+              {!item.is_active && <Badge className="text-[9px] bg-rose-500/10 text-rose-500 border-rose-500/20 px-1 py-0 uppercase">Offline</Badge>}
             </div>
-            <div className="pt-8 border-t border-base flex justify-between items-center text-[11px] font-black uppercase tracking-widest relative z-10">
-              <span className="text-tertiary opacity-40">Matrix Rank</span>
-              <span className="text-white font-mono text-lg">#{item.sort_order.toString().padStart(2, '0')}</span>
+            
+            <div className="mt-auto pt-4 border-t border-base flex justify-between items-center text-[10px] font-bold text-tertiary uppercase">
+              <span>PRIORITY ID</span>
+              <span className="text-white">#{item.sort_order.toString().padStart(2, '0')}</span>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
 
-      <Modal isOpen={!!modal} onClose={() => setModal(null)} title={type === 'routes' ? 'Route Matrix Config' : 'Sector Zone Config'} size="md">
-        <div className="space-y-8 pt-4">
-          <div className="p-6 sm:p-10 bg-amber-500/5 border border-amber-500/20 rounded-[2.5rem] flex flex-col sm:flex-row items-center gap-6 sm:gap-10 group shadow-inner">
-             <div className="w-16 h-16 sm:w-20 sm:h-20 bg-amber-500/10 rounded-[1.5rem] sm:rounded-[1.8rem] flex items-center justify-center text-amber-500 border border-amber-500/20 shadow-glow-amber/10 group-hover:scale-105 transition-transform duration-700">
-                <Zap className="w-8 h-8 sm:w-10 sm:h-10" />
-             </div>
-             <div className="text-center sm:text-left">
-                <p className="text-[10px] sm:text-xs font-black text-amber-500/60 uppercase tracking-widest mb-1.5">Nodal Matrix</p>
-                <h3 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tighter leading-none">Sector Setup</h3>
-             </div>
-          </div>
-          
-          <div className="space-y-8">
-             <Input label="Descriptor Name *" value={form.name} onChange={e => setForm({...form, name: e.target.value.toUpperCase()})} placeholder="E.G. SECTOR SEVEN" className="h-16 font-bold" />
-             {type === 'zones' && (
-               <div className="space-y-3">
-                 <p className="text-xs font-black text-tertiary uppercase tracking-widest px-1">Parent Identity *</p>
-                 <Select value={form.route} onChange={e => setForm({...form, route: e.target.value})} options={[{value:'', label:'CHOOSE PARENT SECTOR...'}, ...routes.map(r => ({value:r.id, label:r.name.toUpperCase()}))]} className="h-16 text-sm font-bold uppercase" />
-               </div>
+      <Modal isOpen={!!modal} onClose={() => setModal(null)} title={type === 'routes' ? 'Matrix Config' : 'Sector Config'} size="sm">
+        <div className="space-y-4 pt-2">
+           <Input label="Designation Name" value={form.name} onChange={e => setForm({...form, name: e.target.value.toUpperCase()})} placeholder="E.G. ALPHA SECTOR" className="h-12 font-bold uppercase" />
+           {type === 'zones' && (
+             <Select label="Parent Route" value={form.route} onChange={e => setForm({...form, route: e.target.value})} options={[{value:'', label:'ASSIGN PARENT...'}, ...routes.map(r => ({value:r.id, label:r.name.toUpperCase()}))]} className="h-12 font-bold uppercase" />
+           )}
+           <div className="grid grid-cols-2 gap-4">
+             <Input label="Priority Level" type="number" value={form.sort_order} onChange={e => setForm({...form, sort_order: parseInt(e.target.value)})} className="h-12 font-bold" />
+             {type === 'routes' && (
+               <Input label="Est. Time (Mins)" type="number" value={form.default_travel_minutes} onChange={e => setForm({...form, default_travel_minutes: parseInt(e.target.value)})} className="h-12 font-bold" />
              )}
-             <div className="grid grid-cols-2 gap-8">
-               <Input type="number" label="Rank Scale" value={form.sort_order} onChange={e => setForm({...form, sort_order: parseInt(e.target.value)})} className="h-16 font-bold" />
-               {type === 'routes' && <Input type="number" label="Shift Time (M)" value={form.default_travel_minutes} onChange={e => setForm({...form, default_travel_minutes: parseInt(e.target.value)})} className="h-16 font-bold" />}
-             </div>
-          </div>
-          
-          <div className="flex gap-6 pt-10 mt-2 border-t border-base">
-            <Button variant="outline" fullWidth onClick={() => setModal(null)} className="h-18 font-bold rounded-3xl text-sm">ABORT</Button>
-            <Button variant="primary" fullWidth onClick={handleSave} className="h-18 font-bold rounded-3xl text-sm bg-amber-500 border-amber-500 text-black shadow-glow-amber/20">COMMIT SCRIPTS</Button>
+           </div>
+           <div className="flex items-center gap-3 pt-2">
+             <input type="checkbox" checked={form.is_active !== false} onChange={e => setForm({...form, is_active: e.target.checked})} className="w-5 h-5 accent-primary rounded cursor-pointer" />
+             <span className="text-xs font-bold text-white uppercase tracking-widest opacity-80">System Active</span>
+           </div>
+           
+          <div className="flex gap-3 pt-4 border-t border-base">
+            <Button variant="outline" fullWidth onClick={() => setModal(null)} className="h-12 text-[11px] font-bold uppercase rounded-xl">Cancel</Button>
+            <Button variant="primary" fullWidth onClick={handleSave} className="h-12 text-[11px] font-bold uppercase rounded-xl bg-primary text-black">Synchronize</Button>
           </div>
         </div>
       </Modal>
@@ -1063,51 +1097,43 @@ const SetupTab = () => {
   );
 };
 
-// --- MAIN EXPORT ---
+export default function DeliveryDashboard() {
 
-export default function UnifiedLogisticsDashboard() {
   const [tab, setTab] = useState<'dispatch' | 'trips' | 'people' | 'logs' | 'setup'>('dispatch');
 
   return (
-    <div className="p-3 sm:p-6 md:p-8 2xl:p-12 max-w-[1800px] mx-auto min-h-screen bg-bg-main text-white selection:bg-primary selection:text-white">
-      {/* MOBILE-OPTIC HEADER */}
-      <div className="flex flex-col xl:flex-row justify-between items-center sm:items-start xl:items-center gap-6 sm:gap-10 mb-8 sm:mb-16">
-        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 group text-center sm:text-left">
-          <div className="w-20 h-20 sm:w-16 sm:h-16 bg-primary/10 rounded-[2rem] sm:rounded-[1.8rem] flex items-center justify-center border border-primary/20 shadow-glow-primary/10 transition-all duration-700 hover:scale-105 active:scale-95 group-hover:bg-primary/20 mb-2 sm:mb-0">
-             <Truck className="w-10 h-10 sm:w-8 sm:h-8 text-primary shadow-glow-primary" />
-          </div>
-          <div className="space-y-1">
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase group-hover:text-primary transition-colors">Fleet Central</h1>
-            <div className="flex items-center justify-center sm:justify-start gap-3 sm:gap-4">
-               <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 rounded-full bg-emerald-500/5 border border-emerald-500/20">
-                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-glow-emerald"></div>
-                  <span className="text-[8px] sm:text-[10px] font-black text-emerald-500 uppercase tracking-widest opacity-80">Sync Online</span>
-               </div>
+    <div className="min-h-screen bg-bg-main text-white selection:bg-primary selection:text-white pb-20">
+      <div className="p-4 sm:p-8 md:p-10 2xl:p-14 max-w-[1600px] mx-auto space-y-10">
+        
+        <div className="flex flex-col xl:flex-row justify-between items-center sm:items-start xl:items-center gap-6">
+          <div className="flex items-center gap-5 group">
+            <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20 shadow-sm transition-all group-hover:bg-primary/20">
+               <Truck className="w-7 h-7 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight uppercase leading-none">Logistics Hub</h1>
+              <p className="text-[10px] font-bold text-tertiary mt-1.5 uppercase tracking-[0.3em] opacity-40">Operational Dashboard</p>
             </div>
           </div>
+          
+          <div className="bg-card w-full md:w-auto p-1.5 rounded-2xl border border-base shadow-lg flex overflow-x-auto no-scrollbar scroll-smooth">
+            <TabButton active={tab === 'dispatch'} onClick={() => setTab('dispatch')} icon={LayoutDashboard} label="Board" />
+            <TabButton active={tab === 'trips'} onClick={() => setTab('trips')} icon={Truck} label="Trips" />
+            <TabButton active={tab === 'people'} onClick={() => setTab('people')} icon={UserIcon} label="Riders" />
+            <TabButton active={tab === 'logs'} onClick={() => setTab('logs')} icon={MessageSquare} label="Logs" />
+            <TabButton active={tab === 'setup'} onClick={() => setTab('setup')} icon={Settings} label="Setup" />
+          </div>
+        </div>
+
+        <div className="bg-card rounded-[2rem] border border-base shadow-2xl p-6 sm:p-10 md:p-12 2xl:p-16">
+           {tab === 'dispatch' && <DispatchTab onTripCreated={() => setTab('trips')} />}
+           {tab === 'trips' && <TripsTab />}
+           {tab === 'people' && <PersonnelTab />}
+           {tab === 'logs' && <LogsTab />}
+           {tab === 'setup' && <SetupTab />}
         </div>
         
-        {/* CLEAN TAB NAVIGATION */}
-        <div className="bg-card w-full md:w-auto p-1 rounded-2xl sm:rounded-[2rem] border border-base shadow-lg flex overflow-x-auto no-scrollbar scroll-smooth">
-          <TabButton active={tab === 'dispatch'} onClick={() => setTab('dispatch')} icon={LayoutDashboard} label="Dispatch" />
-          <TabButton active={tab === 'trips'} onClick={() => setTab('trips')} icon={Truck} label="Missions" />
-          <TabButton active={tab === 'people'} onClick={() => setTab('people')} icon={Bike} label="Personnel" />
-          <TabButton active={tab === 'logs'} onClick={() => setTab('logs')} icon={MessageSquare} label="Signals" />
-          <TabButton active={tab === 'setup'} onClick={() => setTab('setup')} icon={Settings} label="Matrix" />
-        </div>
       </div>
-
-      {/* DYNAMIC CONTENT AREA */}
-      <div className="bg-card rounded-2xl sm:rounded-[3rem] border border-base shadow-[0_48px_96px_rgba(0,0,0,0.5)] overflow-hidden">
-        <div className="p-3 sm:p-6 md:p-8 2xl:p-16">
-          {tab === 'dispatch' && <DispatchTab onTripCreated={() => setTab('trips')} />}
-          {tab === 'trips' && <TripsTab />}
-          {tab === 'people' && <PersonnelTab />}
-          {tab === 'logs' && <LogsTab />}
-          {tab === 'setup' && <SetupTab />}
-        </div>
-      </div>
-
     </div>
   );
 }

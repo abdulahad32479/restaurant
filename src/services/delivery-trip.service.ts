@@ -64,7 +64,7 @@ export const deliveryTripService = {
   assignAndDispatchTrip: async (data: { trip_id: string; person_id: string; send_whatsapp?: boolean }) => {
     const payload = { 
       trip_id: data.trip_id, 
-      person_id: data.person_id, 
+      person_id: data.person_id,
       send_whatsapp: data.send_whatsapp ?? true
     };
     const response = await apiClient.post<DeliveryTrip>('v1/orders/assign_and_dispatch_trip/', payload);

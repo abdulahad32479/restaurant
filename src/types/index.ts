@@ -306,6 +306,7 @@ export interface WhatsAppLog {
   provider: string;
   provider_message_id?: string;
   status: 'pending' | 'sent' | 'failed' | 'delivered' | 'read';
+  response_payload?: string;
   error_message?: string;
   created_at: string;
 }
