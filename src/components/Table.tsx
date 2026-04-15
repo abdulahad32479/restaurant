@@ -22,11 +22,12 @@ interface Column<T> {
 interface TableProps<T> {
   columns: Column<T>[]
   data: T[]
+  className?: string
 }
 
-export function Table<T extends { id: string | number }>({ columns, data }: TableProps<T>) {
+export function Table<T extends { id: string | number }>({ columns, data, className }: TableProps<T>) {
   return (
-    <div className="bg-[#1F1F1F] border border-[#2A2A2A] rounded-xl overflow-x-auto shadow-md scrollbar-thin">
+    <div className={cn("bg-[#1F1F1F] border border-[#2A2A2A] rounded-xl overflow-x-auto shadow-md scrollbar-thin", className)}>
       <ShadcnTable>
         <TableHeader className="bg-white/[0.02] border-b border-[#2A2A2A]">
           <TableRow className="border-[#2A2A2A] hover:bg-transparent transition-none">

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PayrollService } from '../services/payroll.service';
+import { PayrollRun, PayrollLine } from '../types/staff';
 import toast from 'react-hot-toast';
 
 export const usePayrollRuns = (filters?: Record<string, any>) => {
@@ -10,34 +11,69 @@ export const usePayrollRuns = (filters?: Record<string, any>) => {
     queryFn: () => PayrollService.getPayrollRuns(filters),
   });
 
-  const generatePayroll = useMutation({
-    mutationFn: ({ year, month }: { year: number, month: number }) => PayrollService.generatePayroll(year, month),
+  const createPayrollRun = useMutation({
+    mutationFn: (data: Partial<PayrollRun>) => PayrollService.createPayrollRun(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });
-      queryClient.invalidateQueries({ queryKey: ['payrollRunDetails'] });
-      toast.success('Payroll generated successfully');
+      toast.success('Payroll run created successfully');
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to generate payroll'),
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to create payroll run'),
   });
 
-  const finalizePayroll = useMutation({
-    mutationFn: (id: string) => PayrollService.finalizePayroll(id),
+  const updatePayrollRun = useMutation({
+    mutationFn: ({ id, data }: { id: string, data: Partial<PayrollRun> }) => PayrollService.updatePayrollRun(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });
       queryClient.invalidateQueries({ queryKey: ['payrollRunDetails'] });
-      toast.success('Payroll finalized');
+      toast.success('Payroll run updated successfully');
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to finalize payroll'),
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to update payroll run'),
+  });
+
+  const deletePayrollRun = useMutation({
+    mutationFn: (id: string) => PayrollService.deletePayrollRun(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });
+      toast.success('Payroll run deleted successfully');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to delete payroll run'),
+  });
+
+  const generatePayrollLines = useMutation({
+    mutationFn: (id: string) => PayrollService.generatePayrollLines(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });
+      queryClient.invalidateQueries({ queryKey: ['payrollRunDetails'] });
+      toast.success('Payroll lines generated successfully');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to generate payroll lines'),
+  });
+
+  const finalizePayrollRun = useMutation({
+    mutationFn: (id: string) => PayrollService.finalizePayrollRun(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });
+      queryClient.invalidateQueries({ queryKey: ['payrollRunDetails'] });
+      toast.success('Payroll run finalized');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to finalize payroll run'),
   });
 
   return {
     payrollRuns,
     isLoading,
     error,
-    generatePayroll: generatePayroll.mutate,
-    isGenerating: generatePayroll.isPending,
-    finalizePayroll: finalizePayroll.mutate,
-    isFinalizing: finalizePayroll.isPending,
+    createPayrollRun: createPayrollRun.mutate,
+    isCreating: createPayrollRun.isPending,
+    createPayrollRunAsync: createPayrollRun.mutateAsync,
+    updatePayrollRun: updatePayrollRun.mutate,
+    isUpdating: updatePayrollRun.isPending,
+    deletePayrollRun: deletePayrollRun.mutate,
+    isDeleting: deletePayrollRun.isPending,
+    generatePayrollLines: generatePayrollLines.mutate,
+    isGenerating: generatePayrollLines.isPending,
+    finalizePayrollRun: finalizePayrollRun.mutate,
+    isFinalizing: finalizePayrollRun.isPending,
   };
 };
 
@@ -59,7 +95,7 @@ export const usePayrollLines = (filters?: Record<string, any>) => {
   });
 
   const markPaid = useMutation({
-    mutationFn: ({ id, data }: { id: string, data: { paid_amount?: string | number, note?: string } }) => 
+    mutationFn: ({ id, data }: { id: string, data: { paid_amount?: string | number, payment_note?: string } }) => 
       PayrollService.markLinePaid(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });

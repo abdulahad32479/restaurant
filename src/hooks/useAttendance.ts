@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AttendanceService } from '../services/attendance.service';
-import { StaffAttendance, AttendanceDevice } from '../types/staff';
+import { StaffAttendance, AttendanceDevice, BiometricPunch } from '../types/staff';
 import toast from 'react-hot-toast';
 
 export const useAttendance = (filters?: Record<string, any>) => {
@@ -29,6 +29,15 @@ export const useAttendance = (filters?: Record<string, any>) => {
     onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to update attendance'),
   });
 
+  const deleteAttendance = useMutation({
+    mutationFn: (id: string) => AttendanceService.deleteAttendance(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      toast.success('Attendance record deleted');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to delete attendance'),
+  });
+
   return {
     attendanceData,
     isLoading,
@@ -37,6 +46,8 @@ export const useAttendance = (filters?: Record<string, any>) => {
     isCreating: createAttendance.isPending,
     updateAttendance: updateAttendance.mutate,
     isUpdating: updateAttendance.isPending,
+    deleteAttendance: deleteAttendance.mutate,
+    isDeleting: deleteAttendance.isPending,
   };
 };
 
@@ -66,6 +77,15 @@ export const useDevices = (filters?: Record<string, any>) => {
     onError: () => toast.error('Failed to update device'),
   });
 
+  const deleteDevice = useMutation({
+    mutationFn: (id: string) => AttendanceService.deleteDevice(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
+      toast.success('Device deleted successfully');
+    },
+    onError: () => toast.error('Failed to delete device'),
+  });
+
   return {
     devicesData,
     isLoading,
@@ -74,6 +94,8 @@ export const useDevices = (filters?: Record<string, any>) => {
     isCreatingDevice: createDevice.isPending,
     updateDevice: updateDevice.mutate,
     isUpdatingDevice: updateDevice.isPending,
+    deleteDevice: deleteDevice.mutate,
+    isDeletingDevice: deleteDevice.isPending,
   };
 };
 
@@ -108,14 +130,48 @@ export const useBiometricActions = () => {
 };
 
 export const usePunches = (filters?: Record<string, any>) => {
+  const queryClient = useQueryClient();
   const { data: punchesData, isLoading, error } = useQuery({
     queryKey: ['punches', filters],
     queryFn: () => AttendanceService.getPunches(filters),
+  });
+
+  const createPunch = useMutation({
+    mutationFn: (data: Partial<BiometricPunch>) => AttendanceService.createPunch(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['punches'] });
+      toast.success('Punch recorded manually');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to record punch'),
+  });
+
+  const updatePunch = useMutation({
+    mutationFn: ({ id, data }: { id: string, data: Partial<BiometricPunch> }) => AttendanceService.updatePunch(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['punches'] });
+      toast.success('Punch updated successfully');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to update punch'),
+  });
+
+  const deletePunch = useMutation({
+    mutationFn: (id: string) => AttendanceService.deletePunch(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['punches'] });
+      toast.success('Punch deleted completely');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to delete punch'),
   });
 
   return {
     punchesData,
     isLoading,
     error,
+    createPunch: createPunch.mutate,
+    isCreatingPunch: createPunch.isPending,
+    updatePunch: updatePunch.mutate,
+    isUpdatingPunch: updatePunch.isPending,
+    deletePunch: deletePunch.mutate,
+    isDeletingPunch: deletePunch.isPending,
   };
 };

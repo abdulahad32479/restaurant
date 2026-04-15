@@ -10,23 +10,27 @@ import {
 export const AttendanceService = {
   // --- Devices ---
   getDevices: async (params?: Record<string, any>): Promise<PaginatedResponse<AttendanceDevice>> => {
-    const response = await staffApi.get<PaginatedResponse<AttendanceDevice>>('devices/', { params });
+    const response = await staffApi.get<PaginatedResponse<AttendanceDevice>>('attendance-devices/', { params });
     return response.data;
   },
 
   createDevice: async (data: Partial<AttendanceDevice>): Promise<AttendanceDevice> => {
-    const response = await staffApi.post<AttendanceDevice>('devices/', data);
+    const response = await staffApi.post<AttendanceDevice>('attendance-devices/', data);
     return response.data;
   },
 
   getDeviceById: async (id: string): Promise<AttendanceDevice> => {
-    const response = await staffApi.get<AttendanceDevice>(`devices/${id}/`);
+    const response = await staffApi.get<AttendanceDevice>(`attendance-devices/${id}/`);
     return response.data;
   },
 
   updateDevice: async (id: string, data: Partial<AttendanceDevice>): Promise<AttendanceDevice> => {
-    const response = await staffApi.patch<AttendanceDevice>(`devices/${id}/`, data);
+    const response = await staffApi.patch<AttendanceDevice>(`attendance-devices/${id}/`, data);
     return response.data;
+  },
+
+  deleteDevice: async (id: string): Promise<void> => {
+    await staffApi.delete(`attendance-devices/${id}/`);
   },
 
   // --- Attendance ---
@@ -50,20 +54,38 @@ export const AttendanceService = {
     return response.data;
   },
 
+  deleteAttendance: async (id: string): Promise<void> => {
+    await staffApi.delete(`attendance/${id}/`);
+  },
+
   // --- Biometric Punches ---
   getPunches: async (params?: Record<string, any>): Promise<PaginatedResponse<BiometricPunch>> => {
-    const response = await staffApi.get<PaginatedResponse<BiometricPunch>>('punches/', { params });
+    const response = await staffApi.get<PaginatedResponse<BiometricPunch>>('biometric-punches/', { params });
+    return response.data;
+  },
+
+  createPunch: async (data: Partial<BiometricPunch>): Promise<BiometricPunch> => {
+    const response = await staffApi.post<BiometricPunch>('biometric-punches/', data);
     return response.data;
   },
 
   getPunchById: async (id: string): Promise<BiometricPunch> => {
-    const response = await staffApi.get<BiometricPunch>(`punches/${id}/`);
+    const response = await staffApi.get<BiometricPunch>(`biometric-punches/${id}/`);
     return response.data;
+  },
+
+  updatePunch: async (id: string, data: Partial<BiometricPunch>): Promise<BiometricPunch> => {
+    const response = await staffApi.patch<BiometricPunch>(`biometric-punches/${id}/`, data);
+    return response.data;
+  },
+
+  deletePunch: async (id: string): Promise<void> => {
+    await staffApi.delete(`biometric-punches/${id}/`);
   },
 
   // --- Actions ---
   syncDevice: async (device_id: string): Promise<SyncDeviceResult> => {
-    const response = await staffApi.post('biometric/sync-device/', { device_id });
+    const response = await staffApi.post(`attendance-devices/${device_id}/sync/`);
     return response.data;
   },
 

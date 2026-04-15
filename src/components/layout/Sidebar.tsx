@@ -28,10 +28,15 @@ import {
   MessageSquare,
   MapPin,
   Layers,
-  Zap
+  Zap,
+  ArrowLeft,
+  UserSquare2,
+  Contact,
+  CreditCard,
+  Target
 } from "lucide-react"
 
-const sidebarItems = [
+const mainSidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: ShoppingCart, label: "POS", href: "/dashboard/pos", permission: 'add_order' },
   { icon: ChefHat, label: "Kitchen Display", href: "/dashboard/kitchen-display", permission: 'view_kd' },
@@ -44,15 +49,33 @@ const sidebarItems = [
   { icon: Store, label: "Branches", href: "/dashboard/branches", permission: 'manage_branches' },
   { icon: ClipboardList, label: "Tables", href: "/dashboard/tables", permission: 'manage_tables' },
   { icon: Users, label: "Customers", href: "/dashboard/customers", permission: 'view_customers' },
-  { icon: Briefcase, label: "Staff Roles", href: "/dashboard/roles", permission: 'manage_staff' },
-  { icon: Users, label: "Staff", href: "/dashboard/staff", permission: 'manage_staff' },
-  { icon: Calendar, label: "Attendance", href: "/dashboard/attendance", permission: 'manage_staff' },
-  { icon: Wallet, label: "Ledger", href: "/dashboard/ledger", permission: 'manage_staff' },
-  { icon: DollarSign, label: "Payroll", href: "/dashboard/payroll", permission: 'manage_staff' },
-
   { icon: Shield, label: "Admin Users", href: "/dashboard/admin/users", permission: 'manage_staff' },
   { icon: BarChart3, label: "Reports", href: "/dashboard/reports", permission: 'view_reports' },
   { icon: Settings, label: "Settings", href: "/dashboard/settings", permission: 'manage_settings' },
+]
+
+const staffModuleGroups = [
+  {
+    title: "STAFF",
+    items: [
+      { icon: Contact, label: "Members", href: "/dashboard/staff", permission: 'manage_staff' },
+      { icon: Briefcase, label: "Roles", href: "/dashboard/roles", permission: 'manage_staff' },
+    ]
+  },
+  {
+    title: "FINANCE",
+    items: [
+      { icon: Wallet, label: "Ledger", href: "/dashboard/ledger", permission: 'manage_staff' },
+      { icon: DollarSign, label: "Payroll", href: "/dashboard/payroll", permission: 'manage_staff' },
+    ]
+  },
+  {
+    title: "ATTENDANCE",
+    items: [
+      { icon: Calendar, label: "Attendance", href: "/dashboard/attendance", permission: 'manage_staff' },
+      { icon: Layers, label: "Devices", href: "/dashboard/devices", permission: 'manage_staff' },
+    ]
+  }
 ]
 
 interface SidebarProps {
@@ -67,9 +90,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
   const { logout, user, hasPermission } = useAuth()
   const [collapsed, setCollapsed] = React.useState(false)
-  
-  // No longer strictly managing isMobile here for classes, using tailwind breakpoints instead
-  // but we can use it for internal logic if needed.
+  const [isStaffModule, setIsStaffModule] = React.useState(false)
   
   return (
     <>
@@ -89,62 +110,141 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           "w-64" // Default mobile width
         )}
       >
-        <div className="flex h-20 items-center px-6 border-b border-base overflow-hidden">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center shadow-glow-primary">
-              <span className="text-white font-bold text-xl">D</span>
-            </div>
-            {(!collapsed || isOpen) && (
-              <div className="flex flex-col animate-in fade-in slide-in-from-left-2 duration-300">
-                <span className="text-xl font-bold tracking-tight text-white leading-none whitespace-nowrap">
-                  DUKE'S
-                </span>
-                <span className="text-[10px] font-medium text-accent tracking-[3px] mt-1 uppercase whitespace-nowrap">
-                  Premium POS
-                </span>
+        {/* Header Section */}
+        <div className="flex h-20 items-center px-6 border-b border-base overflow-hidden relative">
+          {!isStaffModule ? (
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center shadow-glow-primary">
+                <span className="text-white font-bold text-xl">D</span>
               </div>
-            )}
-          </div>
+              {(!collapsed || isOpen) && (
+                <div className="flex flex-col animate-in fade-in slide-in-from-left-2 duration-300">
+                  <span className="text-xl font-bold tracking-tight text-white leading-none whitespace-nowrap">
+                    DUKE'S
+                  </span>
+                  <span className="text-[10px] font-medium text-accent tracking-[3px] mt-1 uppercase whitespace-nowrap">
+                    Premium POS
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 w-full">
+               <div className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center shadow-glow-primary">
+                <span className="text-white font-bold text-xl">D</span>
+              </div>
+              {(!collapsed || isOpen) && (
+                <div className="flex flex-col animate-in fade-in slide-in-from-left-2 duration-300 flex-1">
+                  <span className="text-lg font-black tracking-tight text-white leading-none whitespace-nowrap">
+                    DUKE'S POS
+                  </span>
+                  <span className="text-[10px] font-bold text-white/40 mt-1 uppercase whitespace-nowrap">
+                    Staff Module
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto py-6 scrollbar-hide">
           <nav className="grid gap-2 px-3">
-            {sidebarItems.filter(item => !item.permission || hasPermission(item.permission)).map((item, index) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={index}
-                  href={item.href}
-                  onClick={onClose} // Hide drawer content on click
+            {!isStaffModule ? (
+              <>
+                {/* Staff Module Toggle Button */}
+                <button
+                  onClick={() => setIsStaffModule(true)}
                   className={cn(
-                    "flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-medium transition-all duration-200 group relative overflow-hidden",
-                    isActive
-                      ? "bg-gradient-to-r from-primary to-primary/80 text-white shadow-[0_8px_20px_rgba(139,0,0,0.3)] border border-white/10"
-                      : "text-secondary hover:bg-white/[0.03] hover:text-white"
+                    "flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-bold transition-all duration-200 group mb-2 border border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white",
+                    collapsed && !isOpen && "justify-center px-0"
                   )}
                 >
-                  <item.icon
-                    className={cn(
-                      "h-5 w-5 shrink-0 transition-transform", 
-                       isActive ? "scale-110" : "group-hover:scale-110"
-                    )}
-                  />
-                  {/* Label - visible on mobile drawer OR non-collapsed desktop sidebar */}
+                  <Zap className="h-5 w-5 shrink-0" />
                   {(!collapsed || isOpen) && (
                     <span className="animate-in fade-in slide-in-from-left-2 duration-300 whitespace-nowrap">
-                      {item.label}
+                      Staff Module
                     </span>
                   )}
-                  {isActive && (
-                    <div className="absolute left-0 w-1 h-6 bg-accent rounded-r-md"/>
+                </button>
+
+                {mainSidebarItems.filter(item => !item.permission || hasPermission(item.permission)).map((item, index) => {
+                  const isActive = pathname === item.href
+                  return (
+                    <Link
+                      key={index}
+                      href={item.href}
+                      onClick={onClose}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-medium transition-all duration-200 group relative overflow-hidden",
+                        isActive
+                          ? "bg-gradient-to-r from-primary to-primary/80 text-white shadow-glow-primary border border-white/10"
+                          : "text-secondary hover:bg-white/[0.03] hover:text-white"
+                      )}
+                    >
+                      <item.icon className={cn("h-5 w-5 shrink-0 transition-transform", isActive ? "scale-110" : "group-hover:scale-110")} />
+                      {(!collapsed || isOpen) && (
+                        <span className="animate-in fade-in slide-in-from-left-2 duration-300 whitespace-nowrap">
+                          {item.label}
+                        </span>
+                      )}
+                      {isActive && <div className="absolute left-0 w-1 h-6 bg-accent rounded-r-md"/>}
+                    </Link>
+                  )
+                })}
+              </>
+            ) : (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                <button
+                  onClick={() => setIsStaffModule(false)}
+                  className={cn(
+                    "flex items-center gap-3 w-full rounded-xl px-4 py-2.5 text-xs font-bold transition-all duration-200 text-white/40 hover:text-white mb-6 group",
+                    collapsed && !isOpen && "justify-center px-0"
                   )}
-                </Link>
-              )
-            })}
+                >
+                  <ArrowLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-1" />
+                  {(!collapsed || isOpen) && <span>Back to Main POS</span>}
+                </button>
+
+                <div className="space-y-6">
+                  {staffModuleGroups.map((group, groupIdx) => (
+                    <div key={groupIdx} className="space-y-1">
+                      {(!collapsed || isOpen) && (
+                        <h4 className="px-4 text-[10px] font-black text-white/20 uppercase tracking-widest mb-2">
+                          {group.title}
+                        </h4>
+                      )}
+                      {group.items.filter(item => !item.permission || hasPermission(item.permission)).map((item, itemIdx) => {
+                        const isActive = pathname === item.href
+                        return (
+                          <Link
+                            key={itemIdx}
+                            href={item.href}
+                            onClick={onClose}
+                            className={cn(
+                              "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 group relative overflow-hidden",
+                              isActive
+                                ? "bg-gradient-to-r from-primary to-primary/80 text-white shadow-glow-primary border border-white/10"
+                                : "text-secondary hover:bg-white/[0.03] hover:text-white"
+                            )}
+                          >
+                            <item.icon className={cn("h-5 w-5 shrink-0 transition-transform", isActive ? "scale-110" : "group-hover:scale-110")} />
+                            {(!collapsed || isOpen) && (
+                              <span className="animate-in fade-in slide-in-from-left-2 duration-300 whitespace-nowrap">
+                                {item.label}
+                              </span>
+                            )}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </nav>
         </div>
 
-        {/* Desktop Collapse Toggle */}
+        {/* Action Toggle (Collapse) */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="absolute -right-3 top-24 hidden lg:flex h-6 w-6 items-center justify-center rounded-full bg-secondary border border-base text-tertiary hover:text-white shadow-md z-40 transition-colors"
@@ -152,7 +252,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <ChevronLeft className={cn("h-3 w-3 transition-transform duration-300", collapsed && "rotate-180")} />
         </button>
 
-        {/* Mobile Close Button in Drawer */}
+        {/* Mobile Close Button */}
         <button
           onClick={onClose}
           className="lg:hidden absolute top-6 right-4 p-1 text-tertiary hover:text-white"
@@ -177,7 +277,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </button>
 
           {(!collapsed || isOpen) ? (
-            <div className="flex items-center gap-3 p-3 bg-white/[0.03] rounded-2xl border border-white/5 animate-in fade-in slide-in-from-left-2 duration-300">
+            <div className="flex items-center gap-3 p-3 bg-white/[0.03] rounded-2xl border border-white/5 animate-in fade-in duration-300">
               <div className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br from-accent to-accent-active text-bg-main flex items-center justify-center font-black text-xs shadow-glow-accent">
                 {user?.username?.charAt(0).toUpperCase() || 'A'}
               </div>

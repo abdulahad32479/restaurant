@@ -34,6 +34,17 @@ export const useLedger = (filters?: Record<string, any>) => {
     onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to update entry'),
   });
 
+  const deleteEntry = useMutation({
+    mutationFn: (id: string) => LedgerService.deleteLedgerEntry(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ledger'] });
+      queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });
+      queryClient.invalidateQueries({ queryKey: ['payrollRunDetails'] });
+      toast.success('Ledger entry deleted');
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to delete entry'),
+  });
+
   return {
     ledgerData,
     isLoading,
@@ -43,5 +54,7 @@ export const useLedger = (filters?: Record<string, any>) => {
     createEntryAsync: createEntry.mutateAsync,
     updateEntry: updateEntry.mutate,
     isUpdating: updateEntry.isPending,
+    deleteEntry: deleteEntry.mutate,
+    isDeleting: deleteEntry.isPending,
   };
 };

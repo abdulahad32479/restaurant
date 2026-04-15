@@ -21,4 +21,8 @@ export const LedgerService = {
     const response = await staffApi.patch<StaffLedgerEntry>(`ledger/${id}/`, data);
     return response.data;
   },
+
+  deleteLedgerEntry: async (id: string): Promise<void> => {
+    await staffApi.delete(`ledger/${id}/`);
+  },
 };

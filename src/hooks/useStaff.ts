@@ -34,6 +34,17 @@ export const useStaff = (filters?: Record<string, any>) => {
     },
   });
 
+  const deleteMemberMutation = useMutation({
+    mutationFn: (id: string) => StaffService.deleteStaffMember(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staffMembers'] });
+      toast.success('Staff member deleted successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to delete staff member');
+    },
+  });
+
   return {
     membersResponse,
     isLoadingMembers,
@@ -44,6 +55,9 @@ export const useStaff = (filters?: Record<string, any>) => {
     updateMember: updateMemberMutation.mutate,
     isUpdatingMember: updateMemberMutation.isPending,
     updateMemberAsync: updateMemberMutation.mutateAsync,
+    deleteMember: deleteMemberMutation.mutate,
+    isDeletingMember: deleteMemberMutation.isPending,
+    deleteMemberAsync: deleteMemberMutation.mutateAsync,
   };
 };
 
@@ -105,6 +119,17 @@ export const useRoles = () => {
     },
   });
 
+  const deleteRoleMutation = useMutation({
+    mutationFn: (id: string) => StaffService.deleteRole(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staffRoles'] });
+      toast.success('Role deleted successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to delete role (may be in use).');
+    },
+  });
+
   return {
     roles,
     isLoadingRoles,
@@ -113,6 +138,8 @@ export const useRoles = () => {
     isCreatingRole: createRoleMutation.isPending,
     updateRole: updateRoleMutation.mutate,
     isUpdatingRole: updateRoleMutation.isPending,
+    deleteRole: deleteRoleMutation.mutate,
+    isDeletingRole: deleteRoleMutation.isPending,
   };
 };
 
@@ -120,6 +147,14 @@ export const useStaffMember = (id: string, enabled = true) => {
   return useQuery({
     queryKey: ['staffMember', id],
     queryFn: () => StaffService.getStaffMemberById(id),
+    enabled: !!id && enabled,
+  });
+};
+
+export const useStaffLedgerSummary = (id: string, filters?: { entry_type?: string; month?: number; year?: number }, enabled = true) => {
+  return useQuery({
+    queryKey: ['staffLedgerSummary', id, filters],
+    queryFn: () => StaffService.getStaffLedgerSummary(id, filters),
     enabled: !!id && enabled,
   });
 };

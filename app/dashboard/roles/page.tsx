@@ -62,20 +62,20 @@ export default function RolesManagement() {
   const columns = [
     { 
       key: 'name', 
-      header: 'Role Name',
-      render: (value: string) => <span className="font-bold text-white tracking-widest uppercase">{value}</span>
+      header: 'NAME',
+      render: (v: string) => <span className="font-bold text-slate-900 text-sm">{v}</span>
     },
     { 
       key: 'description', 
-      header: 'Description',
-      render: (value: string) => <span className="text-tertiary">{value || 'No description provided'}</span>
+      header: 'DESCRIPTION',
+      render: (v: string) => <span className="text-slate-400 text-xs font-medium">{v || '—'}</span>
     },
     { 
       key: 'is_active', 
-      header: 'Status',
-      render: (value: boolean) => (
-        <Badge variant={value ? 'success' : 'secondary'} size="sm" className="uppercase text-[9px]">
-          {value ? 'Active' : 'Inactive'}
+      header: 'STATUS',
+      render: (v: boolean) => (
+        <Badge variant={v ? 'success' : 'secondary'} size="sm" className="font-bold bg-success/10 text-success border-success/20">
+          {v ? 'Active' : 'Inactive'}
         </Badge>
       )
     },
@@ -84,83 +84,71 @@ export default function RolesManagement() {
       header: '',
       align: 'right' as const,
       render: (_: any, row: StaffRole) => (
-        <Button variant="secondary" size="sm" onClick={() => handleOpenModal(row)} className="text-[10px] uppercase tracking-widest">
-          Edit Role
-        </Button>
+        <button 
+          onClick={() => handleOpenModal(row)}
+          className="px-4 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold transition-all"
+        >
+          Edit
+        </button>
       )
     }
   ];
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl md:text-2xl font-black text-white mb-1 uppercase tracking-tighter">Staff Roles</h1>
-          <p className="text-sm md:text-base text-tertiary font-bold uppercase tracking-widest">Manage job titles and permissions</p>
-        </div>
+      <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center justify-between">
+        <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Staff Roles</h2>
         <Button 
           variant="primary" 
           size="sm"
-          icon={<Plus className="w-5 h-5" />}
           onClick={() => handleOpenModal()}
-          className="font-black uppercase tracking-tighter"
+          className="font-black uppercase tracking-tighter shadow-glow-primary px-6"
         >
+          <Plus className="w-4 h-4 mr-2" />
           Add Role
         </Button>
       </div>
       
-      {/* Table */}
-      <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0 min-h-[400px]">
+      {/* Table Section */}
+      <Card className="bg-white border-slate-100 overflow-hidden shadow-sm p-0 min-h-[400px]">
         {isLoadingRoles ? (
           <div className="flex items-center justify-center p-20">
             <Loader2 className="animate-spin text-primary w-12 h-12" />
           </div>
         ) : !roles || roles.length === 0 ? (
-          <div className="p-10 text-center text-tertiary space-y-3 flex flex-col items-center">
-            <Briefcase className="w-10 h-10 text-tertiary/50" />
-            <p>No roles match your criteria.</p>
-          </div>
+          <div className="p-10 text-center text-slate-400 font-bold uppercase tracking-widest text-sm">No organizational roles found.</div>
         ) : (
-          <Table columns={columns} data={roles} />
+          <Table columns={columns} data={roles} className="text-sm border-none" />
         )}
       </Card>
 
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingRoleId ? "Edit Role" : "Create New Role"}
-        size="sm"
+        title={editingRoleId ? "Edit Role" : "Add Role"}
+        size="md"
         footer={
-          <>
-            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button variant="primary" onClick={handleSave} isLoading={isCreatingRole || isUpdatingRole}>Save Role</Button>
-          </>
+          <div className="flex gap-3 w-full sm:w-auto mt-2">
+            <Button variant="ghost" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none">Cancel</Button>
+            <Button variant="primary" onClick={handleSave} isLoading={isCreatingRole || isUpdatingRole} className="flex-1 sm:flex-none px-10 shadow-glow-primary">Save</Button>
+          </div>
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-6 py-2">
           <Input 
-            label="Role Name" 
-            placeholder="e.g. Cashier"
+            label="ROLE NAME *" 
+            placeholder="e.g. Chef, Waiter"
             value={formData.name}
             onChange={(e) => setFormData({...formData, name: e.target.value})}
+            className="bg-white border-slate-200 text-slate-900"
           />
           <Input 
-            label="Description" 
-            placeholder="Summary of responsibilities..."
+            label="DESCRIPTION" 
+            placeholder="Optional description"
             value={formData.description || ''}
             onChange={(e) => setFormData({...formData, description: e.target.value})}
+            className="bg-white border-slate-200 text-slate-900"
           />
-          <div className="flex flex-col justify-end pt-2">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input 
-                type="checkbox" 
-                checked={formData.is_active}
-                onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
-                className="w-5 h-5 rounded bg-white/5 border-base text-primary focus:ring-primary"
-              />
-              <span className="text-sm font-bold text-white">Role Active</span>
-            </label>
-          </div>
         </div>
       </Modal>
     </div>

@@ -3,7 +3,7 @@ import axios from 'axios';
 // Get base URL from environment or use proxy
 const rawBaseURL = process.env.NEXT_PUBLIC_API_URL || "https://pos-backend-production-b659.up.railway.app/api/";
 const API_BASE = rawBaseURL.replace(/\/api\/?$/, '');
-const STAFF_ROOT = "/api/staff";
+const STAFF_ROOT = "/api/v1/staff";
 
 export const staffApi = axios.create({
   baseURL: API_BASE,

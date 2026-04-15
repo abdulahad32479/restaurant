@@ -2,7 +2,8 @@ import { staffApi } from './api';
 import { 
   StaffMember, 
   StaffRole, 
-  PaginatedResponse 
+  PaginatedResponse,
+  LedgerSummaryResponse
 } from '../types/staff';
 
 export const StaffService = {
@@ -27,6 +28,10 @@ export const StaffService = {
     return response.data;
   },
 
+  deleteRole: async (id: string): Promise<void> => {
+    await staffApi.delete(`roles/${id}/`);
+  },
+
   // --- Staff Members ---
   getStaffMembers: async (params?: Record<string, any>): Promise<PaginatedResponse<StaffMember>> => {
     const response = await staffApi.get<PaginatedResponse<StaffMember>>('members/', { params });
@@ -45,6 +50,15 @@ export const StaffService = {
 
   updateStaffMember: async (id: string, data: Partial<StaffMember>): Promise<StaffMember> => {
     const response = await staffApi.patch<StaffMember>(`members/${id}/`, data);
+    return response.data;
+  },
+
+  deleteStaffMember: async (id: string): Promise<void> => {
+    await staffApi.delete(`members/${id}/`);
+  },
+
+  getStaffLedgerSummary: async (id: string, params?: { entry_type?: string; month?: number; year?: number }): Promise<LedgerSummaryResponse> => {
+    const response = await staffApi.get<LedgerSummaryResponse>(`members/${id}/ledger/`, { params });
     return response.data;
   },
 };
