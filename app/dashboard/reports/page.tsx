@@ -6,7 +6,7 @@ import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
 import { Calendar, Download, TrendingUp, DollarSign, Users, ShoppingBag, FileText, Bike } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { reportService, DashboardKPIs, OperationsSummary, DeliverySummary, StaffPerformance, ProductPerformance, PaymentReconciliation, DailySalesTrend, HourlyTrend, DeliveryPersonPerformance } from '@/src/services/report.service';
+import { reportService, DashboardKPIs, OperationsSummary, StaffPerformance, ProductPerformance, PaymentReconciliation, DailySalesTrend, HourlyTrend } from '@/src/services/report.service';
 import { branchService } from '@/src/services/branch.service';
 import { ZReport, Branch } from '@/src/types';
 import toast from 'react-hot-toast';
@@ -22,13 +22,13 @@ export default function Reports() {
 
   const [summary, setSummary] = useState<DashboardKPIs | null>(null);
   const [operations, setOperations] = useState<OperationsSummary | null>(null);
-  const [deliverySummary, setDeliverySummary] = useState<DeliverySummary | null>(null);
+
   const [staffPerf, setStaffPerf] = useState<StaffPerformance[]>([]);
   const [byProduct, setByProduct] = useState<ProductPerformance[]>([]);
   const [paymentRecon, setPaymentRecon] = useState<PaymentReconciliation | null>(null);
   const [dailyTrend, setDailyTrend] = useState<DailySalesTrend[]>([]);
   const [hourlyTrend, setHourlyTrend] = useState<HourlyTrend[]>([]);
-  const [deliveryPerf, setDeliveryPerf] = useState<DeliveryPersonPerformance[]>([]);
+
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -61,28 +61,24 @@ export default function Reports() {
       setIsLoading(true);
       try {
         const filters = { start_date: startDate, end_date: endDate };
-        const [dashKpis, ops, deliv, staff, prod, recon, daily, hourly, delPerf, bData] = await Promise.all([
+        const [dashKpis, ops, staff, prod, recon, daily, hourly, bData] = await Promise.all([
           reportService.getDashboardKPIs(filters),
           reportService.getOperationsSummary(filters),
-          reportService.getDeliverySummary(filters),
           reportService.getStaffPerformance(filters),
           reportService.getProductPerformance(filters),
           reportService.getPaymentReconciliation(filters),
           reportService.getDailySalesTrend(filters),
           reportService.getHourlySalesTrend(filters),
-          reportService.getDeliveryPerformance(filters),
           branchService.getAll()
         ]);
         
         setSummary(dashKpis);
         setOperations(ops);
-        setDeliverySummary(deliv);
         setStaffPerf(staff);
         setByProduct(prod);
         setPaymentRecon(recon);
         setDailyTrend(daily);
         setHourlyTrend(hourly);
-        setDeliveryPerf(delPerf);
         setBranches(bData);
         if (bData.length > 0 && !zForm.branch) setZForm(f => ({ ...f, branch: bData[0].id }));
       } catch (e) {
@@ -283,25 +279,7 @@ export default function Reports() {
               </div>
           </div>
 
-          <div className="bg-[#111111] border border-base rounded-[2rem] p-8 shadow-2xl">
-              <h3 className="text-xl font-black text-white  uppercase tracking-tighter mb-8 leading-none">Delivery Logistics</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {deliveryPerf.slice(0, 4).map((dp, idx) => (
-                  <div key={idx} className="p-5 bg-black/40 border border-base rounded-2xl hover:border-blue-500/30 transition-all group">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 text-[10px] font-black ">
-                         <Bike className="w-4 h-4" />
-                      </div>
-                      <h4 className="text-[10px] font-black uppercase text-white ">{dp.delivery_person__name}</h4>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[8px] font-black uppercase text-tertiary">{dp.total_orders} Drops</span>
-                      <span className="text-xs font-black text-white  tracking-tighter">Rs. {parseFloat(dp.total_sales).toLocaleString()}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-          </div>
+
       </div>
 
       {/* Sales by Product Table */}

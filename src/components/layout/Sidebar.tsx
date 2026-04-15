@@ -49,7 +49,7 @@ const sidebarItems = [
   { icon: Calendar, label: "Attendance", href: "/dashboard/attendance", permission: 'manage_staff' },
   { icon: Wallet, label: "Ledger", href: "/dashboard/ledger", permission: 'manage_staff' },
   { icon: DollarSign, label: "Payroll", href: "/dashboard/payroll", permission: 'manage_staff' },
-  { icon: Truck, label: "Delivery Control", href: "/dashboard/delivery", permission: 'manage_delivery' },
+
   { icon: Shield, label: "Admin Users", href: "/dashboard/admin/users", permission: 'manage_staff' },
   { icon: BarChart3, label: "Reports", href: "/dashboard/reports", permission: 'view_reports' },
   { icon: Settings, label: "Settings", href: "/dashboard/settings", permission: 'manage_settings' },
