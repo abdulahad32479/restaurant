@@ -116,6 +116,7 @@ export interface LedgerSummaryResponse {
     total_credits: string | number;
   };
   staff: StaffMember;
+  entries: StaffLedgerEntry[];
 }
 export type LedgerEntryType = 'advance' | 'late_penalty' | 'meal_deduction' | 'deduction' | 'bonus' | 'reimbursement' | 'adjustment' | 'salary_payment';
 export type LedgerDirection = 'debit' | 'credit';

@@ -6,14 +6,16 @@ import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
 import { Modal } from '@/src/components/Modal';
-import { Search, Edit, Trash2, UserPlus, Phone, Briefcase, Calendar, Hash, DollarSign, Users, Plus } from 'lucide-react';
+import { Search, Edit, Trash2, UserPlus, Phone, Briefcase, Calendar, Hash, DollarSign, Users, Plus, Loader2 } from 'lucide-react';
 import { Card } from '@/src/components/Card';
-import { useStaff, useRoles } from '@/src/hooks/useStaff';
+import toast from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
+import { useStaff, useRoles, useStaffLedgerSummary } from '@/src/hooks/useStaff';
 import { StaffMember, StaffRole } from '@/src/types/staff';
 import { formatCurrency } from '@/src/utils/formatCurrency';
-import toast from 'react-hot-toast';
 
 export default function StaffManagement() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'members' | 'roles'>('members');
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,6 +28,9 @@ export default function StaffManagement() {
 
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
+
+  const [isLedgerModalOpen, setIsLedgerModalOpen] = useState(false);
+  const [selectedStaffForLedger, setSelectedStaffForLedger] = useState<StaffMember | null>(null);
   
   // The API uses pagination, so pass state
   const { membersResponse, isLoadingMembers, createMember, isCreatingMember, updateMember, isUpdatingMember, deleteMember } = useStaff({
@@ -152,9 +157,26 @@ export default function StaffManagement() {
       return;
     }
 
-    const payload: Partial<StaffMember> = { ...formData };
+    const payload: any = { ...formData };
+    
+    // Clean up empty numeric fields to null as per DRF expectation
     if (payload.default_late_penalty === '') payload.default_late_penalty = null;
     if (payload.default_meal_deduction === '') payload.default_meal_deduction = null;
+
+    // Remove read-only or auto-set fields that trigger backend permission issues
+    delete payload.branch;
+    delete payload.branch_name;
+    delete payload.role_name;
+    delete payload.employment_status_display;
+    delete payload.salary_type_display;
+    delete payload.created_at;
+    delete payload.updated_at;
+    delete payload.user;
+    
+    // Ensure role is sent as an ID string (UUID)
+    if (payload.role && typeof payload.role === 'object') {
+      payload.role = payload.role.id;
+    }
 
     if (editingStaffId) {
       updateMember({ id: editingStaffId, data: payload }, {
@@ -223,6 +245,12 @@ export default function StaffManagement() {
         <div className="flex items-center justify-end gap-2">
           <button 
             className="px-4 py-1.5 border border-base bg-white/5 hover:bg-white/10 rounded-lg transition-all text-[11px] font-bold text-tertiary hover:text-white"
+            onClick={() => { setSelectedStaffForLedger(row); setIsLedgerModalOpen(true); }}
+          >
+            Ledger
+          </button>
+          <button 
+            className="px-4 py-1.5 border border-base bg-white/5 hover:bg-white/10 rounded-lg transition-all text-[11px] font-bold text-tertiary hover:text-white"
             onClick={() => handleOpenModal(row)}
           >
             Edit
@@ -237,6 +265,52 @@ export default function StaffManagement() {
       )
     }
   ];
+
+  // Ledger Summary Internal Component
+  const LedgerSummary = ({ id, name }: { id: string, name: string }) => {
+    const { data: summary, isLoading } = useStaffLedgerSummary(id);
+
+    if (isLoading) return <div className="flex justify-center p-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+    const debits = summary?.totals?.total_debits || 0;
+    const credits = summary?.totals?.total_credits || 0;
+
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-success/10 border border-success/20 p-5 rounded-2xl shadow-inner group transition-all hover:bg-success/20">
+             <p className="text-[10px] text-success font-black uppercase tracking-widest mb-1.5 opacity-70">Total Credits</p>
+             <p className="text-2xl font-black text-white drop-shadow-sm">{formatCurrency(credits)}</p> 
+          </div>
+          <div className="bg-error/10 border border-error/20 p-5 rounded-2xl shadow-inner group transition-all hover:bg-error/20">
+             <p className="text-[10px] text-error font-black uppercase tracking-widest mb-1.5 opacity-70">Total Debits</p>
+             <p className="text-2xl font-black text-white drop-shadow-sm">{formatCurrency(debits)}</p>
+          </div>
+        </div>
+        
+        {summary?.entries && summary.entries.length > 0 && (
+          <div className="mt-6 space-y-3">
+             <p className="text-[10px] text-tertiary font-black uppercase tracking-widest px-1">Recent Transactions</p>
+             <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                {summary.entries.slice(0, 5).map((entry) => (
+                  <div key={entry.id} className="bg-white/5 border border-white/5 p-3 rounded-xl flex items-center justify-between group hover:border-white/10 transition-all">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-white uppercase">{entry.entry_type_display || entry.entry_type}</span>
+                      <span className="text-[9px] text-tertiary font-medium">{entry.entry_date}</span>
+                    </div>
+                    <span className={`text-xs font-black ${entry.direction === 'credit' ? 'text-success' : 'text-error'}`}>
+                      {entry.direction === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
+                    </span>
+                  </div>
+                ))}
+             </div>
+          </div>
+        )}
+
+        <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest text-center mt-6 py-3 border-t border-white/5">Full transaction history is available in the Ledger Management module.</p>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
@@ -319,7 +393,7 @@ export default function StaffManagement() {
       {!isLoadingMembers && membersResponse && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-tertiary uppercase font-bold tracking-widest">
-            Showing <span className="text-white">{membersResponse.results?.length}</span> of <span className="text-white">{membersResponse.count}</span> records
+            Showing <span className="text-white">{membersResponse.results?.length || 0}</span> of <span className="text-white">{membersResponse.count || 0}</span> records
           </p>
           <div className="flex gap-3">
             <Button 
@@ -583,6 +657,27 @@ export default function StaffManagement() {
                 <span className="text-[10px] text-tertiary uppercase tracking-widest">Can staff be assigned to this role?</span>
               </div>
             </label>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Ledger Summary Modal */}
+      <Modal
+        isOpen={isLedgerModalOpen}
+        onClose={() => setIsLedgerModalOpen(false)}
+        title={`Financial Summary: ${selectedStaffForLedger?.full_name}`}
+        size="md"
+      >
+        <div className="py-4">
+          {selectedStaffForLedger && <LedgerSummary id={selectedStaffForLedger.id} name={selectedStaffForLedger.full_name} />}
+          <div className="mt-8">
+            <Button 
+               variant="secondary" 
+               className="w-full uppercase font-black tracking-widest text-xs h-12 border-base hover:bg-white/5"
+               onClick={() => router.push(`/dashboard/ledger?staff=${selectedStaffForLedger?.id}`)}
+            >
+              Go to Full Ledger History
+            </Button>
           </div>
         </div>
       </Modal>

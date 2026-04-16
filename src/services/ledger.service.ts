@@ -1,9 +1,9 @@
 import { staffApi } from './api';
-import { StaffLedgerEntry, PaginatedResponse } from '../types/staff';
+import { StaffLedgerEntry } from '../types/staff';
 
 export const LedgerService = {
-  getLedgerEntries: async (params?: Record<string, any>): Promise<PaginatedResponse<StaffLedgerEntry>> => {
-    const response = await staffApi.get<PaginatedResponse<StaffLedgerEntry>>('ledger/', { params });
+  getLedgerEntries: async (params?: Record<string, any>): Promise<StaffLedgerEntry[]> => {
+    const response = await staffApi.get<StaffLedgerEntry[]>('ledger/', { params });
     return response.data;
   },
 

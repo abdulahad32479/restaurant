@@ -29,12 +29,12 @@ export const PayrollService = {
   },
 
   finalizePayrollRun: async (id: string): Promise<PayrollRun> => {
-    const response = await staffApi.post(`payroll-runs/${id}/finalize/`);
+    const response = await staffApi.post<PayrollRun>(`payroll-runs/${id}/finalize/`);
     return response.data;
   },
 
   generatePayrollLines: async (id: string): Promise<PayrollLine[]> => {
-    const response = await staffApi.post(`payroll-runs/${id}/generate/`);
+    const response = await staffApi.post<PayrollLine[]>(`payroll-runs/${id}/generate/`);
     return response.data;
   },
 
@@ -50,7 +50,7 @@ export const PayrollService = {
   },
 
   markLinePaid: async (id: string, data: { paid_amount?: string | number, payment_note?: string }): Promise<any> => {
-    const response = await staffApi.post(`payroll-lines/${id}/mark-paid/`, data);
+    const response = await staffApi.post<any>(`payroll-lines/${id}/mark-paid/`, data);
     return response.data;
   },
 };

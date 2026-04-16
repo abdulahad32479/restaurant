@@ -2,15 +2,14 @@ import { staffApi } from './api';
 import { 
   StaffAttendance, 
   AttendanceDevice, 
-  PaginatedResponse, 
   SyncDeviceResult,
   BiometricPunch
 } from '../types/staff';
 
 export const AttendanceService = {
   // --- Devices ---
-  getDevices: async (params?: Record<string, any>): Promise<PaginatedResponse<AttendanceDevice>> => {
-    const response = await staffApi.get<PaginatedResponse<AttendanceDevice>>('attendance-devices/', { params });
+  getDevices: async (params?: Record<string, any>): Promise<AttendanceDevice[]> => {
+    const response = await staffApi.get<AttendanceDevice[]>('attendance-devices/', { params });
     return response.data;
   },
 
@@ -34,8 +33,8 @@ export const AttendanceService = {
   },
 
   // --- Attendance ---
-  getAttendance: async (params?: Record<string, any>): Promise<PaginatedResponse<StaffAttendance>> => {
-    const response = await staffApi.get<PaginatedResponse<StaffAttendance>>('attendance/', { params });
+  getAttendance: async (params?: Record<string, any>): Promise<StaffAttendance[]> => {
+    const response = await staffApi.get<StaffAttendance[]>('attendance/', { params });
     return response.data;
   },
 
@@ -59,8 +58,8 @@ export const AttendanceService = {
   },
 
   // --- Biometric Punches ---
-  getPunches: async (params?: Record<string, any>): Promise<PaginatedResponse<BiometricPunch>> => {
-    const response = await staffApi.get<PaginatedResponse<BiometricPunch>>('biometric-punches/', { params });
+  getPunches: async (params?: Record<string, any>): Promise<BiometricPunch[]> => {
+    const response = await staffApi.get<BiometricPunch[]>('biometric-punches/', { params });
     return response.data;
   },
 
@@ -85,12 +84,12 @@ export const AttendanceService = {
 
   // --- Actions ---
   syncDevice: async (device_id: string): Promise<SyncDeviceResult> => {
-    const response = await staffApi.post(`attendance-devices/${device_id}/sync/`);
+    const response = await staffApi.post<SyncDeviceResult>(`attendance-devices/${device_id}/sync/`);
     return response.data;
   },
 
   processAttendance: async (target_date: string): Promise<any> => {
-    const response = await staffApi.post('biometric/process-attendance/', { target_date });
+    const response = await staffApi.post<any>('biometric/process-attendance/', { target_date });
     return response.data;
   },
 };
