@@ -163,6 +163,8 @@ export interface PayrollRun {
   generated_at?: string;
   finalized_at?: string;
   paid_at?: string;
+  total_net_salary?: string | number;
+  total_paid_amount?: string | number;
   lines?: PayrollLine[];
 }
 

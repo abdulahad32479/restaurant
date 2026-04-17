@@ -71,7 +71,7 @@ export default function RolesManagement() {
           <div className="w-9 h-9 rounded-xl bg-indigo-600/10 border border-indigo-600/20 flex items-center justify-center">
              <Briefcase className="w-4 h-4 text-indigo-600" />
           </div>
-          <span className="font-black text-slate-900 text-sm tracking-tighter uppercase italic">{v}</span>
+          <span className="font-extrabold text-[#0f172a] text-sm uppercase tracking-tight">{v}</span>
         </div>
       )
     },

@@ -180,7 +180,7 @@ export default function DevicesManagement() {
           <div className="bg-white border border-[#e2e8f0] rounded-[10px] p-5 shadow-sm border-l-[3px] border-l-[#059669]">
             <p className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.08em] mb-2">Active Signals</p>
             <p className="text-2xl font-extrabold text-[#0f172a] tracking-tighter">
-              {(Array.isArray(devicesData) ? devicesData : (devicesData as any)?.results || [])?.filter(d => d.is_active).length || 0}
+              {(Array.isArray(devicesData) ? devicesData : (devicesData as any)?.results || [])?.filter((d: any) => d.is_active).length || 0}
             </p>
             <p className="text-[11px] text-[#94a3b8] mt-1">Operational nodes</p>
           </div>

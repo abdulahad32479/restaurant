@@ -17,9 +17,13 @@ import { useStaff } from '@/src/hooks/useStaff';
 import { StaffLedgerEntry } from '@/src/types/staff';
 
 export default function LedgerManagement() {
+  // Swagger filters: direction, entry_type, month, staff (UUID), year
   const [filters, setFilters] = useState<Record<string, any>>({
     staff: '',
     entry_type: '',
+    direction: '',
+    month: '',
+    year: '',
   });
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -215,6 +219,7 @@ export default function LedgerManagement() {
                   onChange={(e) => setFilters(prev => ({ ...prev, staff: e.target.value }))}
                   className="bg-white border border-[#e2e8f0] rounded-lg h-10 px-3 text-xs font-medium w-48 focus:ring-4 focus:ring-violet-600/5 focus:border-[#7c3aed] outline-none transition-all"
                   options={[{ value: '', label: 'All Personnel' }, ...(Array.isArray(staffMembers) ? staffMembers : (staffMembers as any)?.results || [])?.map((m: any) => ({ value: m.id, label: m.full_name })) || []]}
+                  fullWidth={false}
                 />
                 <Select 
                   value={filters.entry_type || ''} 
@@ -225,9 +230,45 @@ export default function LedgerManagement() {
                     { value: 'advance', label: 'Advance' },
                     { value: 'late_penalty', label: 'Late Penalty' },
                     { value: 'meal_deduction', label: 'Meal Deduction' },
+                    { value: 'deduction', label: 'Other Deduction' },
                     { value: 'bonus', label: 'Bonus' },
-                    { value: 'adjustment', label: 'Adjustment' }
+                    { value: 'reimbursement', label: 'Reimbursement' },
+                    { value: 'adjustment', label: 'Adjustment' },
+                    { value: 'salary_payment', label: 'Salary Payment' },
                   ]}
+                  fullWidth={false}
+                />
+                <Select 
+                  value={filters.direction || ''} 
+                  onChange={(e) => setFilters(prev => ({ ...prev, direction: e.target.value }))}
+                  className="bg-white border border-[#e2e8f0] rounded-lg h-10 px-3 text-xs font-medium w-32 focus:ring-4 focus:ring-violet-600/5 focus:border-[#7c3aed] outline-none transition-all"
+                  options={[
+                    { value: '', label: 'Direction' },
+                    { value: 'credit', label: 'Credit (+)' },
+                    { value: 'debit', label: 'Debit (-)' },
+                  ]}
+                  fullWidth={false}
+                />
+                <Select 
+                  value={filters.month || ''} 
+                  onChange={(e) => setFilters(prev => ({ ...prev, month: e.target.value }))}
+                  className="bg-white border border-[#e2e8f0] rounded-lg h-10 px-3 text-xs font-medium w-28 focus:ring-4 focus:ring-violet-600/5 focus:border-[#7c3aed] outline-none transition-all"
+                  options={[
+                    { value: '', label: 'Month' },
+                    { value: '1', label: 'Jan' }, { value: '2', label: 'Feb' }, { value: '3', label: 'Mar' },
+                    { value: '4', label: 'Apr' }, { value: '5', label: 'May' }, { value: '6', label: 'Jun' },
+                    { value: '7', label: 'Jul' }, { value: '8', label: 'Aug' }, { value: '9', label: 'Sep' },
+                    { value: '10', label: 'Oct' }, { value: '11', label: 'Nov' }, { value: '12', label: 'Dec' },
+                  ]}
+                  fullWidth={false}
+                />
+                <Input
+                  type="number"
+                  value={filters.year || ''}
+                  onChange={(e) => setFilters(prev => ({ ...prev, year: e.target.value }))}
+                  placeholder="Year"
+                  className="bg-white border border-[#e2e8f0] rounded-lg h-10 px-3 text-xs font-medium w-24"
+                  fullWidth={false}
                 />
              </div>
              <p className="text-[11px] text-[#94a3b8] font-bold uppercase tracking-widest">Registry Capture: {Array.isArray(ledgerData) ? ledgerData.length : (ledgerData as any)?.results?.length || 0}</p>

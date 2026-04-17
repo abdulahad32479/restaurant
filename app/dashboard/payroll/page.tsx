@@ -37,8 +37,8 @@ export default function PayrollManagement() {
   });
 
   const { payrollRuns, isLoading, createPayrollRun, isCreating } = usePayrollRuns({
-    year: yearFilter || undefined,
-    status: statusFilter || undefined,
+    year: yearFilter ? parseInt(yearFilter, 10) : undefined,
+    status: (statusFilter as any) || undefined,
   });
 
   const runs = Array.isArray(payrollRuns) ? payrollRuns : (payrollRuns as any)?.results || [];
@@ -399,7 +399,7 @@ function PayrollDetailView({ id, onBack }: { id: string, onBack: () => void }) {
                <span className="text-[10px] font-black uppercase tracking-widest">Cleared</span>
             </div>
           ) : (
-            <div className="text-[#94a3b8] italic text-[10px] font-bold uppercase tracking-widest opacity-40">Protected</div>
+            <div className="text-[#94a3b8] text-[10px] font-bold uppercase tracking-widest opacity-40">Protected</div>
           )}
         </div>
       )

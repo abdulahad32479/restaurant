@@ -309,6 +309,7 @@ export default function StaffManagement() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-white border border-[#e2e8f0] rounded-lg h-9 w-64 text-xs font-medium"
+                  fullWidth={false}
                 />
                 <Select 
                   value={roleFilter} 
@@ -318,6 +319,7 @@ export default function StaffManagement() {
                     { value: '', label: 'All Roles' },
                     ...(roles?.map(r => ({ value: r.id, label: r.name })) || [])
                   ]}
+                  fullWidth={false}
                 />
                 <Select 
                   value={statusFilter} 
@@ -329,6 +331,7 @@ export default function StaffManagement() {
                     { value: 'inactive', label: 'Inactive' },
                     { value: 'terminated', label: 'Terminated' }
                   ]}
+                  fullWidth={false}
                 />
              </div>
              <p className="text-[11px] text-[#94a3b8] font-bold uppercase tracking-widest">

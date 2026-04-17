@@ -19,14 +19,17 @@ import toast from 'react-hot-toast';
 export default function AttendanceManagement() {
   const [activeTab, setActiveTab] = useState<'attendance' | 'punches'>('attendance');
 
-  // Attendance Filters
+  // Attendance Filters — exact Swagger: date, month, staff (UUID), status, year
   const [staffFilter, setStaffFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [monthFilter, setMonthFilter] = useState('');
+  const [yearFilter, setYearFilter] = useState('');
   
-  // Punches (Hardware Logs) Filters
+  // Punches Filters — exact Swagger: biometric_code, date, is_processed, punch_type
   const [punchDate, setPunchDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [punchBioCodeFilter, setPunchBioCodeFilter] = useState('');
+  const [punchTypeFilter, setPunchTypeFilter] = useState('');
 
   // Modals state
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -40,12 +43,15 @@ export default function AttendanceManagement() {
   const { attendanceData, isLoading: isLoadingAtt, createAttendance, isCreating: isCreatingAtt, updateAttendance, isUpdating: isUpdatingAtt } = useAttendance({
     date: dateFilter || undefined,
     staff: staffFilter || undefined,
-    status: statusFilter || undefined,
+    status: (statusFilter as any) || undefined,
+    month: monthFilter ? parseInt(monthFilter) : undefined,
+    year: yearFilter ? parseInt(yearFilter) : undefined,
   });
   
   const { punchesData, isLoading: isLoadingPunches } = usePunches({
     date: punchDate || undefined,
     biometric_code: punchBioCodeFilter || undefined,
+    punch_type: (punchTypeFilter as any) || undefined,
   });
   
   const { syncDevice, isSyncing } = useBiometricActions();
@@ -267,18 +273,48 @@ export default function AttendanceManagement() {
              
              <div className="flex items-center gap-3">
                 {activeTab === 'attendance' ? (
-                   <div className="flex items-center gap-2">
+                   <div className="flex items-center gap-2 flex-wrap">
                       <Input 
                         type="date" 
                         value={dateFilter} 
-                        onChange={(e) => setDateFilter(e.target.value)} 
+                        onChange={(e) => { setDateFilter(e.target.value); setMonthFilter(''); setYearFilter(''); }} 
                         className="bg-white border border-[#e2e8f0] rounded-lg h-9 w-40 text-xs font-medium" 
+                        placeholder="Exact Date"
+                        fullWidth={false}
                       />
                       <Select 
                         value={statusFilter} 
                         onChange={(e) => setStatusFilter(e.target.value)}
                         className="bg-white border border-[#e2e8f0] rounded-lg h-9 w-32 text-xs font-medium"
-                        options={[{ value: '', label: 'All Status' }, { value: 'present', label: 'Present' }, { value: 'absent', label: 'Absent' }, { value: 'leave', label: 'Leave' }]}
+                        options={[
+                          { value: '', label: 'All Status' }, 
+                          { value: 'present', label: 'Present' }, 
+                          { value: 'absent', label: 'Absent' }, 
+                          { value: 'leave', label: 'Leave' },
+                          { value: 'half_day', label: 'Half Day' }
+                        ]}
+                        fullWidth={false}
+                      />
+                      <Select 
+                        value={monthFilter} 
+                        onChange={(e) => { setMonthFilter(e.target.value); setDateFilter(''); }}
+                        className="bg-white border border-[#e2e8f0] rounded-lg h-9 w-28 text-xs font-medium"
+                        options={[
+                          { value: '', label: 'Month' }, 
+                          { value: '1', label: 'Jan' }, { value: '2', label: 'Feb' }, { value: '3', label: 'Mar' },
+                          { value: '4', label: 'Apr' }, { value: '5', label: 'May' }, { value: '6', label: 'Jun' },
+                          { value: '7', label: 'Jul' }, { value: '8', label: 'Aug' }, { value: '9', label: 'Sep' },
+                          { value: '10', label: 'Oct' }, { value: '11', label: 'Nov' }, { value: '12', label: 'Dec' }
+                        ]}
+                        fullWidth={false}
+                      />
+                      <Input 
+                        type="number" 
+                        value={yearFilter} 
+                        onChange={(e) => { setYearFilter(e.target.value); setDateFilter(''); }}
+                        placeholder="Year"
+                        className="bg-white border border-[#e2e8f0] rounded-lg h-9 w-24 text-xs font-medium" 
+                        fullWidth={false}
                       />
                    </div>
                 ) : (
@@ -288,12 +324,26 @@ export default function AttendanceManagement() {
                        value={punchDate} 
                        onChange={(e) => setPunchDate(e.target.value)} 
                        className="bg-white border border-[#e2e8f0] rounded-lg h-9 w-40 text-xs font-medium" 
+                       fullWidth={false}
                      />
                      <Input 
                        placeholder="Bio Code..." 
                        value={punchBioCodeFilter} 
                        onChange={(e) => setPunchBioCodeFilter(e.target.value)} 
                        className="bg-white border border-[#e2e8f0] rounded-lg h-9 w-32 text-xs font-medium" 
+                       fullWidth={false}
+                     />
+                     <Select 
+                       value={punchTypeFilter} 
+                       onChange={(e) => setPunchTypeFilter(e.target.value)}
+                       className="bg-white border border-[#e2e8f0] rounded-lg h-9 w-28 text-xs font-medium"
+                       options={[
+                         { value: '', label: 'All Types' },
+                         { value: 'in', label: 'Clock In' },
+                         { value: 'out', label: 'Clock Out' },
+                         { value: 'unknown', label: 'Unknown' }
+                       ]}
+                       fullWidth={false}
                      />
                   </div>
                 )}

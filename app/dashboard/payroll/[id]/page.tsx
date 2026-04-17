@@ -68,7 +68,7 @@ export default function PayrollDetail() {
       header: 'PERSONNEL', 
       render: (_: any, r: PayrollLine) => (
         <div className="flex flex-col">
-          <span className="font-extrabold text-[#0f172a] text-sm uppercase tracking-tight italic">{r.staff_name}</span>
+          <span className="font-extrabold text-[#0f172a] text-sm uppercase tracking-tight">{r.staff_name}</span>
           <span className="text-[10px] text-[#94a3b8] font-black uppercase tracking-widest">{r.employee_code}</span>
         </div>
       )
@@ -77,13 +77,13 @@ export default function PayrollDetail() {
       key: 'base', 
       header: 'BASE', 
       align: 'right' as const, 
-      render: (v: string, r: PayrollLine) => <span className="text-[#64748b] font-bold text-xs italic">{formatCurrency(r.base_salary)}</span> 
+      render: (v: string, r: PayrollLine) => <span className="text-[#64748b] font-bold text-xs">{formatCurrency(r.base_salary)}</span> 
     },
     { 
       key: 'net', 
       header: 'NET QUOTE', 
       align: 'right' as const, 
-      render: (v: string, r: PayrollLine) => <span className="text-[#0f172a] font-black text-sm italic">{formatCurrency(r.net_salary)}</span> 
+      render: (v: string, r: PayrollLine) => <span className="text-[#0f172a] font-black text-sm">{formatCurrency(r.net_salary)}</span> 
     },
     { 
       key: 'status', 
@@ -117,10 +117,10 @@ export default function PayrollDetail() {
           ) : r.is_paid ? (
             <div className="flex items-center gap-2 text-[#059669]">
                <CheckCircle className="w-4 h-4" />
-               <span className="text-[10px] font-black uppercase tracking-widest italic">Cleared</span>
+               <span className="text-[10px] font-black uppercase tracking-widest">Cleared</span>
             </div>
           ) : (
-            <div className="text-[#94a3b8] italic text-[10px] font-bold uppercase tracking-widest opacity-40">Protected</div>
+            <div className="text-[#94a3b8] text-[10px] font-bold uppercase tracking-widest opacity-40">Protected</div>
           )}
         </div>
       )
@@ -220,7 +220,7 @@ export default function PayrollDetail() {
         {/* Distribution Matrix Panel */}
         <div className="bg-white border border-[#e2e8f0] rounded-[10px] shadow-sm overflow-hidden min-h-[500px]">
           <div className="bg-[#f8fafc] border-b border-[#e2e8f0] px-6 py-4 flex items-center justify-between">
-             <h3 className="text-xs font-extrabold text-[#0f172a] uppercase tracking-widest italic">Distribution Matrix</h3>
+             <h3 className="text-xs font-extrabold text-[#0f172a] uppercase tracking-widest">Distribution Matrix</h3>
              <p className="text-[11px] text-[#94a3b8] font-bold uppercase tracking-widest">Enlisted: {lines.length}</p>
           </div>
           
@@ -256,12 +256,12 @@ export default function PayrollDetail() {
                 <div className="relative z-10 flex justify-between items-end">
                   <div className="space-y-1">
                     <p className="text-[10px] text-indigo-400 font-black uppercase tracking-[0.3em]">Beneficiary</p>
-                    <p className="text-2xl font-black text-white tracking-tight uppercase italic">{selectedLine.staff_name}</p>
+                    <p className="text-2xl font-black text-white tracking-tight uppercase">{selectedLine.staff_name}</p>
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">ID: {selectedLine.employee_code}</p>
                   </div>
                   <div className="text-right space-y-1">
                     <p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em]">Calculation</p>
-                    <p className="text-3xl font-black text-white italic tracking-tighter">{formatCurrency(selectedLine.net_salary)}</p>
+                    <p className="text-3xl font-black text-white tracking-tighter">{formatCurrency(selectedLine.net_salary)}</p>
                     <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Final Net Payable</p>
                   </div>
                 </div>
@@ -279,7 +279,7 @@ export default function PayrollDetail() {
                       type="number"
                       value={paidAmount}
                       onChange={(e) => setPaidAmount(e.target.value)}
-                      className="w-full bg-slate-50 border-slate-200 h-16 rounded-2xl pl-14 pr-6 text-2xl font-black italic text-slate-900 focus:ring-4 focus:ring-indigo-600/5 focus:border-indigo-600 outline-none transition-all"
+                      className="w-full bg-slate-50 border-slate-200 h-16 rounded-2xl pl-14 pr-6 text-2xl font-black text-slate-900 focus:ring-4 focus:ring-indigo-600/5 focus:border-indigo-600 outline-none transition-all"
                     />
                  </div>
                </div>

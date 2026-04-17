@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { LedgerService } from '../services/ledger.service';
+import { LedgerService, LedgerEntryFilters } from '../services/ledger.service';
 import { StaffLedgerEntry } from '../types/staff';
 import toast from 'react-hot-toast';
 
-export const useLedger = (filters?: Record<string, any>) => {
+// ─── Ledger Entries ────────────────────────────────────────────────
+// Swagger filters: direction, entry_type, month, staff (UUID), year
+export const useLedger = (filters?: LedgerEntryFilters) => {
   const queryClient = useQueryClient();
 
   const { data: ledgerData, isLoading, error } = useQuery({
@@ -12,21 +14,27 @@ export const useLedger = (filters?: Record<string, any>) => {
   });
 
   const createEntry = useMutation({
-    mutationFn: (data: Partial<StaffLedgerEntry>) => LedgerService.createLedgerEntry(data),
+    mutationFn: (data: Partial<StaffLedgerEntry>) => LedgerService.createLedgerEntry(data as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ledger'] });
+      queryClient.invalidateQueries({ queryKey: ['staffLedgerSummary'] });
       queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });
       queryClient.invalidateQueries({ queryKey: ['payrollRunDetails'] });
       toast.success('Ledger entry created');
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to create entry'),
+    onError: (err: any) => {
+      const data = err.response?.data;
+      const msg = data?.detail || (typeof data === 'object' ? Object.values(data)[0] : null) || 'Failed to create entry';
+      toast.error(Array.isArray(msg) ? msg[0] : msg);
+    },
   });
 
   const updateEntry = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<StaffLedgerEntry> }) => 
-      LedgerService.updateLedgerEntry(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<StaffLedgerEntry> }) =>
+      LedgerService.updateLedgerEntry(id, data as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ledger'] });
+      queryClient.invalidateQueries({ queryKey: ['staffLedgerSummary'] });
       queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });
       queryClient.invalidateQueries({ queryKey: ['payrollRunDetails'] });
       toast.success('Ledger entry updated');
@@ -38,6 +46,7 @@ export const useLedger = (filters?: Record<string, any>) => {
     mutationFn: (id: string) => LedgerService.deleteLedgerEntry(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ledger'] });
+      queryClient.invalidateQueries({ queryKey: ['staffLedgerSummary'] });
       queryClient.invalidateQueries({ queryKey: ['payrollRuns'] });
       queryClient.invalidateQueries({ queryKey: ['payrollRunDetails'] });
       toast.success('Ledger entry deleted');
