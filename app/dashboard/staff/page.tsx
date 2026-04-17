@@ -419,7 +419,7 @@ export default function StaffManagement() {
              <Select 
               label="EMPLOYMENT STATUS" 
               value={formData.employment_status}
-              onChange={(e) => setFormData({...formData, employment_status: e.target.value as any, is_active: e.target.value === 'active'})}
+              onChange={(e) => setFormData({...formData, employment_status: e.target.value as any})}
               options={[
                 { value: 'active', label: 'Active' },
                 { value: 'inactive', label: 'Inactive' },
@@ -506,6 +506,10 @@ export default function StaffManagement() {
               <label className="flex items-center gap-3 cursor-pointer group">
                 <input type="checkbox" checked={formData.is_manager} onChange={(e) => setFormData({...formData, is_manager: e.target.checked})} className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary" />
                 <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest group-hover:text-primary transition-colors">Manager</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input type="checkbox" checked={formData.is_active} onChange={(e) => setFormData({...formData, is_active: e.target.checked})} className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500" />
+                <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-widest transition-colors">System Access (Active)</span>
               </label>
             </div>
           </div>

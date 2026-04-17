@@ -332,7 +332,7 @@ export default function LedgerManagement() {
                 const type = e.target.value as any;
                 let dir = formData.direction;
                 if (['advance', 'late_penalty', 'meal_deduction', 'deduction'].includes(type)) dir = 'debit';
-                if (['bonus', 'reimbursement'].includes(type)) dir = 'credit';
+                if (['bonus', 'reimbursement', 'salary_payment'].includes(type)) dir = 'credit';
                 setFormData({...formData, entry_type: type, direction: dir});
               }}
               options={[
@@ -342,7 +342,8 @@ export default function LedgerManagement() {
                 { value: 'deduction', label: 'Other Deduction' },
                 { value: 'bonus', label: 'Bonus' },
                 { value: 'reimbursement', label: 'Reimbursement' },
-                { value: 'adjustment', label: 'Adjustment' }
+                { value: 'adjustment', label: 'Adjustment' },
+                { value: 'salary_payment', label: 'Salary Payment' }
               ]} 
               className="bg-white border-slate-200 text-slate-900"
             />
@@ -398,6 +399,16 @@ export default function LedgerManagement() {
             placeholder="Protocol Context..."
             className="bg-white border-slate-200 text-slate-900"
           />
+
+          <div className="pt-2">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <input type="checkbox" checked={formData.is_active !== false} onChange={(e) => setFormData({...formData, is_active: e.target.checked})} className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-widest transition-colors">Active Record</span>
+                <span className="text-[10px] text-slate-400">Include in payroll calculations</span>
+              </div>
+            </label>
+          </div>
         </div>
       </Modal>
     </div>

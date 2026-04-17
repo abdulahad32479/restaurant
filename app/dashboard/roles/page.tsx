@@ -16,7 +16,7 @@ import { StaffRole } from '@/src/types/staff';
 import toast from 'react-hot-toast';
 
 export default function RolesManagement() {
-  const { roles, isLoadingRoles, createRole, isCreatingRole, updateRole, isUpdatingRole } = useRoles();
+  const { roles, isLoadingRoles, createRole, isCreatingRole, updateRole, isUpdatingRole, deleteRole, isDeletingRole } = useRoles();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
@@ -98,15 +98,23 @@ export default function RolesManagement() {
       header: '',
       align: 'right' as const,
       render: (_: any, row: StaffRole) => (
-        <button 
-          onClick={() => handleOpenModal(row)}
-          className="group flex items-center gap-2 bg-slate-50 hover:bg-slate-900 py-1.5 pl-4 pr-1.5 rounded-full border border-slate-200 transition-all active:scale-95"
-        >
-           <span className="text-[10px] font-black text-slate-600 group-hover:text-white uppercase tracking-widest">Configure</span>
-           <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-sm">
-              <Edit className="w-3 h-3 text-slate-900" />
-           </div>
-        </button>
+        <div className="flex items-center justify-end gap-2">
+          <button 
+            onClick={() => handleOpenModal(row)}
+            className="group flex items-center gap-2 bg-slate-50 hover:bg-slate-900 py-1.5 pl-4 pr-1.5 rounded-full border border-slate-200 transition-all active:scale-95"
+          >
+             <span className="text-[10px] font-black text-slate-600 group-hover:text-white uppercase tracking-widest">Configure</span>
+             <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-sm">
+                <Edit className="w-3 h-3 text-slate-900" />
+             </div>
+          </button>
+          <button 
+            onClick={() => { if(window.confirm(`Expunge role '${row.name}'?`)) deleteRole(row.id) }} 
+            className="p-2 border border-[#e2e8f0] bg-white hover:bg-red-50 text-[#94a3b8] hover:text-red-600 rounded-full transition-all shadow-sm active:scale-95"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       )
     }
   ];

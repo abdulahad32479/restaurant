@@ -48,7 +48,7 @@ export default function AttendanceManagement() {
     year: yearFilter ? parseInt(yearFilter) : undefined,
   });
   
-  const { punchesData, isLoading: isLoadingPunches } = usePunches({
+  const { punchesData, isLoading: isLoadingPunches, createPunch, isCreatingPunch } = usePunches({
     date: punchDate || undefined,
     biometric_code: punchBioCodeFilter || undefined,
     punch_type: (punchTypeFilter as any) || undefined,
@@ -57,6 +57,10 @@ export default function AttendanceManagement() {
   const { syncDevice, isSyncing } = useBiometricActions();
 
   // Forms
+  const [isPunchModalOpen, setIsPunchModalOpen] = useState(false);
+  const [punchForm, setPunchForm] = useState<Partial<BiometricPunch>>({
+    device: '', biometric_code: '', punch_time: new Date().toISOString().slice(0, 16), punch_type: 'unknown', source: 'manual', is_processed: false, raw_payload: 'Manual UI injection'
+  });
   const [attForm, setAttForm] = useState<Partial<StaffAttendance>>({
     staff: '', date: new Date().toISOString().split('T')[0], check_in: '', check_out: '', status: 'present', source: 'manual', note: '', late_minutes: 0, early_leave_minutes: 0
   });
@@ -111,6 +115,15 @@ export default function AttendanceManagement() {
       toast.success('Synchronization complete');
       setIsSyncModalOpen(false);
     }});
+  };
+
+  const handleSavePunch = () => {
+    if (!punchForm.biometric_code || !punchForm.device || !punchForm.punch_time) return toast.error('Required fields missing');
+    
+    const payload = { ...punchForm };
+    if (payload.punch_time) payload.punch_time = new Date(payload.punch_time).toISOString();
+    
+    createPunch(payload, { onSuccess: () => setIsPunchModalOpen(false) });
   };
 
   const attColumns = [
@@ -217,11 +230,11 @@ export default function AttendanceManagement() {
              Sync Terminal
            </button>
            <button 
-             onClick={() => handleOpenAttendanceModal()}
+             onClick={() => activeTab === 'punches' ? setIsPunchModalOpen(true) : handleOpenAttendanceModal()}
              className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold h-10 px-6 rounded-lg text-xs flex items-center gap-2 shadow-md transition-all active:scale-95"
            >
              <Plus className="w-4 h-4" />
-             Manual Entry
+             {activeTab === 'punches' ? 'Inject Punch' : 'Manual Entry'}
            </button>
         </div>
       </div>
@@ -480,6 +493,44 @@ export default function AttendanceManagement() {
             placeholder="Intervention Protocol Context..."
             className="bg-white border-slate-200 text-slate-900"
           />
+        </div>
+      </Modal>
+
+      {/* Manual Punch Modal */}
+      <Modal theme="light"
+        isOpen={isPunchModalOpen}
+        onClose={() => setIsPunchModalOpen(false)}
+        title="Inject Raw Punch"
+        size="md"
+        footer={
+          <div className="flex gap-3 mt-4 w-full sm:w-auto">
+            <Button variant="ghost" onClick={() => setIsPunchModalOpen(false)} className="flex-1 sm:flex-none border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 font-bold shadow-sm">Cancel</Button>
+            <Button variant="primary" onClick={handleSavePunch} isLoading={isCreatingPunch} className="flex-1 sm:flex-none px-10 bg-[#7c3aed] hover:bg-[#6d28d9] text-white border-none shadow-none font-bold">Inject</Button>
+          </div>
+        }
+      >
+        <div className="space-y-6 pt-4 px-1">
+           <div className="grid grid-cols-2 gap-5">
+             <Select 
+               label="HARDWARE DEVICE *" 
+               value={punchForm.device as string}
+               onChange={(e) => setPunchForm({...punchForm, device: e.target.value})}
+               options={[{ value: '', label: '--- select ---' }, ...((Array.isArray(devicesData) ? devicesData : (devicesData as any)?.results || [])?.map((d: any) => ({ value: d.id, label: d.name })) || [])]}
+               className="bg-white border-slate-200 h-11 font-medium"
+             />
+             <Input label="BIOMETRIC CODE *" value={punchForm.biometric_code} onChange={(e) => setPunchForm({...punchForm, biometric_code: e.target.value})} className="bg-white border-slate-200 h-11 font-medium" placeholder="101" />
+           </div>
+           
+           <div className="grid grid-cols-2 gap-5">
+             <Input label="PUNCH TIME *" type="datetime-local" value={punchForm.punch_time as string} onChange={(e) => setPunchForm({...punchForm, punch_time: e.target.value})} className="bg-white border-slate-200 h-11 text-xs" />
+             <Select 
+               label="DIRECTION *" 
+               value={punchForm.punch_type}
+               onChange={(e) => setPunchForm({...punchForm, punch_type: e.target.value as any})}
+               options={[{ value: 'unknown', label: 'Unknown' }, { value: 'in', label: 'Check In' }, { value: 'out', label: 'Check Out' }]}
+               className="bg-white border-slate-200 h-11 font-medium"
+             />
+           </div>
         </div>
       </Modal>
     </div>

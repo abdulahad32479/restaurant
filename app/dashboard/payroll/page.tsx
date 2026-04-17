@@ -10,7 +10,7 @@ import {
   Plus, Loader2, FileText, ChevronRight, Zap, 
   DollarSign, PieChart, TrendingUp, Calendar, Filter,
   CreditCard, ArrowLeft, CheckCircle, RefreshCw, Users,
-  Check
+  Check, Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 import { Card } from '@/src/components/Card';
@@ -23,6 +23,7 @@ import toast from 'react-hot-toast';
 export default function PayrollManagement() {
   const router = useRouter();
   const [yearFilter, setYearFilter] = useState('');
+  const [monthFilter, setMonthFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -36,7 +37,8 @@ export default function PayrollManagement() {
     notes: ''
   });
 
-  const { payrollRuns, isLoading, createPayrollRun, isCreating } = usePayrollRuns({
+  const { payrollRuns, isLoading, createPayrollRun, isCreating, deletePayrollRun } = usePayrollRuns({
+    month: monthFilter ? parseInt(monthFilter, 10) : undefined,
     year: yearFilter ? parseInt(yearFilter, 10) : undefined,
     status: (statusFilter as any) || undefined,
   });
@@ -132,6 +134,15 @@ export default function PayrollManagement() {
           >
             Audit Detail
           </button>
+          {r.status === 'draft' && (
+            <button 
+              onClick={() => { if(window.confirm('Delete this draft payroll run?')) deletePayrollRun(r.id); }}
+              title="Delete Draft"
+              className="p-2 border border-[#e2e8f0] bg-white hover:bg-red-50 text-[#94a3b8] hover:text-red-600 rounded-lg transition-all shadow-sm active:scale-95"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       )
     }
@@ -196,9 +207,43 @@ export default function PayrollManagement() {
 
         {/* Data Table Panel */}
         <div className="bg-white border border-[#e2e8f0] rounded-[10px] shadow-sm overflow-hidden min-h-[500px]">
-          <div className="bg-[#f8fafc] border-b border-[#e2e8f0] px-6 py-4 flex items-center justify-between">
-             <h3 className="text-xs font-extrabold text-[#0f172a] uppercase tracking-widest">Operations History</h3>
-             <p className="text-[11px] text-[#94a3b8] font-bold uppercase tracking-widest">Records: {payrollRuns?.length || 0}</p>
+          <div className="bg-[#f8fafc] border-b border-[#e2e8f0] px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+             <div className="flex flex-wrap items-center gap-3">
+               <Select 
+                 value={statusFilter} 
+                 onChange={(e) => setStatusFilter(e.target.value)}
+                 className="bg-white border border-[#e2e8f0] rounded-lg h-9 px-3 text-xs font-medium w-36"
+                 options={[
+                   { value: '', label: 'All Statuses' },
+                   { value: 'draft', label: 'Draft' },
+                   { value: 'finalized', label: 'Finalized' },
+                   { value: 'paid', label: 'Paid' },
+                 ]}
+                 fullWidth={false}
+               />
+               <Select 
+                 value={monthFilter} 
+                 onChange={(e) => setMonthFilter(e.target.value)}
+                 className="bg-white border border-[#e2e8f0] rounded-lg h-9 px-3 text-xs font-medium w-28"
+                 options={[
+                   { value: '', label: 'Month' }, 
+                   { value: '1', label: 'Jan' }, { value: '2', label: 'Feb' }, { value: '3', label: 'Mar' },
+                   { value: '4', label: 'Apr' }, { value: '5', label: 'May' }, { value: '6', label: 'Jun' },
+                   { value: '7', label: 'Jul' }, { value: '8', label: 'Aug' }, { value: '9', label: 'Sep' },
+                   { value: '10', label: 'Oct' }, { value: '11', label: 'Nov' }, { value: '12', label: 'Dec' },
+                 ]}
+                 fullWidth={false}
+               />
+               <Input 
+                 type="number" 
+                 value={yearFilter} 
+                 onChange={(e) => setYearFilter(e.target.value)}
+                 placeholder="Year"
+                 className="bg-white border border-[#e2e8f0] rounded-lg h-9 px-3 text-xs font-medium w-24" 
+                 fullWidth={false}
+               />
+             </div>
+             <p className="text-[11px] text-[#94a3b8] font-bold uppercase tracking-widest shrink-0">Records: {payrollRuns?.length || 0}</p>
           </div>
           
           <div>
