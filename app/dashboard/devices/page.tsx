@@ -7,11 +7,10 @@ import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
 import { Modal } from '@/src/components/Modal';
 import {
-  Server, Plus, Loader2, Edit, Trash2, Smartphone, RefreshCw,
-  ShieldCheck, Zap, Wifi, CheckCircle2, AlertTriangle, ArrowDownToLine,
-  Cpu, Activity, XCircle, HardDrive
+  Server, Plus, Loader2, Edit, Trash2, RefreshCw,
+  ShieldCheck, Wifi, CheckCircle2, AlertTriangle, 
+  Cpu, Activity, Layers, HardDrive
 } from 'lucide-react';
-import { Card } from '@/src/components/Card';
 import { useDevices } from '@/src/hooks/useAttendance';
 import { AttendanceDevice, SyncDeviceResult } from '@/src/types/staff';
 import toast from 'react-hot-toast';
@@ -69,7 +68,7 @@ export default function DevicesManagement() {
   };
 
   const handleSaveDevice = () => {
-    if (!deviceForm.name || !deviceForm.device_type) return toast.error('Check required fields: Name, Type');
+    if (!deviceForm.name || !deviceForm.device_type) return toast.error('Required fields missing');
     const payload = { ...deviceForm };
     
     if (editingDeviceId) {
@@ -81,144 +80,160 @@ export default function DevicesManagement() {
 
   const deviceColumns = [
     {
-      key: 'name', header: 'TERMINAL IDENTITY',
+      key: 'name', 
+      header: 'TERMINAL IDENTITY',
       render: (v: string, r: AttendanceDevice) => (
-        <div className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${r.is_active ? 'bg-violet-600/10 border border-violet-600/20' : 'bg-slate-100 border border-slate-200'}`}>
-            <Cpu className={`w-4 h-4 ${r.is_active ? 'text-violet-600' : 'text-slate-400 opacity-60'}`} />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-slate-800 text-sm">{v}</span>
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{r.device_type_display || r.device_type}</span>
-          </div>
+        <div className="flex flex-col">
+          <span className="font-extrabold text-[#0f172a] text-sm uppercase tracking-tight">{v}</span>
+          <span className="text-[10px] text-[#94a3b8] font-black uppercase tracking-widest">{r.device_type} · ID: {r.machine_identifier || 'UNSET'}</span>
         </div>
       )
     },
     {
-      key: 'network', header: 'NETWORK',
+      key: 'network', 
+      header: 'NETWORK PARAMETERS',
       render: (_: any, r: AttendanceDevice) => (
-        <div className="flex flex-col gap-0.5">
-          <span className="text-slate-700 font-bold text-xs font-mono">{r.ip_address || '—'}</span>
-          <span className="text-[10px] text-slate-400 font-bold">PORT: {r.port || 4370}</span>
+        <div className="flex flex-col gap-1">
+          <span className="text-slate-700 font-black text-[11px] font-mono tracking-tight">{r.ip_address || 'Cloud Node'}</span>
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">PORT: {r.port || 4370}</p>
         </div>
       )
     },
     {
-      key: 'last_synced_at', header: 'LAST SYNC',
-      render: (_: any, r: AttendanceDevice) => (
-        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-          {r.last_synced_at
-            ? new Date(r.last_synced_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
-            : 'Never'}
+      key: 'is_active', 
+      header: 'INTEGRITY', 
+      render: (v: boolean) => (
+        <span className={`
+          inline-flex items-center px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.1em]
+          ${v ? 'bg-[#d1fae5] text-[#065f46]' : 'bg-[#fee2e2] text-[#991b1b]'}
+        `}>
+          {v ? 'Active' : 'Offline'}
         </span>
       )
     },
-    {
-      key: 'is_active', header: 'STATE',
+    { 
+      key: 'actions', 
+      header: '', 
+      align: 'right' as const, 
       render: (_: any, r: AttendanceDevice) => (
-        r.is_active
-          ? <Badge variant="success" size="sm" className="font-bold uppercase tracking-widest text-[9px] px-3 border-none rounded-full">Online</Badge>
-          : <Badge variant="secondary" size="sm" className="font-bold uppercase tracking-widest text-[9px] px-3 border-none rounded-full opacity-50">Offline</Badge>
+        <div className="flex items-center justify-end gap-2 pr-4">
+          <button 
+            disabled={syncingDeviceId === r.id}
+            onClick={() => syncMutation.mutate(r.id)}
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-extrabold uppercase tracking-widest transition-all shadow-sm
+              ${syncingDeviceId === r.id ? 'bg-[#f1f5f9] text-[#94a3b8]' : 'bg-white border border-[#e2e8f0] text-[#7c3aed] hover:bg-[#f8fafc] active:scale-95'}
+            `}
+          >
+            <RefreshCw className={`w-3 h-3 ${syncingDeviceId === r.id ? 'animate-spin' : ''}`} />
+            {syncingDeviceId === r.id ? 'Syncing...' : 'Sync Node'}
+          </button>
+          <button 
+            onClick={() => handleOpenDeviceModal(r)}
+            className="p-2 border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] text-[#64748b] rounded-lg shadow-sm"
+          >
+            <Edit className="w-3.5 h-3.5" />
+          </button>
+          <button 
+            onClick={() => { if(window.confirm('Decommission node?')) deleteDevice(r.id) }} 
+            className="p-2 border border-[#e2e8f0] bg-white hover:bg-red-50 text-[#94a3b8] hover:text-red-600 rounded-lg shadow-sm"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       )
-    },
-    {
-      key: 'actions', header: '', align: 'right' as const,
-      render: (_: any, r: AttendanceDevice) => {
-        const isSyncingThis = syncingDeviceId === r.id;
-        return (
-          <div className="flex items-center justify-end gap-2 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={() => syncMutation.mutate(r.id)}
-              disabled={isSyncingThis || !r.is_active}
-              className={`p-2 rounded-lg transition-all border flex items-center gap-2
-                ${r.is_active
-                  ? 'bg-violet-600/5 hover:bg-violet-600 text-violet-600 hover:text-white border-violet-600/10'
-                  : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'}`}
-              title={r.is_active ? 'Sync attendance' : 'Inactive'}
-            >
-              {isSyncingThis
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                : <RefreshCw className="w-3.5 h-3.5" />}
-            </button>
-            <button
-              onClick={() => handleOpenDeviceModal(r)}
-              className="bg-white hover:bg-slate-50 text-slate-500 p-2 rounded-lg border border-slate-200"
-            >
-              <Edit className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => { if (window.confirm('Delete device?')) deleteDevice(r.id); }}
-              className="bg-white hover:bg-red-50 text-slate-400 hover:text-red-600 p-2 rounded-lg border border-slate-200"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        );
-      }
-    },
+    }
   ];
 
   return (
-    <div className="animate-fade-in -m-6 p-6 min-h-screen bg-[#f4f6f8] font-sans text-slate-800 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Devices</h1>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">Attendance Hardware Nodes</p>
+    <div className="animate-fade-in -m-6 min-h-screen bg-[#f0f4f8] font-sans text-[#0f172a] pb-20">
+      {/* Header Bar */}
+      <div className="bg-white border-b border-[#e2e8f0] px-8 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+        <div className="flex items-center gap-3">
+           <div className="w-10 h-10 bg-[#7c3aed] rounded-xl flex items-center justify-center shadow-lg shadow-[#7c3aed]/20">
+              <Layers className="text-white w-5 h-5" />
+           </div>
+           <div>
+              <h1 className="text-[15px] font-extrabold text-[#0f172a] tracking-tight">Network Registry</h1>
+              <p className="text-[10px] text-[#64748b] font-bold uppercase tracking-widest">Global Hardware Infrastructure</p>
+           </div>
         </div>
-        <button onClick={() => handleOpenDeviceModal()} className="bg-violet-600 hover:bg-violet-700 text-white font-bold py-2 px-5 rounded-lg text-xs flex items-center shadow-sm transition-all shadow-violet-200">
-           <Plus className="w-4 h-4 mr-2" />
-           Register Device
+        <button 
+          onClick={() => handleOpenDeviceModal()}
+          className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold h-10 px-6 rounded-lg text-xs flex items-center gap-2 shadow-md transition-all active:scale-95"
+        >
+          <Plus className="w-4 h-4" />
+          Register Node
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Nodes', value: devicesData?.length || 0, icon: Server, color: 'text-slate-800', bg: 'bg-white' },
-          { label: 'Network Online', value: devicesData?.filter(d => d.is_active).length || 0, icon: Wifi, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'ZKTeco Bio', value: devicesData?.filter(d => d.device_type === 'biometric').length || 0, icon: Fingerprint, color: 'text-violet-600', bg: 'bg-violet-50' },
-          { label: 'Sync Health', value: '100%', icon: Activity, color: 'text-amber-600', bg: 'bg-amber-50' },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className={`${bg} border border-slate-200/50 p-5 rounded-2xl shadow-sm relative overflow-hidden`}>
-            <div className="flex items-center justify-between relative z-10">
-              <div>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">{label}</p>
-                <p className={`text-2xl font-bold tracking-tighter ${color}`}>{value}</p>
-              </div>
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color.replace('text', 'bg')}/10`}>
-                 <Icon className={`w-5 h-5 ${color}`} />
-              </div>
-            </div>
+      <div className="max-w-[1600px] mx-auto p-8 space-y-8">
+        {/* KPI Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white border border-[#e2e8f0] rounded-[10px] p-5 shadow-sm border-l-[3px] border-l-[#2563eb]">
+            <p className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.08em] mb-2">Network Points</p>
+            <p className="text-2xl font-extrabold text-[#0f172a] tracking-tighter">
+              {Array.isArray(devicesData) ? devicesData.length : (devicesData as any)?.results?.length || 0}
+            </p>
+            <p className="text-[11px] text-[#94a3b8] mt-1">Global distribution</p>
           </div>
-        ))}
-      </div>
+          <div className="bg-white border border-[#e2e8f0] rounded-[10px] p-5 shadow-sm border-l-[3px] border-l-[#059669]">
+            <p className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.08em] mb-2">Active Signals</p>
+            <p className="text-2xl font-extrabold text-[#0f172a] tracking-tighter">
+              {(Array.isArray(devicesData) ? devicesData : (devicesData as any)?.results || [])?.filter(d => d.is_active).length || 0}
+            </p>
+            <p className="text-[11px] text-[#94a3b8] mt-1">Operational nodes</p>
+          </div>
+          <div className="bg-white border border-[#e2e8f0] rounded-[10px] p-5 shadow-sm border-l-[3px] border-l-[#7c3aed]">
+            <p className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.08em] mb-2">Protocol Health</p>
+            <p className="text-2xl font-extrabold text-[#0f172a] tracking-tighter">100%</p>
+            <p className="text-[11px] text-[#94a3b8] mt-1">Communication integrity</p>
+          </div>
+          <div className="bg-white border border-[#e2e8f0] rounded-[10px] p-5 shadow-sm border-l-[3px] border-l-[#d97706]">
+            <p className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.08em] mb-2">Polling Latency</p>
+            <p className="text-2xl font-extrabold text-[#0f172a] tracking-tighter">~2s</p>
+            <p className="text-[11px] text-[#94a3b8] mt-1">Packet transmission</p>
+          </div>
+        </div>
 
-      <Card className="bg-white border-slate-200 overflow-hidden shadow-sm p-0 min-h-[400px]">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-40 gap-4">
-            <Loader2 className="animate-spin text-violet-600 w-10 h-10" />
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Scanning Network...</p>
+        {/* Matrix Panel */}
+        <div className="bg-white border border-[#e2e8f0] rounded-[10px] shadow-sm overflow-hidden">
+          <div className="bg-[#f8fafc] border-b border-[#e2e8f0] px-6 py-4 flex items-center justify-between">
+             <h3 className="text-xs font-extrabold text-[#0f172a] uppercase tracking-widest">Inventory Matrix</h3>
+             <p className="text-[11px] text-[#94a3b8] font-bold uppercase tracking-widest">
+               Enlisted: {Array.isArray(devicesData) ? devicesData.length : (devicesData as any)?.results?.length || 0}
+             </p>
           </div>
-        ) : (
-          <Table columns={deviceColumns} data={devicesData || []} className="border-none" />
-        )}
-      </Card>
+          
+          <div className="min-h-[500px]">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center p-32 gap-3 text-[#94a3b8]">
+                <Loader2 className="animate-spin w-8 h-8 text-[#7c3aed]" />
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em]">Interrogating Subnet...</span>
+              </div>
+            ) : (
+              <Table columns={deviceColumns} data={(Array.isArray(devicesData) ? devicesData : (devicesData as any)?.results || [])} className="border-none" />
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Device Modal */}
       <Modal theme="light"
         isOpen={isDeviceModalOpen}
         onClose={() => setIsDeviceModalOpen(false)}
-        title="Hardware Node Configuration"
+        title={editingDeviceId ? "Modify Terminal" : "Register Hardware Node"}
         size="md"
         footer={
           <div className="flex gap-3 w-full sm:w-auto mt-4">
-            <Button variant="outline" onClick={() => setIsDeviceModalOpen(false)} className="flex-1 sm:flex-none h-11 border-slate-200 text-slate-700 font-bold px-8">Cancel</Button>
+            <Button variant="ghost" onClick={() => setIsDeviceModalOpen(false)} className="flex-1 sm:flex-none border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 font-bold shadow-sm">Cancel</Button>
             <Button
               variant="primary"
               onClick={handleSaveDevice}
               isLoading={isCreatingDevice || isUpdatingDevice}
-              className="flex-1 sm:flex-none px-10 bg-violet-600 hover:bg-violet-700 text-white border-none shadow-none font-bold h-11"
+              className="flex-1 sm:flex-none px-10 bg-[#7c3aed] hover:bg-[#6d28d9] text-white border-none shadow-none font-bold"
             >
-              {editingDeviceId ? 'Save Changes' : 'Register Node'}
+              Confirm
             </Button>
           </div>
         }
@@ -292,16 +307,10 @@ export default function DevicesManagement() {
                  </div>
                )}
             </div>
-            <Button variant="primary" onClick={() => setSyncResult(null)} className="w-full font-bold h-11 bg-slate-900 border-none text-white">Dismiss</Button>
+            <Button variant="primary" onClick={() => setSyncResult(null)} className="w-full font-bold h-11 bg-slate-900 border-none text-white shadow-xl shadow-slate-950/10">Dismiss</Button>
           </div>
         )}
       </Modal>
     </div>
   );
 }
-
-const Fingerprint = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.02-.26 3.02" /><path d="M7 10.1a5 5 0 0 1 9.35-1.5" /><path d="M17.89 12.39a10 10 0 0 1 .11 1.61c0 1.93-.31 3.51-1 4.5" /><path d="M15 11a12 12 0 0 0-1.5-3.5" /><path d="M12.6 19q-.6.3-1.6.3c-2.36 0-4.4-1.67-4.4-4" /><path d="M22 13c0-1.1-.1-2.1-.3-3.1" /><path d="M7 17c.9 1.2 2.1 2 3.5 2" /><path d="M2 11.5a10 10 0 0 1 18.8-3.3" /><path d="M4.9 19a10 10 0 0 1-1.9-6" />
-  </svg>
-);

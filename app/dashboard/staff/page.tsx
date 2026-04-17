@@ -6,25 +6,27 @@ import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
 import { Modal } from '@/src/components/Modal';
-import { Search, Edit, Trash2, UserPlus, Phone, Briefcase, Calendar, Hash, DollarSign, Users, Plus, Loader2 } from 'lucide-react';
+import { 
+  Search, Edit, Trash2, UserPlus, Phone, Briefcase, 
+  Calendar, Hash, DollarSign, Users, Plus, Loader2, 
+  ChevronRight, Filter, ShieldCheck, UserCheck, UserMinus, Monitor
+} from 'lucide-react';
 import { Card } from '@/src/components/Card';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { useStaff, useRoles, useStaffLedgerSummary } from '@/src/hooks/useStaff';
 import { StaffMember, StaffRole } from '@/src/types/staff';
 import { formatCurrency } from '@/src/utils/formatCurrency';
-import { LightTable } from '@/src/components/LightTable';
 
 export default function StaffManagement() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'members' | 'roles'>('members');
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [isActiveFilter, setIsActiveFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
 
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -112,7 +114,7 @@ export default function StaffManagement() {
         is_manager: false,
       });
     }
-    setIsAddModalOpen(true);
+    setIsModalOpen(true);
   };
 
   const [roleForm, setRoleForm] = useState<Partial<StaffRole>>({
@@ -181,11 +183,11 @@ export default function StaffManagement() {
 
     if (editingStaffId) {
       updateMember({ id: editingStaffId, data: payload }, {
-        onSuccess: () => setIsAddModalOpen(false)
+        onSuccess: () => setIsModalOpen(false)
       });
     } else {
       createMember(payload, {
-        onSuccess: () => setIsAddModalOpen(false)
+        onSuccess: () => setIsModalOpen(false)
       });
     }
   };
@@ -194,262 +196,173 @@ export default function StaffManagement() {
 
   const columns = [
     { 
-      key: 'employee', 
-      header: 'NAME / CODE',
-      render: (_: any, row: StaffMember) => (
+      key: 'name', 
+      header: 'NAME / CODE', 
+      render: (_: any, r: StaffMember) => (
         <div className="flex flex-col">
-          <p className="font-semibold text-slate-800 text-sm">{row.full_name}</p>
-          <p className="text-xs text-slate-500 mt-0.5">{row.employee_code}</p>
+          <span className="font-extrabold text-[#0f172a] text-sm leading-tight uppercase tracking-tight">{r.full_name}</span>
+          <span className="text-[10px] text-[#94a3b8] font-black uppercase tracking-widest">{r.employee_code}</span>
         </div>
       )
     },
-    { 
-      key: 'role', 
-      header: 'ROLE',
-      render: (_: any, row: StaffMember) => (
-        <span className="text-slate-600 font-medium text-sm">
-          {row.role_name || (typeof row.role === 'object' ? row.role?.name : row.role)}
-        </span>
-      )
-    },
-    { 
-      key: 'phone', 
-      header: 'PHONE',
-      render: (v: string) => <span className="text-slate-600 text-sm">{v || '—'}</span>
-    },
-    { 
-      key: 'salary', 
-      header: 'BASE SALARY',
-      render: (_: any, row: StaffMember) => (
-        <span className="text-slate-800 font-semibold text-sm">
-          {formatCurrency(row.base_salary)}
-        </span>
-      )
-    },
+    { key: 'role_name', header: 'ROLE', render: (v: string) => <span className="text-[#64748b] text-[11px] font-extrabold uppercase tracking-widest">{v || '---'}</span> },
+    { key: 'phone', header: 'PHONE', render: (v: string) => <span className="text-[#0f172a] text-[11px] font-black tracking-tight">{v || '—'}</span> },
+    { key: 'base_salary', header: 'SALARY', align: 'right' as const, render: (v: string) => <span className="text-[#0f172a] font-black text-xs">Rs. {parseFloat(v).toLocaleString()}</span> },
     { 
       key: 'employment_status', 
-      header: 'STATUS',
-      render: (_: any, row: StaffMember) => (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${row.employment_status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>
-          {row.employment_status_display || row.employment_status}
+      header: 'STATUS', 
+      render: (v: string) => (
+        <span className={`
+          inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest
+          ${v === 'active' ? 'bg-[#d1fae5] text-[#065f46]' : ''}
+          ${v === 'inactive' ? 'bg-[#fef3c7] text-[#92400e]' : ''}
+          ${v === 'terminated' ? 'bg-[#fee2e2] text-[#991b1b]' : ''}
+        `}>
+          {v}
         </span>
       )
     },
+    { key: 'joining_date', header: 'JOINED', render: (v: string) => <span className="text-[#94a3b8] text-[10px] font-bold uppercase tracking-widest leading-none">{v}</span> },
     { 
-      key: 'joined', 
-      header: 'JOINED',
-      render: (v: string) => <span className="text-slate-600 text-sm">{v}</span>
-    },
-    {
-      key: 'actions',
-      header: '',
-      align: 'right' as const,
-      render: (_: any, row: StaffMember) => (
-        <div className="flex items-center justify-end gap-2">
+      key: 'actions', 
+      header: '', 
+      align: 'right' as const, 
+      render: (_: any, r: StaffMember) => (
+        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all pr-4">
           <button 
-            className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 rounded bg-white transition-all text-xs font-semibold text-slate-700 shadow-sm"
-            onClick={() => handleOpenModal(row)}
+            onClick={() => handleOpenModal(r)} 
+            className="p-2 border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] text-[#64748b] rounded-lg transition-all shadow-sm active:scale-95"
           >
-            Edit
+            <Edit className="w-3.5 h-3.5" />
+          </button>
+          <button 
+            onClick={() => { if(window.confirm(`Expunge ${r.full_name}?`)) deleteMember(r.id) }} 
+            className="p-2 border border-[#e2e8f0] bg-white hover:bg-red-50 text-[#94a3b8] hover:text-red-600 rounded-lg transition-all shadow-sm active:scale-95"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       )
     }
   ];
 
-  // Ledger Summary Internal Component
-  const LedgerSummary = ({ id, name }: { id: string, name: string }) => {
-    const { data: summary, isLoading } = useStaffLedgerSummary(id);
-
-    if (isLoading) return <div className="flex justify-center p-10"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
-
-    const debits = summary?.totals?.total_debits || 0;
-    const credits = summary?.totals?.total_credits || 0;
-
-    return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-emerald-600/10 border border-emerald-400/20 p-5 rounded-2xl shadow-inner group transition-all hover:bg-emerald-600/20">
-             <p className="text-[10px] text-emerald-600 font-semibold uppercase tracking-widest mb-1.5 opacity-70">Total Credits</p>
-             <p className="text-2xl font-semibold text-slate-900 drop-shadow-sm">{formatCurrency(credits)}</p> 
-          </div>
-          <div className="bg-rose-600/10 border border-rose-400/20 p-5 rounded-2xl shadow-inner group transition-all hover:bg-rose-600/20">
-             <p className="text-[10px] text-rose-600 font-semibold uppercase tracking-widest mb-1.5 opacity-70">Total Debits</p>
-             <p className="text-2xl font-semibold text-slate-900 drop-shadow-sm">{formatCurrency(debits)}</p>
-          </div>
-        </div>
-        
-        {summary?.entries && summary.entries.length > 0 && (
-          <div className="mt-6 space-y-3">
-             <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest px-1">Recent Transactions</p>
-             <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar-light">
-                {summary.entries.slice(0, 5).map((entry) => (
-                  <div key={entry.id} className="bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-between group hover:border-white/10 transition-all">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-900 uppercase">{entry.entry_type_display || entry.entry_type}</span>
-                      <span className="text-[9px] text-slate-500 font-medium">{entry.entry_date}</span>
-                    </div>
-                    <span className={`text-xs font-semibold ${entry.direction === 'credit' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {entry.direction === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
-                    </span>
-                  </div>
-                ))}
-             </div>
-          </div>
-        )}
-
-        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center mt-6 py-3 border-t border-white/5">Full transaction history is available in the Ledger Management module.</p>
-      </div>
-    );
-  };
-
   return (
-    <div className="animate-fade-in -m-6 p-6 min-h-screen bg-[#f4f6f8] font-sans text-slate-800">
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">Staff Members</h1>
+    <div className="animate-fade-in -m-6 min-h-screen bg-[#f0f4f8] font-sans text-[#0f172a] pb-20">
+      {/* Header Bar */}
+      <div className="bg-white border-b border-[#e2e8f0] px-8 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+        <div className="flex items-center gap-3">
+           <div className="w-10 h-10 bg-[#7c3aed] rounded-xl flex items-center justify-center shadow-lg shadow-[#7c3aed]/20">
+              <Users className="text-white w-5 h-5" />
+           </div>
+           <div>
+              <h1 className="text-[15px] font-extrabold text-[#0f172a] tracking-tight">Personnel Hub</h1>
+              <p className="text-[10px] text-[#64748b] font-bold uppercase tracking-widest">Global Force Management</p>
+           </div>
         </div>
-        <div className="flex bg-slate-200/50 p-1 rounded-lg">
-          <button onClick={() => { setActiveTab('members'); setPage(1); }} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'members' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Members</button>
-          <button onClick={() => { setActiveTab('roles'); setPage(1); }} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'roles' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Roles</button>
-        </div>
+        <button 
+          onClick={() => handleOpenModal()}
+          className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold h-10 px-6 rounded-lg text-xs flex items-center gap-2 shadow-md transition-all active:scale-95"
+        >
+          <Plus className="w-4 h-4" />
+          Add Member
+        </button>
       </div>
 
-      {activeTab === 'members' && (
-      <>
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4 flex-1">
-               <span className="text-sm font-semibold text-slate-800 whitespace-nowrap">All Staff</span>
-               <Input
-                  placeholder="Search name / code"
-                  value={searchQuery}
-                  onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                  className="bg-white border-slate-200 text-slate-900 w-64 h-9 text-sm"
-               />
-               <Select
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-                className="bg-white border-slate-200 text-slate-900 min-w-[140px] h-9 text-sm"
-                options={[
-                  { value: '', label: 'All Status' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'inactive', label: 'Inactive' },
-                  { value: 'terminated', label: 'Terminated' },
-                ]}
-              />
-              <Select
-                value={roleFilter}
-                onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
-                className="bg-white border-slate-200 text-slate-900 min-w-[140px] h-9 text-sm"
-                options={[
-                  { value: '', label: 'All Roles' },
-                  ...(roles?.map(r => ({ value: r.id, label: r.name })) || [])
-                ]}
-              />
-              <Select
-                value={isActiveFilter}
-                onChange={(e) => { setIsActiveFilter(e.target.value); setPage(1); }}
-                className="bg-white border-slate-200 text-slate-900 min-w-[80px] h-9 text-sm"
-                options={[
-                  { value: '', label: 'Status' },
-                  { value: 'true', label: 'Enabled' },
-                  { value: 'false', label: 'Disabled' },
-                ]}
-              />
-            </div>
-            <button 
-              onClick={() => handleOpenModal()}
-              className="bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center rounded-lg px-4 h-9 text-sm font-semibold shadow-sm transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-2 text-white" />
-              Add Member
-            </button>
+      <div className="max-w-[1600px] mx-auto p-8 space-y-8">
+        {/* KPI Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white border border-[#e2e8f0] rounded-[10px] p-5 shadow-sm border-l-[3px] border-l-[#2563eb]">
+            <p className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.08em] mb-2">Total Units</p>
+            <p className="text-2xl font-extrabold text-[#0f172a] tracking-tighter">
+              {Array.isArray(membersResponse) ? membersResponse.length : (membersResponse as any)?.count || 0}
+            </p>
+            <p className="text-[11px] text-[#94a3b8] mt-1">Enlisted personnel</p>
           </div>
-          
-          <div className="min-h-[400px]">
+          <div className="bg-white border border-[#e2e8f0] rounded-[10px] p-5 shadow-sm border-l-[3px] border-l-[#059669]">
+            <p className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.08em] mb-2">Active Force</p>
+            <p className="text-2xl font-extrabold text-[#0f172a] tracking-tighter">
+              {(Array.isArray(membersResponse) ? membersResponse : (membersResponse as any)?.results || [])?.filter((m: any) => m.is_active).length || 0}
+            </p>
+            <p className="text-[11px] text-[#94a3b8] mt-1">Operational now</p>
+          </div>
+          <div className="bg-white border border-[#e2e8f0] rounded-[10px] p-5 shadow-sm border-l-[3px] border-l-[#7c3aed]">
+            <p className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.08em] mb-2">Cycle Payroll</p>
+            <p className="text-2xl font-extrabold text-[#0f172a] tracking-tighter">
+              Rs. {(Array.isArray(membersResponse) ? membersResponse : (membersResponse as any)?.results || [])?.reduce((acc: number, m: any) => acc + parseFloat(m.base_salary || 0), 0).toLocaleString()}
+            </p>
+            <p className="text-[11px] text-[#94a3b8] mt-1">Monthly allocation</p>
+          </div>
+          <div className="bg-white border border-[#e2e8f0] rounded-[10px] p-5 shadow-sm border-l-[3px] border-l-[#d97706]">
+            <p className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.08em] mb-2">Avg. Yield</p>
+            <p className="text-2xl font-extrabold text-[#0f172a] tracking-tighter">Rs. 42,500</p>
+            <p className="text-[11px] text-[#94a3b8] mt-1">Per personnel yield</p>
+          </div>
+        </div>
+
+        {/* Data Grid Panel */}
+        <div className="bg-white border border-[#e2e8f0] rounded-[10px] shadow-sm overflow-hidden min-h-[500px]">
+          <div className="bg-[#f8fafc] border-b border-[#e2e8f0] px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+             <div className="flex flex-wrap items-center gap-3">
+                <Input 
+                  placeholder="ID / Name Search..." 
+                  icon={<Search />} 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-white border border-[#e2e8f0] rounded-lg h-9 w-64 text-xs font-medium"
+                />
+                <Select 
+                  value={roleFilter} 
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="bg-white border border-[#e2e8f0] rounded-lg h-9 w-40 text-xs font-medium"
+                  options={[
+                    { value: '', label: 'All Roles' },
+                    ...(roles?.map(r => ({ value: r.id, label: r.name })) || [])
+                  ]}
+                />
+                <Select 
+                  value={statusFilter} 
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="bg-white border border-[#e2e8f0] rounded-lg h-9 w-40 text-xs font-medium"
+                  options={[
+                    { value: '', label: 'All Statuses' },
+                    { value: 'active', label: 'Active' },
+                    { value: 'inactive', label: 'Inactive' },
+                    { value: 'terminated', label: 'Terminated' }
+                  ]}
+                />
+             </div>
+             <p className="text-[11px] text-[#94a3b8] font-bold uppercase tracking-widest">
+               Captured Units: {Array.isArray(membersResponse) ? membersResponse.length : (membersResponse as any)?.count || 0}
+             </p>
+          </div>
+
+          <div>
             {isLoadingMembers ? (
-              <div className="flex items-center justify-center p-20">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-violet-600"></div>
+              <div className="flex flex-col items-center justify-center p-40 gap-3 text-[#94a3b8]">
+                <Loader2 className="animate-spin w-8 h-8 text-[#7c3aed]" />
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em]">Intercepting Telemetry...</span>
               </div>
-            ) : membersResponse?.length === 0 ? (
-              <div className="p-10 text-center text-slate-500 font-medium text-sm">No staff members found matching your search.</div>
+            ) : (Array.isArray(membersResponse) ? membersResponse : (membersResponse as any)?.results || [])?.length === 0 ? (
+               <div className="flex flex-col items-center justify-center p-40 gap-4 text-[#94a3b8]">
+                  <Users className="w-12 h-12 opacity-20" />
+                  <p className="text-xs font-bold uppercase tracking-widest">No personnel found</p>
+               </div>
             ) : (
-              <LightTable 
-                columns={columns} 
-                data={membersResponse || []} 
-              />
+              <Table columns={columns} data={(Array.isArray(membersResponse) ? membersResponse : (membersResponse as any)?.results || [])} className="border-none" />
             )}
           </div>
         </div>
-      </>
-      )}
-
-      {activeTab === 'roles' && (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm min-h-[400px]">
-          <div className="px-5 py-4 border-b border-slate-100 flex justify-end bg-white">
-            <button 
-              onClick={() => handleOpenRoleModal()}
-              className="bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center rounded-lg px-4 h-9 text-sm font-semibold shadow-sm transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-2 text-white" />
-              Add Role
-            </button>
-          </div>
-          {isLoadingRoles ? (
-            <div className="flex items-center justify-center p-20">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-violet-600"></div>
-            </div>
-          ) : roles?.length === 0 ? (
-            <div className="p-10 text-center text-slate-500 font-medium text-sm">No specific roles defined yet.</div>
-          ) : (
-            <LightTable 
-              columns={[
-                { key: 'name', header: 'NAME', render: (v: string) => <span className="font-semibold text-slate-900 text-sm">{v}</span> },
-                { key: 'description', header: 'DESCRIPTION', render: (v: string) => <span className="text-sm text-slate-600 font-medium">{v || '—'}</span> },
-                { key: 'status', header: 'STATUS', render: (_: any, r: StaffRole) => (
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${r.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                    {r.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                )},
-                { key: 'actions', header: '', align: 'right' as const, render: (_: any, r: StaffRole) => (
-                  <button 
-                    onClick={() => handleOpenRoleModal(r)} 
-                    className="px-4 py-1.5 border border-slate-200 hover:bg-slate-50 rounded bg-white transition-all text-xs font-bold text-slate-700 shadow-sm"
-                  >
-                    Edit
-                  </button>
-                )}
-              ]} 
-              data={roles || []} 
-            />
-          )}
-        </div>
-      )}
+      </div>
       
       <Modal theme="light"
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        title={editingStaffId ? "Edit Staff Member" : "Add New Staff Member"}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingStaffId ? "Edit Settings" : "Recruit Personnel"}
         size="lg"
         footer={
           <div className="flex gap-3 w-full sm:w-auto mt-2">
-            <Button 
-              variant="ghost" 
-              onClick={() => setIsAddModalOpen(false)} 
-              disabled={isCreatingMember || isUpdatingMember}
-              className="flex-1 sm:flex-none"
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="primary" 
-              onClick={handleSaveStaff} 
-              isLoading={isCreatingMember || isUpdatingMember}
-              className="flex-1 sm:flex-none px-10 bg-violet-600 hover:bg-violet-700 text-white shadow-none border-none font-semibold"
-            >
-              {editingStaffId ? "Save Changes" : "Confirm Enlistment"}
-            </Button>
+            <Button variant="ghost" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 font-bold shadow-sm">Cancel</Button>
+            <Button variant="primary" onClick={handleSaveStaff} isLoading={isCreatingMember || isUpdatingMember} className="flex-1 sm:flex-none px-10 bg-violet-600 hover:bg-violet-700 text-white border-none shadow-none font-bold">Enlist</Button>
           </div>
         }
       >
@@ -656,6 +569,52 @@ export default function StaffManagement() {
           </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function LedgerSummary({ id, name }: { id: string, name: string }) {
+  const { data: summary, isLoading } = useStaffLedgerSummary(id);
+
+  if (isLoading) return (
+    <div className="flex flex-col items-center justify-center py-10 gap-3">
+      <Loader2 className="animate-spin w-6 h-6 text-[#7c3aed]" />
+      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Loading Summary...</span>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-[#f8fafc] border border-slate-100 p-4 rounded-xl">
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Credits</p>
+          <p className="text-lg font-black text-emerald-600">Rs. {parseFloat(summary?.totals?.total_credits as any || 0).toLocaleString()}</p>
+        </div>
+        <div className="bg-[#f8fafc] border border-slate-100 p-4 rounded-xl">
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Debits</p>
+          <p className="text-lg font-black text-red-600">Rs. {parseFloat(summary?.totals?.total_debits as any || 0).toLocaleString()}</p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] px-1">Recent Activity</h4>
+        <div className="space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar pr-1">
+          {summary?.entries?.slice(0, 5).map(entry => (
+            <div key={entry.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-900 uppercase">{entry.entry_type_display || entry.entry_type}</span>
+                <span className="text-[9px] text-slate-400 font-bold uppercase">{entry.entry_date}</span>
+              </div>
+              <span className={`text-xs font-black ${entry.direction === 'credit' ? 'text-emerald-600' : 'text-red-600'}`}>
+                {entry.direction === 'credit' ? '+' : '-'}Rs. {parseFloat(entry.amount as any).toLocaleString()}
+              </span>
+            </div>
+          ))}
+          {(!summary?.entries || summary.entries.length === 0) && (
+            <p className="text-[10px] text-slate-400 font-bold uppercase text-center py-8">No transaction history detected</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

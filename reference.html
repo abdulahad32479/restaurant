@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Staff Management — POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0d1117;--navy2:#161b22;--navy3:#21262d;--border-dark:#30363d;
+  --blue:#2563eb;--blue2:#1d4ed8;--green:#059669;--red:#dc2626;
+  --amber:#d97706;--purple:#7c3aed;--teal:#0891b2;--pink:#db2777;
+  --bg:#f0f4f8;--card:#ffffff;--border:#e2e8f0;--text:#0f172a;
+  --sub:#475569;--muted:#94a3b8;--faint:#f8fafc;
+  --sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --sh2:0 4px 12px rgba(0,0,0,.1);--r:10px;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+.login-screen{position:fixed;inset:0;z-index:999;background:linear-gradient(150deg,#0d1117 0%,#0c2040 50%,#0d1117 100%);display:flex;align-items:center;justify-content:center}
+.login-card{background:#fff;border-radius:16px;width:380px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.4)}
+.login-top{background:var(--navy);padding:32px;text-align:center}
+.login-icon{width:56px;height:56px;background:var(--purple);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.login-icon svg{width:30px;height:30px;color:#fff}
+.login-h{font-size:20px;font-weight:800;color:#fff;letter-spacing:-.3px}
+.login-s{font-size:12px;color:#8b949e;margin-top:4px}
+.login-body{padding:28px 32px 32px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--sub);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+.field input,.field select,.field textarea{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;color:var(--text);background:#fff;outline:none;transition:border-color .15s,box-shadow .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.field textarea{resize:vertical;min-height:68px}
+.err-box{display:none;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .15s}
+.btn-block{width:100%}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:var(--blue2)}
+.btn-purple{background:var(--purple);color:#fff}.btn-purple:hover{background:#6d28d9}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#047857}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover{background:#b91c1c}
+.btn-amber{background:var(--amber);color:#fff}.btn-amber:hover{background:#b45309}
+.btn-teal{background:var(--teal);color:#fff}.btn-teal:hover{background:#0e7490}
+.btn-outline{background:#fff;color:var(--text);border:1.5px solid var(--border)}.btn-outline:hover{background:var(--faint)}
+.btn-sm{padding:6px 12px;font-size:11px}
+.btn:disabled{opacity:.5;pointer-events:none}
+.btn svg{width:14px;height:14px;flex-shrink:0}
+.app{display:flex;height:100vh}
+.hidden{display:none!important}
+.sidebar{width:220px;background:var(--navy);display:flex;flex-direction:column;flex-shrink:0}
+.sb-brand{padding:16px;border-bottom:1px solid var(--border-dark);display:flex;align-items:center;gap:10px}
+.sb-brand-icon{width:34px;height:34px;background:var(--purple);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-brand-icon svg{width:18px;height:18px;color:#fff}
+.sb-brand-name{font-size:13px;font-weight:800;color:#fff;letter-spacing:-.2px}
+.sb-brand-sub{font-size:10px;color:#6e7681;margin-top:1px}
+.sb-nav{flex:1;overflow-y:auto;padding:8px}
+.sb-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#484f58;padding:12px 8px 5px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:7px;color:#8b949e;font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;margin-bottom:1px;white-space:nowrap}
+.nav-item:hover{background:var(--navy3);color:#e6edf3}
+.nav-item.active{background:var(--purple);color:#fff}
+.nav-item svg{width:13px;height:13px;flex-shrink:0}
+.sb-footer{padding:10px 8px;border-top:1px solid var(--border-dark);display:flex;align-items:center;gap:9px}
+.sb-ava{width:28px;height:28px;background:var(--navy3);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-ava svg{width:14px;height:14px;color:#8b949e}
+.sb-user-name{font-size:12px;font-weight:600;color:#e6edf3;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.sb-logout{color:#6e7681;cursor:pointer;padding:4px;border-radius:5px;flex-shrink:0}
+.sb-logout:hover{color:#e6edf3;background:var(--navy3)}
+.sb-logout svg{width:14px;height:14px}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.topbar-title{font-size:15px;font-weight:800;color:var(--text);letter-spacing:-.3px}
+.topbar-spacer{flex:1}
+.content{flex:1;overflow-y:auto;padding:24px;background:var(--bg)}
+.content::-webkit-scrollbar{width:5px}
+.content::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:5px}
+.s-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px;gap:12px;color:var(--muted)}
+.s-loading svg{animation:spin .7s linear infinite}
+.s-error{background:#fef2f2;border:1px solid #fecaca;border-radius:var(--r);padding:20px;text-align:center;color:#991b1b}
+.s-empty{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:60px;text-align:center}
+.s-empty svg{width:48px;height:48px;color:#cbd5e1}
+.s-empty p{color:var(--muted);margin-top:10px;font-size:13px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.grid{display:grid;gap:14px;margin-bottom:20px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.kpi{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh)}
+.kpi-lbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px}
+.kpi-val{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.5px}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.kpi.accent-blue{border-left:3px solid var(--blue)}
+.kpi.accent-green{border-left:3px solid var(--green)}
+.kpi.accent-red{border-left:3px solid var(--red)}
+.kpi.accent-amber{border-left:3px solid var(--amber)}
+.kpi.accent-purple{border-left:3px solid var(--purple)}
+.kpi.accent-teal{border-left:3px solid var(--teal)}
+.panel{background:#fff;border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;margin-bottom:20px}
+.panel-head{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.panel-title{font-size:13px;font-weight:700;color:var(--text)}
+.panel-head-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.panel-head-right{display:flex;align-items:center;gap:8px}
+.filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.filter-in{border:1.5px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12px;font-family:inherit;color:var(--text);background:#fff;outline:none;transition:border-color .15s}
+.filter-in:focus{border-color:var(--blue)}
+.filter-in-sm{width:80px}
+.filter-in-md{width:130px}
+.filter-in-lg{width:190px}
+table{width:100%;border-collapse:collapse}
+thead tr{background:#f8fafc}
+th{padding:10px 16px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap}
+th.r{text-align:right}
+td{padding:11px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;color:var(--text)}
+td.r{text-align:right}
+td.bold{font-weight:700}
+td.pos{color:var(--green);font-weight:700}
+td.neg{color:var(--red);font-weight:700}
+td.dim{color:var(--muted)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafbfd}
+.row-link{cursor:pointer}
+.row-link:hover{background:#f0f4ff!important}
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+.b-green{background:#d1fae5;color:#065f46}
+.b-blue{background:#dbeafe;color:#1e40af}
+.b-red{background:#fee2e2;color:#991b1b}
+.b-amber{background:#fef3c7;color:#92400e}
+.b-purple{background:#ede9fe;color:#5b21b6}
+.b-gray{background:#f1f5f9;color:#475569}
+.b-teal{background:#cffafe;color:#164e63}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.2)}
+.modal-lg{max-width:700px}
+.modal-head{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-head h3{font-size:15px;font-weight:800;color:var(--text)}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;border-radius:6px}
+.modal-close:hover{color:var(--text);background:#f1f5f9}
+.modal-close svg{width:18px;height:18px}
+.modal-body{padding:20px 24px}
+.modal-foot{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+.form-row{display:grid;gap:14px;margin-bottom:14px}
+.form-row.cols2{grid-template-columns:1fr 1fr}
+.form-row.cols3{grid-template-columns:1fr 1fr 1fr}
+.back-btn{display:inline-flex;align-items:center;gap:6px;color:var(--blue);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:20px;background:none;border:none;padding:0;font-family:inherit}
+.back-btn:hover{text-decoration:underline}
+.back-btn svg{width:15px;height:15px}
+.detail-name{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:2px}
+.detail-meta{font-size:13px;color:var(--muted);margin-bottom:20px}
+.tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:20px}
+.tab{padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--muted);transition:all .15s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--purple);border-bottom-color:var(--purple)}
+.mb16{margin-bottom:16px}
+.mb20{margin-bottom:20px}
+.flex-end{display:flex;justify-content:flex-end}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:#fff;cursor:pointer;color:var(--muted);transition:all .12s}
+.icon-btn:hover{background:#f1f5f9;color:var(--text)}
+.icon-btn svg{width:13px;height:13px}
+.divider{height:1px;background:var(--border);margin:16px 0}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-screen" id="login-screen">
+  <div class="login-card">
+    <div class="login-top">
+      <div class="login-icon">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </div>
+      <div class="login-h">Staff Management</div>
+      <div class="login-s">POS — HR &amp; Payroll Module</div>
+    </div>
+    <div class="login-body">
+      <div class="err-box" id="login-err"></div>
+      <form id="login-form">
+        <div class="field"><label>Username</label><input id="lu" type="text" placeholder="admin" autocomplete="username" required></div>
+        <div class="field"><label>Password</label><input id="lp" type="password" placeholder="••••••••" autocomplete="current-password" required></div>
+        <button class="btn btn-purple btn-block" type="submit" id="lbtn">Sign In</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app hidden" id="app">
+  <nav class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-brand-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div>
+      <div><div class="sb-brand-name">Duke's POS</div><div class="sb-brand-sub">Staff Module</div></div>
+    </div>
+    <div class="sb-nav">
+      <div class="sb-section">Staff</div>
+      <div class="nav-item active" data-view="members" onclick="showView('members')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        Members
+      </div>
+      <div class="nav-item" data-view="roles" onclick="showView('roles')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+        Roles
+      </div>
+      <div class="sb-section">Finance</div>
+      <div class="nav-item" data-view="ledger" onclick="showView('ledger')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+        Ledger
+      </div>
+      <div class="nav-item" data-view="payroll" onclick="showView('payroll')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        Payroll
+      </div>
+      <div class="sb-section">Attendance</div>
+      <div class="nav-item" data-view="attendance" onclick="showView('attendance')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Attendance
+      </div>
+      <div class="nav-item" data-view="devices" onclick="showView('devices')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4m0 0h18"/></svg>
+        Devices
+      </div>
+    </div>
+    <div class="sb-footer">
+      <div class="sb-ava"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></div>
+      <div class="sb-user-name" id="sb-username">—</div>
+      <div class="sb-logout" onclick="logout()" title="Logout"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Staff Members</div>
+      <div class="topbar-spacer"></div>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<!-- MODALS -->
+
+<!-- Staff Member Modal -->
+<div class="overlay hidden" id="modal-member">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h3 id="modal-member-title">Add Staff Member</h3>
+      <button class="modal-close" onclick="closeModal('modal-member')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="err-box" id="member-err"></div>
+      <div class="form-row cols2">
+        <div class="field"><label>Full Name *</label><input id="m-fullname" placeholder="John Doe"></div>
+        <div class="field"><label>Employee Code *</label><input id="m-empcode" placeholder="EMP001"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>Role *</label><select id="m-role"><option value="">— select —</option></select></div>
+        <div class="field"><label>Phone</label><input id="m-phone" placeholder="+966 5x xxx xxxx"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>Joining Date *</label><input id="m-joining" type="date"></div>
+        <div class="field"><label>Employment Status</label>
+          <select id="m-status"><option value="active">Active</option><option value="inactive">Inactive</option><option value="terminated">Terminated</option></select>
+        </div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>Salary Type</label>
+          <select id="m-saltype"><option value="monthly">Monthly</option><option value="daily">Daily</option></select>
+        </div>
+        <div class="field"><label>Base Salary *</label><input id="m-salary" type="number" step="0.01" placeholder="5000.00"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>Default Late Penalty</label><input id="m-late" type="number" step="0.01" placeholder="0.00"></div>
+        <div class="field"><label>Default Meal Deduction</label><input id="m-meal" type="number" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>Biometric Code</label><input id="m-biometric" placeholder="101"></div>
+        <div class="field"><label>Address</label><input id="m-address" placeholder="Riyadh, Saudi Arabia"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding-top:8px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="m-delivery"> Delivery Staff</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="m-kitchen"> Kitchen Staff</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="m-cashier"> Cashier</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="m-manager"> Manager</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-member')">Cancel</button>
+      <button class="btn btn-purple" id="modal-member-save" onclick="saveMember()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Role Modal -->
+<div class="overlay hidden" id="modal-role">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-role-title">Add Role</h3>
+      <button class="modal-close" onclick="closeModal('modal-role')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="err-box" id="role-err"></div>
+      <div class="form-row">
+        <div class="field"><label>Role Name *</label><input id="r-name" placeholder="e.g. Chef, Waiter"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Description</label><input id="r-desc" placeholder="Optional description"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-role')">Cancel</button>
+      <button class="btn btn-purple" id="modal-role-save" onclick="saveRole()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ledger Entry Modal -->
+<div class="overlay hidden" id="modal-ledger">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Add Ledger Entry</h3>
+      <button class="modal-close" onclick="closeModal('modal-ledger')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="err-box" id="ledger-err"></div>
+      <div class="form-row">
+        <div class="field"><label>Staff Member *</label><select id="le-staff"><option value="">— select —</option></select></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>Entry Type *</label>
+          <select id="le-type" onchange="setLedgerDirection()">
+            <option value="advance">Advance</option>
+            <option value="late_penalty">Late Penalty</option>
+            <option value="meal_deduction">Meal Deduction</option>
+            <option value="deduction">Other Deduction</option>
+            <option value="bonus">Bonus</option>
+            <option value="reimbursement">Reimbursement</option>
+            <option value="adjustment">Adjustment</option>
+          </select>
+        </div>
+        <div class="field"><label>Direction *</label>
+          <select id="le-direction">
+            <option value="debit">Debit (reduces salary)</option>
+            <option value="credit">Credit (adds to salary)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>Amount *</label><input id="le-amount" type="number" step="0.01" placeholder="0.00"></div>
+        <div class="field"><label>Entry Date *</label><input id="le-date" type="date"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>Payroll Year</label><input id="le-year" type="number" placeholder="2026"></div>
+        <div class="field"><label>Payroll Month</label><input id="le-month" type="number" min="1" max="12" placeholder="4"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Note</label><input id="le-note" placeholder="Reason / description"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-ledger')">Cancel</button>
+      <button class="btn btn-purple" onclick="saveLedgerEntry()">Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- Attendance Modal -->
+<div class="overlay hidden" id="modal-attendance">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-att-title">Record Attendance</h3>
+      <button class="modal-close" onclick="closeModal('modal-attendance')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="err-box" id="att-err"></div>
+      <div class="form-row cols2">
+        <div class="field"><label>Staff Member *</label><select id="att-staff"><option value="">— select —</option></select></div>
+        <div class="field"><label>Date *</label><input id="att-date" type="date"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>Status *</label>
+          <select id="att-status">
+            <option value="present">Present</option>
+            <option value="absent">Absent</option>
+            <option value="leave">Leave</option>
+            <option value="half_day">Half Day</option>
+          </select>
+        </div>
+        <div class="field"><label>Source</label>
+          <select id="att-source"><option value="manual">Manual</option><option value="biometric">Biometric</option></select>
+        </div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>Check In</label><input id="att-checkin" type="datetime-local"></div>
+        <div class="field"><label>Check Out</label><input id="att-checkout" type="datetime-local"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>Late Minutes</label><input id="att-late" type="number" min="0" value="0"></div>
+        <div class="field"><label>Early Leave Minutes</label><input id="att-early" type="number" min="0" value="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Note</label><input id="att-note" placeholder="Optional"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-attendance')">Cancel</button>
+      <button class="btn btn-purple" id="modal-att-save" onclick="saveAttendance()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Payroll Run Modal -->
+<div class="overlay hidden" id="modal-payrun">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Create Payroll Run</h3>
+      <button class="modal-close" onclick="closeModal('modal-payrun')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="err-box" id="payrun-err"></div>
+      <div class="form-row cols2">
+        <div class="field"><label>Year *</label><input id="pr-year" type="number" placeholder="2026"></div>
+        <div class="field"><label>Month *</label><input id="pr-month" type="number" min="1" max="12" placeholder="4"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>Period Start *</label><input id="pr-start" type="date"></div>
+        <div class="field"><label>Period End *</label><input id="pr-end" type="date"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Notes</label><textarea id="pr-notes" placeholder="Optional notes"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-payrun')">Cancel</button>
+      <button class="btn btn-purple" onclick="savePayrollRun()">Create Run</button>
+    </div>
+  </div>
+</div>
+
+<!-- Device Modal -->
+<div class="overlay hidden" id="modal-device">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-device-title">Add Device</h3>
+      <button class="modal-close" onclick="closeModal('modal-device')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="err-box" id="device-err"></div>
+      <div class="form-row cols2">
+        <div class="field"><label>Device Name *</label><input id="dv-name" placeholder="e.g. K70 Main Entrance"></div>
+        <div class="field"><label>Device Type</label>
+          <select id="dv-type">
+            <option value="biometric">Biometric (ZKTeco)</option>
+            <option value="manual">Manual</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>IP Address</label><input id="dv-ip" placeholder="192.168.1.201"></div>
+        <div class="field"><label>Port</label><input id="dv-port" type="number" placeholder="4370" value="4370"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="field"><label>Machine Identifier</label><input id="dv-machineid" placeholder="Optional device serial / ID"></div>
+        <div class="field"><label>API URL</label><input id="dv-apiurl" placeholder="Optional HTTP URL"></div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600">
+            <input type="checkbox" id="dv-active" checked> Active
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-device')">Cancel</button>
+      <button class="btn btn-purple" id="modal-device-save" onclick="saveDevice()">Save Device</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mark Paid Modal -->
+<div class="overlay hidden" id="modal-markpaid">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Mark as Paid</h3>
+      <button class="modal-close" onclick="closeModal('modal-markpaid')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="err-box" id="markpaid-err"></div>
+      <p style="font-size:13px;color:var(--sub);margin-bottom:16px">Confirm payment for <strong id="markpaid-name"></strong></p>
+      <div class="form-row">
+        <div class="field"><label>Paid Amount</label><input id="mp-amount" type="number" step="0.01"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Payment Note</label><input id="mp-note" placeholder="Cash / Bank transfer / etc."></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('modal-markpaid')">Cancel</button>
+      <button class="btn btn-green" onclick="confirmMarkPaid()">Confirm Payment</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────
+let TOKEN = localStorage.getItem('staff_token') || '';
+let currentView = 'members';
+let memberEditId = null;
+let roleEditId = null;
+let attEditId = null;
+let markPaidLineId = null;
+let staffCache = [];
+let rolesCache = [];
+
+// ── API ────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch('/api/v1/' + path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw data;
+  return data;
+}
+async function authApi(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch('/api/auth/' + path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw data;
+  return data;
+}
+
+function errMsg(e) {
+  if (typeof e === 'string') return e;
+  const vals = Object.values(e || {});
+  for (const v of vals) {
+    if (typeof v === 'string') return v;
+    if (Array.isArray(v)) return v[0];
+  }
+  return 'Something went wrong.';
+}
+function showErr(id, e) { const el = document.getElementById(id); el.textContent = errMsg(e); el.style.display = 'block'; }
+function hideErr(id) { document.getElementById(id).style.display = 'none'; }
+
+// ── Auth ───────────────────────────────────────────────────
+document.getElementById('login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  hideErr('login-err');
+  document.getElementById('lbtn').disabled = true;
+  try {
+    const d = await authApi('POST', 'login/', { username: document.getElementById('lu').value, password: document.getElementById('lp').value });
+    TOKEN = d.access;
+    localStorage.setItem('staff_token', TOKEN);
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('sb-username').textContent = document.getElementById('lu').value;
+    await loadCaches();
+    showView('members');
+  } catch(err) {
+    showErr('login-err', err.detail || err);
+  } finally {
+    document.getElementById('lbtn').disabled = false;
+  }
+});
+
+function logout() {
+  TOKEN = ''; localStorage.removeItem('staff_token');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+}
+
+// Auto-login if token exists
+(async () => {
+  if (!TOKEN) return;
+  try {
+    const me = await (await fetch('/api/me/', { headers: { Authorization: `Bearer ${TOKEN}` } })).json();
+    if (me.username) {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      document.getElementById('sb-username').textContent = me.username;
+      await loadCaches();
+      showView('members');
+    }
+  } catch { TOKEN = ''; localStorage.removeItem('staff_token'); }
+})();
+
+// ── Caches ─────────────────────────────────────────────────
+async function loadCaches() {
+  try {
+    const [sm, rl] = await Promise.all([api('GET', 'staff/members/?is_active=true'), api('GET', 'staff/roles/')]);
+    staffCache = sm.results || sm;
+    rolesCache = rl.results || rl;
+  } catch {}
+}
+function populateStaffSelect(selId, selected) {
+  const s = document.getElementById(selId);
+  s.innerHTML = '<option value="">— select —</option>';
+  staffCache.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m.id; o.textContent = `${m.full_name} (${m.employee_code})`;
+    if (selected && m.id === selected) o.selected = true;
+    s.appendChild(o);
+  });
+}
+function populateRoleSelect(selId, selected) {
+  const s = document.getElementById(selId);
+  s.innerHTML = '<option value="">— select —</option>';
+  rolesCache.forEach(r => {
+    const o = document.createElement('option');
+    o.value = r.id; o.textContent = r.name;
+    if (selected && r.id === selected) o.selected = true;
+    s.appendChild(o);
+  });
+}
+
+// ── Navigation ─────────────────────────────────────────────
+function showView(name) {
+  currentView = name;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelector(`[data-view="${name}"]`)?.classList.add('active');
+  const titles = { members:'Staff Members', roles:'Staff Roles', ledger:'Ledger Entries', payroll:'Payroll Runs', attendance:'Attendance', devices:'Attendance Devices' };
+  document.getElementById('topbar-title').textContent = titles[name] || name;
+  const views = { members: renderMembers, roles: renderRoles, ledger: renderLedger, payroll: renderPayroll, attendance: renderAttendance, devices: renderDevices };
+  (views[name] || (() => {}))();
+}
+
+function setContent(html) { document.getElementById('content').innerHTML = html; }
+
+function loading() { return `<div class="s-loading"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg><span>Loading…</span></div>`; }
+function empty(msg) { return `<div class="s-empty"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m16 0l-2-2m2 2l-2 2M4 13l2-2m-2 2l2 2"/></svg><p>${msg}</p></div>`; }
+function icon(path) { return `<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${path}"/></svg>`; }
+
+function fmt(n) { return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+function statusBadge(s) {
+  const map = { active:'b-green', inactive:'b-amber', terminated:'b-red', draft:'b-gray', finalized:'b-blue', paid:'b-green', present:'b-green', absent:'b-red', leave:'b-amber', half_day:'b-teal' };
+  return `<span class="badge ${map[s]||'b-gray'}">${s}</span>`;
+}
+
+// ── Modal helpers ──────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ── Members View ───────────────────────────────────────────
+async function renderMembers(search='', status='', role='') {
+  setContent(loading());
+  try {
+    let q = `staff/members/?`;
+    if (search) q += `search=${encodeURIComponent(search)}&`;
+    if (status) q += `employment_status=${status}&`;
+    if (role) q += `role=${role}&`;
+    const data = await api('GET', q);
+    const members = data.results || data;
+    await loadCaches();
+
+    let rows = '';
+    members.forEach(m => {
+      rows += `<tr class="row-link" onclick="renderMemberDetail('${m.id}')">
+        <td><strong>${m.full_name}</strong><br><span class="dim" style="font-size:11px">${m.employee_code}</span></td>
+        <td>${m.role_name || '—'}</td>
+        <td>${m.phone || '—'}</td>
+        <td class="r bold">${fmt(m.base_salary)}</td>
+        <td>${statusBadge(m.employment_status)}</td>
+        <td>${m.joining_date}</td>
+        <td class="r" onclick="event.stopPropagation()">
+          <button class="btn btn-outline btn-sm" onclick="openEditMember('${m.id}')">Edit</button>
+        </td>
+      </tr>`;
+    });
+
+    const roleOpts = rolesCache.map(r => `<option value="${r.id}" ${r.id===role?'selected':''}>${r.name}</option>`).join('');
+
+    setContent(`
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-head-left">
+            <span class="panel-title">All Staff</span>
+            <input class="filter-in filter-in-lg" id="f-search" placeholder="Search name / code" value="${search}" oninput="renderMembers(this.value, document.getElementById('f-status').value, document.getElementById('f-role').value)">
+            <select class="filter-in filter-in-md" id="f-status" onchange="renderMembers(document.getElementById('f-search').value, this.value, document.getElementById('f-role').value)">
+              <option value="">All Status</option>
+              <option value="active" ${status==='active'?'selected':''}>Active</option>
+              <option value="inactive" ${status==='inactive'?'selected':''}>Inactive</option>
+              <option value="terminated" ${status==='terminated'?'selected':''}>Terminated</option>
+            </select>
+            <select class="filter-in filter-in-md" id="f-role" onchange="renderMembers(document.getElementById('f-search').value, document.getElementById('f-status').value, this.value)">
+              <option value="">All Roles</option>${roleOpts}
+            </select>
+          </div>
+          <div class="panel-head-right">
+            <button class="btn btn-purple btn-sm" onclick="openAddMember()">${icon('M12 4v16m8-8H4')} Add Member</button>
+          </div>
+        </div>
+        ${members.length === 0 ? empty('No staff members found.') : `
+        <table>
+          <thead><tr>
+            <th>Name / Code</th><th>Role</th><th>Phone</th>
+            <th class="r">Base Salary</th><th>Status</th><th>Joined</th><th></th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`}
+      </div>`);
+  } catch(e) { setContent(`<div class="s-error">Failed to load staff: ${errMsg(e)}</div>`); }
+}
+
+async function renderMemberDetail(id) {
+  setContent(loading());
+  try {
+    const [m, ledgerData] = await Promise.all([
+      api('GET', `staff/members/${id}/`),
+      api('GET', `staff/members/${id}/ledger/`)
+    ]);
+
+    const renderDetailContent = (tab) => {
+      let tabContent = '';
+      if (tab === 'ledger') {
+        const entries = ledgerData.entries || [];
+        let rows = '';
+        entries.forEach(e => {
+          rows += `<tr>
+            <td>${e.entry_date}</td>
+            <td>${e.entry_type_display}</td>
+            <td>${e.direction === 'debit' ? `<span class="badge b-red">Debit</span>` : `<span class="badge b-green">Credit</span>`}</td>
+            <td class="r bold ${e.direction==='debit'?'neg':'pos'}">${fmt(e.amount)}</td>
+            <td>${e.payroll_period_month ? `${e.payroll_period_month}/${e.payroll_period_year}` : '—'}</td>
+            <td class="dim">${e.note || '—'}</td>
+          </tr>`;
+        });
+        const t = ledgerData.totals || {};
+        tabContent = `
+          <div class="flex-end mb16">
+            <button class="btn btn-purple btn-sm" onclick="openAddLedgerEntry('${id}')">${icon('M12 4v16m8-8H4')} Add Entry</button>
+          </div>
+          ${entries.length === 0 ? empty('No ledger entries.') : `
+          <table>
+            <thead><tr><th>Date</th><th>Type</th><th>Direction</th><th class="r">Amount</th><th>Period</th><th>Note</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div style="display:flex;justify-content:flex-end;gap:24px;padding:12px 16px;border-top:1px solid var(--border);background:#f8fafc">
+            <span style="font-size:12px;color:var(--red);font-weight:700">Total Debits: ${fmt(t.total_debits)}</span>
+            <span style="font-size:12px;color:var(--green);font-weight:700">Total Credits: ${fmt(t.total_credits)}</span>
+          </div>`}`;
+      } else {
+        // Info tab
+        tabContent = `
+          <div class="grid g3 mb20">
+            <div class="kpi accent-blue"><div class="kpi-lbl">Base Salary</div><div class="kpi-val">${fmt(m.base_salary)}</div><div class="kpi-sub">${m.salary_type}</div></div>
+            <div class="kpi accent-amber"><div class="kpi-lbl">Late Penalty / Day</div><div class="kpi-val">${fmt(m.default_late_penalty)}</div></div>
+            <div class="kpi accent-red"><div class="kpi-lbl">Meal Deduction / Day</div><div class="kpi-val">${fmt(m.default_meal_deduction)}</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><span class="panel-title">Details</span></div>
+            <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              ${[['Role', m.role_name],['Phone', m.phone||'—'],['Address', m.address||'—'],['Joining Date', m.joining_date],['Status', m.employment_status_display],['Biometric Code', m.biometric_code||'—'],['Employee Code', m.employee_code],['Salary Type', m.salary_type_display]].map(([k,v])=>`<div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px">${k}</div><div style="font-size:13px;font-weight:600">${v}</div></div>`).join('')}
+              <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px">Flags</div><div style="display:flex;gap:6px;flex-wrap:wrap">
+                ${m.is_delivery_staff?'<span class="badge b-teal">Delivery</span>':''}
+                ${m.is_kitchen_staff?'<span class="badge b-amber">Kitchen</span>':''}
+                ${m.is_cashier?'<span class="badge b-blue">Cashier</span>':''}
+                ${m.is_manager?'<span class="badge b-purple">Manager</span>':''}
+                ${!m.is_delivery_staff&&!m.is_kitchen_staff&&!m.is_cashier&&!m.is_manager?'<span class="badge b-gray">None</span>':''}
+              </div></div>
+            </div>
+          </div>`;
+      }
+
+      document.getElementById('content').innerHTML = `
+        <button class="back-btn" onclick="renderMembers()">${icon('M10 19l-7-7m0 0l7-7m-7 7h18')} Back to Members</button>
+        <div class="detail-name">${m.full_name}</div>
+        <div class="detail-meta">${m.employee_code} · ${m.role_name} · ${statusBadge(m.employment_status)}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="tabs" style="margin-bottom:0">
+            <div class="tab ${tab==='info'?'active':''}" onclick="renderMemberDetail('${m.id}')">Info</div>
+            <div class="tab ${tab==='ledger'?'active':''}" onclick="renderMemberLedgerTab('${m.id}')">Ledger</div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="openEditMember('${m.id}')">Edit</button>
+        </div>
+        ${tabContent}`;
+    };
+
+    renderDetailContent('info');
+    window._currentMemberDetailId = id;
+  } catch(e) { setContent(`<div class="s-error">Failed to load member: ${errMsg(e)}</div>`); }
+}
+
+async function renderMemberLedgerTab(id) {
+  try {
+    const [m, ledgerData] = await Promise.all([
+      api('GET', `staff/members/${id}/`),
+      api('GET', `staff/members/${id}/ledger/`)
+    ]);
+    window._ledgerDetailData = { m, ledgerData };
+    renderMemberDetailFromCache(id, m, ledgerData, 'ledger');
+  } catch {}
+}
+
+function renderMemberDetailFromCache(id, m, ledgerData, tab) {
+  // reuse renderMemberDetail logic by setting content directly
+  renderMemberDetail(id); // simple re-render; ledger tab set after
+}
+
+// Quick patch: after calling renderMemberDetail, switch to ledger tab
+async function renderMemberLedgerTab(id) {
+  setContent(loading());
+  try {
+    const [m, ledgerData] = await Promise.all([
+      api('GET', `staff/members/${id}/`),
+      api('GET', `staff/members/${id}/ledger/`)
+    ]);
+
+    const entries = ledgerData.entries || [];
+    let rows = '';
+    entries.forEach(e => {
+      rows += `<tr>
+        <td>${e.entry_date}</td>
+        <td>${e.entry_type_display}</td>
+        <td>${e.direction==='debit'?'<span class="badge b-red">Debit</span>':'<span class="badge b-green">Credit</span>'}</td>
+        <td class="r bold ${e.direction==='debit'?'neg':'pos'}">${fmt(e.amount)}</td>
+        <td>${e.payroll_period_month?`${e.payroll_period_month}/${e.payroll_period_year}`:'—'}</td>
+        <td class="dim">${e.note||'—'}</td>
+      </tr>`;
+    });
+    const t = ledgerData.totals || {};
+
+    document.getElementById('content').innerHTML = `
+      <button class="back-btn" onclick="renderMembers()">${icon('M10 19l-7-7m0 0l7-7m-7 7h18')} Back to Members</button>
+      <div class="detail-name">${m.full_name}</div>
+      <div class="detail-meta">${m.employee_code} · ${m.role_name} · ${statusBadge(m.employment_status)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="tabs" style="margin-bottom:0">
+          <div class="tab" onclick="renderMemberDetail('${id}')">Info</div>
+          <div class="tab active">Ledger</div>
+        </div>
+        <button class="btn btn-purple btn-sm" onclick="openAddLedgerEntry('${id}')">${icon('M12 4v16m8-8H4')} Add Entry</button>
+      </div>
+      ${entries.length===0 ? empty('No ledger entries for this staff member.') : `
+      <div class="panel">
+        <table>
+          <thead><tr><th>Date</th><th>Type</th><th>Direction</th><th class="r">Amount</th><th>Period</th><th>Note</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="display:flex;justify-content:flex-end;gap:24px;padding:12px 16px;border-top:1px solid var(--border);background:#f8fafc">
+          <span style="font-size:12px;color:var(--red);font-weight:700">Total Debits: ${fmt(t.total_debits)}</span>
+          <span style="font-size:12px;color:var(--green);font-weight:700">Total Credits: ${fmt(t.total_credits)}</span>
+        </div>
+      </div>`}`;
+  } catch(e) { setContent(`<div class="s-error">Failed to load ledger: ${errMsg(e)}</div>`); }
+}
+
+// ── Member Modal ───────────────────────────────────────────
+function openAddMember() {
+  memberEditId = null;
+  document.getElementById('modal-member-title').textContent = 'Add Staff Member';
+  ['m-fullname','m-empcode','m-phone','m-address','m-biometric'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('m-salary').value = '';
+  document.getElementById('m-late').value = '0';
+  document.getElementById('m-meal').value = '0';
+  document.getElementById('m-status').value = 'active';
+  document.getElementById('m-saltype').value = 'monthly';
+  document.getElementById('m-joining').value = '';
+  ['m-delivery','m-kitchen','m-cashier','m-manager'].forEach(id => document.getElementById(id).checked = false);
+  populateRoleSelect('m-role');
+  hideErr('member-err');
+  openModal('modal-member');
+}
+
+async function openEditMember(id) {
+  try {
+    const m = await api('GET', `staff/members/${id}/`);
+    memberEditId = id;
+    document.getElementById('modal-member-title').textContent = 'Edit Staff Member';
+    document.getElementById('m-fullname').value = m.full_name;
+    document.getElementById('m-empcode').value = m.employee_code;
+    document.getElementById('m-phone').value = m.phone || '';
+    document.getElementById('m-address').value = m.address || '';
+    document.getElementById('m-biometric').value = m.biometric_code || '';
+    document.getElementById('m-salary').value = m.base_salary;
+    document.getElementById('m-late').value = m.default_late_penalty;
+    document.getElementById('m-meal').value = m.default_meal_deduction;
+    document.getElementById('m-status').value = m.employment_status;
+    document.getElementById('m-saltype').value = m.salary_type;
+    document.getElementById('m-joining').value = m.joining_date;
+    document.getElementById('m-delivery').checked = m.is_delivery_staff;
+    document.getElementById('m-kitchen').checked = m.is_kitchen_staff;
+    document.getElementById('m-cashier').checked = m.is_cashier;
+    document.getElementById('m-manager').checked = m.is_manager;
+    populateRoleSelect('m-role', m.role);
+    hideErr('member-err');
+    openModal('modal-member');
+  } catch(e) { alert('Failed to load member: ' + errMsg(e)); }
+}
+
+async function saveMember() {
+  hideErr('member-err');
+  const body = {
+    full_name: document.getElementById('m-fullname').value.trim(),
+    employee_code: document.getElementById('m-empcode').value.trim(),
+    role: document.getElementById('m-role').value,
+    phone: document.getElementById('m-phone').value.trim() || null,
+    address: document.getElementById('m-address').value.trim() || null,
+    biometric_code: document.getElementById('m-biometric').value.trim() || null,
+    joining_date: document.getElementById('m-joining').value,
+    employment_status: document.getElementById('m-status').value,
+    salary_type: document.getElementById('m-saltype').value,
+    base_salary: document.getElementById('m-salary').value,
+    default_late_penalty: document.getElementById('m-late').value || '0',
+    default_meal_deduction: document.getElementById('m-meal').value || '0',
+    is_delivery_staff: document.getElementById('m-delivery').checked,
+    is_kitchen_staff: document.getElementById('m-kitchen').checked,
+    is_cashier: document.getElementById('m-cashier').checked,
+    is_manager: document.getElementById('m-manager').checked,
+  };
+  const btn = document.getElementById('modal-member-save');
+  btn.disabled = true;
+  try {
+    if (memberEditId) await api('PATCH', `staff/members/${memberEditId}/`, body);
+    else await api('POST', 'staff/members/', body);
+    closeModal('modal-member');
+    await loadCaches();
+    renderMembers();
+  } catch(e) { showErr('member-err', e); }
+  finally { btn.disabled = false; }
+}
+
+// ── Roles View ─────────────────────────────────────────────
+async function renderRoles() {
+  setContent(loading());
+  try {
+    const data = await api('GET', 'staff/roles/');
+    const roles = data.results || data;
+    let rows = '';
+    roles.forEach(r => {
+      rows += `<tr>
+        <td><strong>${r.name}</strong></td>
+        <td class="dim">${r.description || '—'}</td>
+        <td>${r.is_active ? '<span class="badge b-green">Active</span>' : '<span class="badge b-gray">Inactive</span>'}</td>
+        <td class="r">
+          <button class="btn btn-outline btn-sm" onclick="openEditRole('${r.id}','${r.name}','${r.description||''}',${r.is_active})">Edit</button>
+        </td>
+      </tr>`;
+    });
+    setContent(`
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Staff Roles</span>
+          <button class="btn btn-purple btn-sm" onclick="openAddRole()">${icon('M12 4v16m8-8H4')} Add Role</button>
+        </div>
+        ${roles.length===0 ? empty('No roles defined yet.') : `
+        <table>
+          <thead><tr><th>Name</th><th>Description</th><th>Status</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`}
+      </div>`);
+  } catch(e) { setContent(`<div class="s-error">Failed to load roles: ${errMsg(e)}</div>`); }
+}
+
+function openAddRole() {
+  roleEditId = null;
+  document.getElementById('modal-role-title').textContent = 'Add Role';
+  document.getElementById('r-name').value = '';
+  document.getElementById('r-desc').value = '';
+  hideErr('role-err');
+  openModal('modal-role');
+}
+
+function openEditRole(id, name, desc, active) {
+  roleEditId = id;
+  document.getElementById('modal-role-title').textContent = 'Edit Role';
+  document.getElementById('r-name').value = name;
+  document.getElementById('r-desc').value = desc;
+  hideErr('role-err');
+  openModal('modal-role');
+}
+
+async function saveRole() {
+  hideErr('role-err');
+  const body = { name: document.getElementById('r-name').value.trim(), description: document.getElementById('r-desc').value.trim() || null };
+  const btn = document.getElementById('modal-role-save');
+  btn.disabled = true;
+  try {
+    if (roleEditId) await api('PATCH', `staff/roles/${roleEditId}/`, body);
+    else await api('POST', 'staff/roles/', body);
+    closeModal('modal-role');
+    await loadCaches();
+    renderRoles();
+  } catch(e) { showErr('role-err', e); }
+  finally { btn.disabled = false; }
+}
+
+// ── Ledger View ────────────────────────────────────────────
+async function renderLedger(staffId='', type='', year='', month='') {
+  setContent(loading());
+  try {
+    await loadCaches();
+    let q = 'staff/ledger/?';
+    if (staffId) q += `staff=${staffId}&`;
+    if (type) q += `entry_type=${type}&`;
+    if (year) q += `year=${year}&`;
+    if (month) q += `month=${month}&`;
+    const data = await api('GET', q);
+    const entries = data.results || data;
+
+    let rows = '';
+    entries.forEach(e => {
+      rows += `<tr>
+        <td>${e.entry_date}</td>
+        <td><strong>${e.staff_name}</strong></td>
+        <td>${e.entry_type_display}</td>
+        <td>${e.direction==='debit'?'<span class="badge b-red">Debit</span>':'<span class="badge b-green">Credit</span>'}</td>
+        <td class="r bold ${e.direction==='debit'?'neg':'pos'}">${fmt(e.amount)}</td>
+        <td>${e.payroll_period_month?`${e.payroll_period_month}/${e.payroll_period_year}`:'—'}</td>
+        <td class="dim">${e.note||'—'}</td>
+      </tr>`;
+    });
+
+    const staffOpts = staffCache.map(s => `<option value="${s.id}" ${s.id===staffId?'selected':''}>${s.full_name}</option>`).join('');
+
+    setContent(`
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-head-left">
+            <span class="panel-title">Ledger Entries</span>
+            <select class="filter-in filter-in-lg" id="fl-staff" onchange="renderLedger(this.value,document.getElementById('fl-type').value,document.getElementById('fl-year').value,document.getElementById('fl-month').value)">
+              <option value="">All Staff</option>${staffOpts}
+            </select>
+            <select class="filter-in filter-in-md" id="fl-type" onchange="renderLedger(document.getElementById('fl-staff').value,this.value,document.getElementById('fl-year').value,document.getElementById('fl-month').value)">
+              <option value="">All Types</option>
+              <option value="advance" ${type==='advance'?'selected':''}>Advance</option>
+              <option value="late_penalty" ${type==='late_penalty'?'selected':''}>Late Penalty</option>
+              <option value="meal_deduction" ${type==='meal_deduction'?'selected':''}>Meal Deduction</option>
+              <option value="deduction" ${type==='deduction'?'selected':''}>Other Deduction</option>
+              <option value="bonus" ${type==='bonus'?'selected':''}>Bonus</option>
+              <option value="reimbursement" ${type==='reimbursement'?'selected':''}>Reimbursement</option>
+              <option value="salary_payment" ${type==='salary_payment'?'selected':''}>Salary Payment</option>
+            </select>
+            <input class="filter-in filter-in-sm" id="fl-year" type="number" placeholder="Year" value="${year}" onchange="renderLedger(document.getElementById('fl-staff').value,document.getElementById('fl-type').value,this.value,document.getElementById('fl-month').value)">
+            <input class="filter-in filter-in-sm" id="fl-month" type="number" min="1" max="12" placeholder="Month" value="${month}" onchange="renderLedger(document.getElementById('fl-staff').value,document.getElementById('fl-type').value,document.getElementById('fl-year').value,this.value)">
+          </div>
+          <div class="panel-head-right">
+            <button class="btn btn-purple btn-sm" onclick="openAddLedgerEntry()">${icon('M12 4v16m8-8H4')} Add Entry</button>
+          </div>
+        </div>
+        ${entries.length===0 ? empty('No ledger entries found.') : `
+        <table>
+          <thead><tr><th>Date</th><th>Staff</th><th>Type</th><th>Direction</th><th class="r">Amount</th><th>Period</th><th>Note</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`}
+      </div>`);
+  } catch(e) { setContent(`<div class="s-error">Failed to load ledger: ${errMsg(e)}</div>`); }
+}
+
+function openAddLedgerEntry(preselectedStaff) {
+  populateStaffSelect('le-staff', preselectedStaff);
+  document.getElementById('le-amount').value = '';
+  document.getElementById('le-note').value = '';
+  document.getElementById('le-type').value = 'advance';
+  document.getElementById('le-direction').value = 'debit';
+  document.getElementById('le-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('le-year').value = new Date().getFullYear();
+  document.getElementById('le-month').value = new Date().getMonth() + 1;
+  hideErr('ledger-err');
+  openModal('modal-ledger');
+}
+
+function setLedgerDirection() {
+  const type = document.getElementById('le-type').value;
+  const debitTypes = ['advance','late_penalty','meal_deduction','deduction'];
+  document.getElementById('le-direction').value = debitTypes.includes(type) ? 'debit' : 'credit';
+}
+
+async function saveLedgerEntry() {
+  hideErr('ledger-err');
+  const body = {
+    staff: document.getElementById('le-staff').value,
+    entry_type: document.getElementById('le-type').value,
+    direction: document.getElementById('le-direction').value,
+    amount: document.getElementById('le-amount').value,
+    entry_date: document.getElementById('le-date').value,
+    payroll_period_year: document.getElementById('le-year').value || null,
+    payroll_period_month: document.getElementById('le-month').value || null,
+    note: document.getElementById('le-note').value.trim() || null,
+  };
+  try {
+    await api('POST', 'staff/ledger/', body);
+    closeModal('modal-ledger');
+    if (currentView === 'ledger') renderLedger();
+    else if (currentView === 'members') {
+      const staffId = body.staff;
+      renderMemberLedgerTab(staffId);
+    }
+  } catch(e) { showErr('ledger-err', e); }
+}
+
+// ── Attendance View ────────────────────────────────────────
+async function renderAttendance(staffId='', attDate='', status='') {
+  setContent(loading());
+  try {
+    await loadCaches();
+    let q = 'staff/attendance/?';
+    if (staffId) q += `staff=${staffId}&`;
+    if (attDate) q += `date=${attDate}&`;
+    if (status) q += `status=${status}&`;
+    const data = await api('GET', q);
+    const records = data.results || data;
+
+    let rows = '';
+    records.forEach(a => {
+      rows += `<tr>
+        <td>${a.date}</td>
+        <td><strong>${a.staff_name}</strong></td>
+        <td>${statusBadge(a.status)}</td>
+        <td>${a.check_in ? a.check_in.slice(11,16) : '—'}</td>
+        <td>${a.check_out ? a.check_out.slice(11,16) : '—'}</td>
+        <td>${a.late_minutes > 0 ? `<span class="badge b-amber">${a.late_minutes}m</span>` : '—'}</td>
+        <td class="dim">${a.note||'—'}</td>
+      </tr>`;
+    });
+
+    const staffOpts = staffCache.map(s => `<option value="${s.id}" ${s.id===staffId?'selected':''}>${s.full_name}</option>`).join('');
+
+    setContent(`
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-head-left">
+            <span class="panel-title">Attendance Records</span>
+            <select class="filter-in filter-in-lg" id="fa-staff" onchange="renderAttendance(this.value,document.getElementById('fa-date').value,document.getElementById('fa-status').value)">
+              <option value="">All Staff</option>${staffOpts}
+            </select>
+            <input class="filter-in" id="fa-date" type="date" value="${attDate}" onchange="renderAttendance(document.getElementById('fa-staff').value,this.value,document.getElementById('fa-status').value)">
+            <select class="filter-in filter-in-md" id="fa-status" onchange="renderAttendance(document.getElementById('fa-staff').value,document.getElementById('fa-date').value,this.value)">
+              <option value="">All Status</option>
+              <option value="present" ${status==='present'?'selected':''}>Present</option>
+              <option value="absent" ${status==='absent'?'selected':''}>Absent</option>
+              <option value="leave" ${status==='leave'?'selected':''}>Leave</option>
+              <option value="half_day" ${status==='half_day'?'selected':''}>Half Day</option>
+            </select>
+          </div>
+          <div class="panel-head-right">
+            <button class="btn btn-purple btn-sm" onclick="openAddAttendance()">${icon('M12 4v16m8-8H4')} Record</button>
+          </div>
+        </div>
+        ${records.length===0 ? empty('No attendance records found.') : `
+        <table>
+          <thead><tr><th>Date</th><th>Staff</th><th>Status</th><th>Check In</th><th>Check Out</th><th>Late</th><th>Note</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`}
+      </div>`);
+  } catch(e) { setContent(`<div class="s-error">Failed to load attendance: ${errMsg(e)}</div>`); }
+}
+
+function openAddAttendance(preselectedStaff) {
+  attEditId = null;
+  document.getElementById('modal-att-title').textContent = 'Record Attendance';
+  populateStaffSelect('att-staff', preselectedStaff);
+  document.getElementById('att-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('att-status').value = 'present';
+  document.getElementById('att-source').value = 'manual';
+  document.getElementById('att-checkin').value = '';
+  document.getElementById('att-checkout').value = '';
+  document.getElementById('att-late').value = '0';
+  document.getElementById('att-early').value = '0';
+  document.getElementById('att-note').value = '';
+  hideErr('att-err');
+  openModal('modal-attendance');
+}
+
+async function saveAttendance() {
+  hideErr('att-err');
+  const body = {
+    staff: document.getElementById('att-staff').value,
+    date: document.getElementById('att-date').value,
+    status: document.getElementById('att-status').value,
+    source: document.getElementById('att-source').value,
+    check_in: document.getElementById('att-checkin').value || null,
+    check_out: document.getElementById('att-checkout').value || null,
+    late_minutes: parseInt(document.getElementById('att-late').value) || 0,
+    early_leave_minutes: parseInt(document.getElementById('att-early').value) || 0,
+    note: document.getElementById('att-note').value.trim() || null,
+  };
+  const btn = document.getElementById('modal-att-save');
+  btn.disabled = true;
+  try {
+    if (attEditId) await api('PATCH', `staff/attendance/${attEditId}/`, body);
+    else await api('POST', 'staff/attendance/', body);
+    closeModal('modal-attendance');
+    renderAttendance();
+  } catch(e) { showErr('att-err', e); }
+  finally { btn.disabled = false; }
+}
+
+// ── Payroll View ───────────────────────────────────────────
+async function renderPayroll() {
+  setContent(loading());
+  try {
+    const data = await api('GET', 'staff/payroll-runs/');
+    const runs = data.results || data;
+
+    let rows = '';
+    runs.forEach(r => {
+      rows += `<tr class="row-link" onclick="renderPayrollDetail('${r.id}')">
+        <td><strong>${r.month}/${r.year}</strong></td>
+        <td>${r.period_start} → ${r.period_end}</td>
+        <td>${r.lines ? r.lines.length : '—'} staff</td>
+        <td>${statusBadge(r.status)}</td>
+        <td>${r.generated_by_name || '—'}</td>
+        <td class="dim">${r.generated_at ? r.generated_at.slice(0,10) : '—'}</td>
+      </tr>`;
+    });
+
+    setContent(`
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Payroll Runs</span>
+          <button class="btn btn-purple btn-sm" onclick="openCreatePayrollRun()">${icon('M12 4v16m8-8H4')} Create Run</button>
+        </div>
+        ${runs.length===0 ? empty('No payroll runs yet. Create one to get started.') : `
+        <table>
+          <thead><tr><th>Period</th><th>Dates</th><th>Staff</th><th>Status</th><th>Generated By</th><th>Date</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`}
+      </div>`);
+  } catch(e) { setContent(`<div class="s-error">Failed to load payroll: ${errMsg(e)}</div>`); }
+}
+
+async function renderPayrollDetail(id) {
+  window._currentPayrollRunId = id;
+  setContent(loading());
+  try {
+    const run = await api('GET', `staff/payroll-runs/${id}/`);
+    const lines = run.lines || [];
+
+    let linesHtml = '';
+    if (lines.length === 0) {
+      linesHtml = `<div style="padding:40px;text-align:center;color:var(--muted)">No lines generated yet. Click "Generate Lines" to pull ledger data for this period.</div>`;
+    } else {
+      let rows = '';
+      let totalNet = 0;
+      lines.forEach(l => {
+        totalNet += parseFloat(l.net_salary || 0);
+        rows += `<tr>
+          <td><strong>${l.staff_name}</strong><br><span style="font-size:11px;color:var(--muted)">${l.employee_code}</span></td>
+          <td class="r">${fmt(l.base_salary)}</td>
+          <td class="r neg">${fmt(l.total_advances)}</td>
+          <td class="r neg">${fmt(l.total_late_penalties)}</td>
+          <td class="r neg">${fmt(l.total_meal_deductions)}</td>
+          <td class="r pos">${fmt(l.total_bonuses)}</td>
+          <td class="r bold">${fmt(l.net_salary)}</td>
+          <td>${l.is_paid ? '<span class="badge b-green">Paid</span>' : (run.status==='finalized' ? `<button class="btn btn-green btn-sm" onclick="openMarkPaid('${l.id}','${l.staff_name}',${l.net_salary})">Pay</button>` : '<span class="badge b-gray">Pending</span>')}</td>
+        </tr>`;
+      });
+      linesHtml = `
+        <table>
+          <thead><tr>
+            <th>Staff</th><th class="r">Base</th><th class="r">Advances</th>
+            <th class="r">Late</th><th class="r">Meal</th><th class="r">Bonus</th>
+            <th class="r">Net</th><th>Payment</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="padding:12px 16px;border-top:1px solid var(--border);background:#f8fafc;display:flex;justify-content:flex-end">
+          <span style="font-size:13px;font-weight:800">Total Net Payroll: <span style="color:var(--blue)">${fmt(totalNet)}</span></span>
+        </div>`;
+    }
+
+    const isDraft = run.status === 'draft';
+    const isFinalized = run.status === 'finalized';
+
+    document.getElementById('content').innerHTML = `
+      <button class="back-btn" onclick="renderPayroll()">${icon('M10 19l-7-7m0 0l7-7m-7 7h18')} Back to Payroll</button>
+      <div class="detail-name">Payroll Run — ${run.month}/${run.year}</div>
+      <div class="detail-meta">${run.period_start} → ${run.period_end} · ${statusBadge(run.status)}</div>
+      <div style="display:flex;gap:8px;margin-bottom:20px">
+        ${isDraft ? `<button class="btn btn-blue btn-sm" onclick="generateLines('${id}',this)">${icon('M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15')} Generate Lines</button>` : ''}
+        ${isDraft && lines.length > 0 ? `<button class="btn btn-amber btn-sm" onclick="finalizeRun('${id}')">${icon('M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0')} Finalize</button>` : ''}
+        ${isFinalized ? `<span class="badge b-blue" style="padding:6px 12px">Finalized — mark individual lines as paid above</span>` : ''}
+      </div>
+      <div class="panel">${linesHtml}</div>`;
+  } catch(e) { setContent(`<div class="s-error">Failed to load payroll run: ${errMsg(e)}</div>`); }
+}
+
+function openCreatePayrollRun() {
+  const now = new Date();
+  document.getElementById('pr-year').value = now.getFullYear();
+  document.getElementById('pr-month').value = now.getMonth() + 1;
+  document.getElementById('pr-start').value = '';
+  document.getElementById('pr-end').value = '';
+  document.getElementById('pr-notes').value = '';
+  hideErr('payrun-err');
+  openModal('modal-payrun');
+}
+
+async function savePayrollRun() {
+  hideErr('payrun-err');
+  const body = {
+    year: parseInt(document.getElementById('pr-year').value),
+    month: parseInt(document.getElementById('pr-month').value),
+    period_start: document.getElementById('pr-start').value,
+    period_end: document.getElementById('pr-end').value,
+    notes: document.getElementById('pr-notes').value.trim() || null,
+  };
+  try {
+    const run = await api('POST', 'staff/payroll-runs/', body);
+    closeModal('modal-payrun');
+    renderPayrollDetail(run.id);
+  } catch(e) { showErr('payrun-err', e); }
+}
+
+async function generateLines(id, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  try {
+    await api('POST', `staff/payroll-runs/${id}/generate/`);
+    renderPayrollDetail(id);
+  } catch(e) { alert('Failed to generate lines: ' + errMsg(e)); btn.disabled = false; }
+}
+
+async function finalizeRun(id) {
+  if (!confirm('Finalize this payroll run? You will no longer be able to regenerate lines.')) return;
+  try {
+    await api('POST', `staff/payroll-runs/${id}/finalize/`);
+    renderPayrollDetail(id);
+  } catch(e) { alert('Failed to finalize: ' + errMsg(e)); }
+}
+
+function openMarkPaid(lineId, name, netSalary) {
+  markPaidLineId = lineId;
+  document.getElementById('markpaid-name').textContent = name;
+  document.getElementById('mp-amount').value = netSalary;
+  document.getElementById('mp-note').value = '';
+  hideErr('markpaid-err');
+  openModal('modal-markpaid');
+}
+
+async function confirmMarkPaid() {
+  hideErr('markpaid-err');
+  const body = {
+    paid_amount: document.getElementById('mp-amount').value,
+    payment_note: document.getElementById('mp-note').value.trim(),
+  };
+  try {
+    await api('POST', `staff/payroll-lines/${markPaidLineId}/mark-paid/`, body);
+    closeModal('modal-markpaid');
+    // Refresh current payroll detail
+    const content = document.getElementById('content');
+    const backBtn = content.querySelector('.back-btn');
+    if (backBtn) {
+      // find run id from current URL — use a stored variable instead
+    }
+    if (window._currentPayrollRunId) renderPayrollDetail(window._currentPayrollRunId);
+    else renderPayroll();
+  } catch(e) { showErr('markpaid-err', e); }
+}
+
+// ── Devices View ──────────────────────────────────────────
+let deviceEditId = null;
+
+async function renderDevices() {
+  setContent(loading());
+  try {
+    const data = await api('GET', 'staff/attendance-devices/');
+    const devices = data.results || data;
+
+    let rows = '';
+    devices.forEach(d => {
+      const lastSync = d.last_synced_at ? d.last_synced_at.slice(0, 16).replace('T', ' ') : 'Never';
+      const typeBadge = d.device_type === 'biometric'
+        ? '<span class="badge b-purple">Biometric</span>'
+        : '<span class="badge b-gray">Manual</span>';
+      const statusBadgeHtml = d.is_active
+        ? '<span class="badge b-green">Active</span>'
+        : '<span class="badge b-gray">Inactive</span>';
+
+      rows += `<tr>
+        <td><strong>${d.name}</strong></td>
+        <td>${typeBadge}</td>
+        <td class="bold">${d.ip_address || '—'}</td>
+        <td>${d.port || '—'}</td>
+        <td class="dim">${lastSync}</td>
+        <td>${statusBadgeHtml}</td>
+        <td class="r" style="white-space:nowrap">
+          ${d.device_type === 'biometric' && d.is_active
+            ? `<button class="btn btn-teal btn-sm" style="margin-right:6px" onclick="syncDevice('${d.id}', this)">
+                ${icon('M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15')} Sync
+              </button>`
+            : ''}
+          <button class="btn btn-outline btn-sm" onclick="openEditDevice('${d.id}')">Edit</button>
+        </td>
+      </tr>`;
+    });
+
+    setContent(`
+      <div class="grid g3 mb20">
+        <div class="kpi accent-purple">
+          <div class="kpi-lbl">Total Devices</div>
+          <div class="kpi-val">${devices.length}</div>
+        </div>
+        <div class="kpi accent-green">
+          <div class="kpi-lbl">Active</div>
+          <div class="kpi-val">${devices.filter(d => d.is_active).length}</div>
+        </div>
+        <div class="kpi accent-teal">
+          <div class="kpi-lbl">Biometric</div>
+          <div class="kpi-val">${devices.filter(d => d.device_type === 'biometric').length}</div>
+        </div>
+      </div>
+
+      <div id="sync-result-box" style="display:none;margin-bottom:16px"></div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Attendance Devices</span>
+          <div class="panel-head-right">
+            <button class="btn btn-teal btn-sm" onclick="syncAllDevices(this)">
+              ${icon('M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15')} Sync All
+            </button>
+            <button class="btn btn-purple btn-sm" onclick="openAddDevice()">
+              ${icon('M12 4v16m8-8H4')} Add Device
+            </button>
+          </div>
+        </div>
+        ${devices.length === 0 ? empty('No devices configured yet. Add your ZKTeco K70 to get started.') : `
+        <table>
+          <thead><tr>
+            <th>Name</th><th>Type</th><th>IP Address</th><th>Port</th>
+            <th>Last Synced</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`}
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">Setup Guide</span></div>
+        <div style="padding:20px;display:grid;gap:12px">
+          <div style="display:flex;gap:14px;align-items:flex-start">
+            <div style="width:24px;height:24px;background:var(--purple);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">1</div>
+            <div><div style="font-weight:700;font-size:13px">Connect K70 to your network</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Assign a static IP to the device via its on-screen menu or router DHCP reservation.</div></div>
+          </div>
+          <div style="display:flex;gap:14px;align-items:flex-start">
+            <div style="width:24px;height:24px;background:var(--purple);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">2</div>
+            <div><div style="font-weight:700;font-size:13px">Add the device here</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Enter the IP, leave port as 4370 (ZKTeco default). Click <strong>Add Device</strong>.</div></div>
+          </div>
+          <div style="display:flex;gap:14px;align-items:flex-start">
+            <div style="width:24px;height:24px;background:var(--purple);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">3</div>
+            <div><div style="font-weight:700;font-size:13px">Link staff biometric codes</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Open each Staff Member → set <strong>Biometric Code</strong> to match the User ID enrolled on the device (e.g. 1, 2, 101).</div></div>
+          </div>
+          <div style="display:flex;gap:14px;align-items:flex-start">
+            <div style="width:24px;height:24px;background:var(--purple);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">4</div>
+            <div><div style="font-weight:700;font-size:13px">Sync</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Click <strong>Sync</strong> on the device row. Punch records are pulled from the machine and converted into Attendance records automatically.</div></div>
+          </div>
+        </div>
+      </div>`);
+  } catch(e) { setContent(`<div class="s-error">Failed to load devices: ${errMsg(e)}</div>`); }
+}
+
+function showSyncResult(result) {
+  const box = document.getElementById('sync-result-box');
+  if (!box) return;
+  const pull = result.pull || {};
+  const proc = result.process || {};
+  const hasErrors = pull.errors && pull.errors.length > 0;
+  box.style.display = 'block';
+  box.innerHTML = `
+    <div style="background:${hasErrors ? '#fef2f2' : '#f0fdf4'};border:1px solid ${hasErrors ? '#fecaca' : '#bbf7d0'};border-radius:var(--r);padding:16px 20px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;color:${hasErrors ? '#991b1b' : '#065f46'}">
+        ${icon(hasErrors ? 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0' : 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0')}
+        &nbsp;Sync complete — ${result.device}
+      </div>
+      <div style="display:flex;gap:24px;font-size:12px;color:var(--sub)">
+        <span>Punches pulled: <strong>${pull.created || 0}</strong></span>
+        <span>Duplicates skipped: <strong>${pull.skipped || 0}</strong></span>
+        <span>Attendance records updated: <strong>${proc.processed || 0}</strong></span>
+        <span>Unmatched: <strong>${proc.skipped_unmatched || 0}</strong></span>
+      </div>
+      ${hasErrors ? `<div style="margin-top:8px;font-size:12px;color:#991b1b">${pull.errors.join('<br>')}</div>` : ''}
+    </div>`;
+}
+
+async function syncDevice(id, btn) {
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = 'Syncing…';
+  try {
+    const result = await api('POST', `staff/attendance-devices/${id}/sync/`);
+    showSyncResult(result);
+    // refresh last_synced_at in the table without full reload
+    renderDevices();
+  } catch(e) {
+    const box = document.getElementById('sync-result-box');
+    if (box) {
+      box.style.display = 'block';
+      box.innerHTML = `<div class="s-error">Sync failed: ${errMsg(e)}</div>`;
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+
+async function syncAllDevices(btn) {
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = 'Syncing all…';
+  try {
+    const data = await api('GET', 'staff/attendance-devices/');
+    const devices = (data.results || data).filter(d => d.is_active && d.device_type === 'biometric');
+    if (devices.length === 0) {
+      alert('No active biometric devices to sync.');
+      return;
+    }
+    const results = [];
+    for (const d of devices) {
+      try {
+        const r = await api('POST', `staff/attendance-devices/${d.id}/sync/`);
+        results.push(r);
+      } catch(e) {
+        results.push({ device: d.name, pull: { created:0, skipped:0, errors:[errMsg(e)] }, process: { processed:0, skipped_unmatched:0 } });
+      }
+    }
+    renderDevices();
+    // Show combined result after re-render
+    setTimeout(() => {
+      const box = document.getElementById('sync-result-box');
+      if (!box) return;
+      const totalPulled = results.reduce((s,r) => s + (r.pull?.created||0), 0);
+      const totalProcessed = results.reduce((s,r) => s + (r.process?.processed||0), 0);
+      const allErrors = results.flatMap(r => r.pull?.errors||[]);
+      box.style.display = 'block';
+      box.innerHTML = `
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:var(--r);padding:16px 20px">
+          <div style="font-weight:700;font-size:13px;margin-bottom:8px;color:#065f46">Synced ${results.length} device(s)</div>
+          <div style="display:flex;gap:24px;font-size:12px;color:var(--sub)">
+            <span>Total punches pulled: <strong>${totalPulled}</strong></span>
+            <span>Attendance records updated: <strong>${totalProcessed}</strong></span>
+          </div>
+          ${allErrors.length ? `<div style="margin-top:8px;font-size:12px;color:#991b1b">${allErrors.join('<br>')}</div>` : ''}
+        </div>`;
+    }, 100);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+
+function openAddDevice() {
+  deviceEditId = null;
+  document.getElementById('modal-device-title').textContent = 'Add Device';
+  document.getElementById('dv-name').value = '';
+  document.getElementById('dv-type').value = 'biometric';
+  document.getElementById('dv-ip').value = '';
+  document.getElementById('dv-port').value = '4370';
+  document.getElementById('dv-machineid').value = '';
+  document.getElementById('dv-apiurl').value = '';
+  document.getElementById('dv-active').checked = true;
+  hideErr('device-err');
+  openModal('modal-device');
+}
+
+async function openEditDevice(id) {
+  try {
+    const d = await api('GET', `staff/attendance-devices/${id}/`);
+    deviceEditId = id;
+    document.getElementById('modal-device-title').textContent = 'Edit Device';
+    document.getElementById('dv-name').value = d.name;
+    document.getElementById('dv-type').value = d.device_type;
+    document.getElementById('dv-ip').value = d.ip_address || '';
+    document.getElementById('dv-port').value = d.port || 4370;
+    document.getElementById('dv-machineid').value = d.machine_identifier || '';
+    document.getElementById('dv-apiurl').value = d.api_url || '';
+    document.getElementById('dv-active').checked = d.is_active;
+    hideErr('device-err');
+    openModal('modal-device');
+  } catch(e) { alert('Failed to load device: ' + errMsg(e)); }
+}
+
+async function saveDevice() {
+  hideErr('device-err');
+  const body = {
+    name: document.getElementById('dv-name').value.trim(),
+    device_type: document.getElementById('dv-type').value,
+    ip_address: document.getElementById('dv-ip').value.trim() || null,
+    port: parseInt(document.getElementById('dv-port').value) || 4370,
+    machine_identifier: document.getElementById('dv-machineid').value.trim() || null,
+    api_url: document.getElementById('dv-apiurl').value.trim() || null,
+    is_active: document.getElementById('dv-active').checked,
+  };
+  const btn = document.getElementById('modal-device-save');
+  btn.disabled = true;
+  try {
+    if (deviceEditId) await api('PATCH', `staff/attendance-devices/${deviceEditId}/`, body);
+    else await api('POST', 'staff/attendance-devices/', body);
+    closeModal('modal-device');
+    renderDevices();
+  } catch(e) { showErr('device-err', e); }
+  finally { btn.disabled = false; }
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.add('hidden'); });
+});
+</script>
+</body>
+</html>

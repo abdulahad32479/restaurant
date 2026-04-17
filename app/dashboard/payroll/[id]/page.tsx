@@ -6,7 +6,11 @@ import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
 import { Input } from '@/src/components/Input';
 import { Modal } from '@/src/components/Modal';
-import { ArrowLeft, CheckCircle, Loader2, DollarSign, RefreshCw, TrendingUp, TrendingDown, Wallet, Users, AlertCircle } from 'lucide-react';
+import { 
+  ArrowLeft, CheckCircle, Loader2, DollarSign, RefreshCw, 
+  TrendingUp, TrendingDown, Wallet, Users, AlertCircle, 
+  Clock, ShieldCheck, Zap, Info
+} from 'lucide-react';
 import { Card } from '@/src/components/Card';
 import { usePayrollRunDetails, usePayrollRuns, usePayrollLines } from '@/src/hooks/usePayroll';
 import { PayrollLine } from '@/src/types/staff';
@@ -60,82 +64,63 @@ export default function PayrollDetail() {
 
   const columns = [
     { 
-      key: 'staff', 
-      header: 'STAFF MEMBER',
-      render: (_: any, row: PayrollLine) => (
+      key: 'personnel', 
+      header: 'PERSONNEL', 
+      render: (_: any, r: PayrollLine) => (
         <div className="flex flex-col">
-          <span className="font-bold text-slate-900 text-sm uppercase tracking-tighter">{row.staff_name || 'Staff Member'}</span>
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{row.employee_code || '---'}</span>
+          <span className="font-extrabold text-[#0f172a] text-sm uppercase tracking-tight italic">{r.staff_name}</span>
+          <span className="text-[10px] text-[#94a3b8] font-black uppercase tracking-widest">{r.employee_code}</span>
         </div>
       )
     },
     { 
-      key: 'base_salary', 
-      header: 'BASE SALARY',
-      render: (v: string) => <span className="text-slate-700 text-xs font-bold">{formatCurrency(v)}</span>
+      key: 'base', 
+      header: 'BASE', 
+      align: 'right' as const, 
+      render: (v: string, r: PayrollLine) => <span className="text-[#64748b] font-bold text-xs italic">{formatCurrency(r.base_salary)}</span> 
     },
     { 
-      key: 'adjustments', 
-      header: 'ADJUSTMENTS',
-      render: (_: any, row: PayrollLine) => {
-        const adds = Number(row.total_bonuses || 0) + Number(row.total_reimbursements || 0);
-        const ders = Number(row.total_advances || 0) + Number(row.total_late_penalties || 0) + Number(row.total_meal_deductions || 0) + Number(row.total_other_deductions || 0);
-        return (
-          <div className="flex flex-col gap-0.5 text-[9px] font-bold uppercase tracking-widest">
-             <span className="text-emerald-600">+{formatCurrency(adds).replace('PKR ', '')}</span>
-             <span className="text-rose-600">-{formatCurrency(ders).replace('PKR ', '')}</span>
-          </div>
-        );
-      }
-    },
-    { 
-      key: 'net_salary', 
-      header: 'NET PAYABLE',
-      render: (v: string) => <span className="text-slate-900 font-bold text-sm">{formatCurrency(v)}</span>
-    },
-    { 
-      key: 'attendance', 
-      header: 'ATTENDANCE',
-      render: (_: any, row: PayrollLine) => (
-        <div className="flex gap-3 text-[10px] font-bold uppercase tracking-tight">
-           <div className="flex flex-col"><span className="text-emerald-600">P: {row.attendance_days || 0}</span></div>
-           <div className="flex flex-col"><span className="text-rose-600">A: {row.absent_days || 0}</span></div>
-           <div className="flex flex-col"><span className="text-amber-600">L: {row.late_days || 0}</span></div>
-        </div>
-      )
+      key: 'net', 
+      header: 'NET QUOTE', 
+      align: 'right' as const, 
+      render: (v: string, r: PayrollLine) => <span className="text-[#0f172a] font-black text-sm italic">{formatCurrency(r.net_salary)}</span> 
     },
     { 
       key: 'status', 
-      header: 'STATE',
-      render: (_: any, row: PayrollLine) => (
-        <Badge variant={row.is_paid ? 'success' : 'secondary'} size="sm" className={`font-bold uppercase tracking-widest text-[9px] border-none px-3 py-0.5 rounded-full`}>
-          {row.is_paid ? 'Paid' : 'Unpaid'}
-        </Badge>
+      header: 'STATE', 
+      render: (v: string, r: PayrollLine) => (
+        <span className={`
+          inline-flex items-center px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest
+          ${r.is_paid ? 'bg-[#d1fae5] text-[#065f46]' : 'bg-[#f1f5f9] text-[#475569]'}
+        `}>
+          {r.is_paid ? 'Paid' : 'Pending'}
+        </span>
       )
     },
-    {
-      key: 'actions',
-      header: '',
-      align: 'right' as const,
-      render: (_: any, row: PayrollLine) => (
-        <div className="flex justify-end gap-2">
-          {!row.is_paid && runDetails?.status === 'finalized' ? (
+    { 
+      key: 'actions', 
+      header: '', 
+      align: 'right' as const, 
+      render: (_: any, r: PayrollLine) => (
+        <div className="flex justify-end gap-2 pr-2">
+          {!r.is_paid && runDetails?.status === 'finalized' ? (
             <button 
               onClick={() => {
-                setSelectedLine(row);
-                setPaidAmount(row.net_salary.toString());
+                setSelectedLine(r);
+                setPaidAmount(r.net_salary.toString());
                 setPaidNote('');
               }}
-              className="bg-violet-600 hover:bg-violet-700 text-white font-bold py-1.5 px-4 rounded-lg text-[10px] uppercase tracking-widest shadow-sm transition-all"
+              className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold h-8 px-4 rounded-lg text-[10px] uppercase tracking-widest shadow-sm active:scale-95 transition-all"
             >
-              Pay Now
+              Mark Paid
             </button>
-          ) : row.is_paid ? (
-            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest flex items-center">
-              <CheckCircle className="w-3 h-3 mr-1" /> Cleared
-            </span>
+          ) : r.is_paid ? (
+            <div className="flex items-center gap-2 text-[#059669]">
+               <CheckCircle className="w-4 h-4" />
+               <span className="text-[10px] font-black uppercase tracking-widest italic">Cleared</span>
+            </div>
           ) : (
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Locked</span>
+            <div className="text-[#94a3b8] italic text-[10px] font-bold uppercase tracking-widest opacity-40">Protected</div>
           )}
         </div>
       )
@@ -169,116 +154,146 @@ export default function PayrollDetail() {
   }, { base: 0, net: 0, paid: 0 });
 
   return (
-    <div className="space-y-6 animate-fade-in -m-6 p-6 min-h-screen bg-[#f4f6f8] font-sans text-slate-800">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-2 bg-white border border-slate-200 hover:bg-slate-50 transition-all text-slate-500 hover:text-slate-900 rounded-lg shadow-sm">
-            <ArrowLeft className="w-4 h-4"/>
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Payroll Detail</h1>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{runDetails.month}/{runDetails.year} Cycle</p>
-          </div>
+    <div className="animate-fade-in -m-6 min-h-screen bg-[#f0f4f8] font-sans text-[#0f172a] pb-20">
+      {/* Header Bar */}
+      <div className="bg-white border-b border-[#e2e8f0] px-8 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+        <div className="flex items-center gap-3">
+           <button 
+             onClick={() => router.back()}
+             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#f1f5f9] text-[#64748b] transition-all"
+           >
+              <ArrowLeft className="w-5 h-5" />
+           </button>
+           <div>
+              <h1 className="text-[15px] font-extrabold text-[#0f172a] tracking-tight">{runDetails.month}/{runDetails.year} Cycle Detail</h1>
+              <p className="text-[10px] text-[#64748b] font-bold uppercase tracking-widest">Execution Registry · {runDetails.status}</p>
+           </div>
         </div>
-        
-        <div className="flex gap-3">
-          {runDetails.status === 'draft' && (
-            <Button 
-              variant="outline" 
-              onClick={handleRefresh}
-              isLoading={isGenerating}
-              className="border-slate-200 bg-white text-slate-700 font-bold uppercase tracking-widest text-[10px] h-10 px-6"
-            >
-              <RefreshCw className={`w-3 h-3 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
-              Recalculate
-            </Button>
-          )}
-          {runDetails.status === 'draft' && (
-            <Button 
-              variant="primary" 
-              onClick={handleFinalize}
-              isLoading={isFinalizing}
-              className="bg-violet-600 hover:bg-violet-700 text-white border-none font-bold uppercase tracking-widest text-[10px] h-10 px-8"
-            >
-              Finalize Run
-            </Button>
-          )}
+        <div className="flex items-center gap-3">
+           {runDetails.status === 'draft' && (
+             <button 
+               onClick={handleRefresh}
+               disabled={isGenerating}
+               className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold h-10 px-6 rounded-lg text-xs flex items-center gap-2 shadow-md transition-all active:scale-95"
+             >
+               {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+               Recalculate Lines
+             </button>
+           )}
+           {runDetails.status === 'draft' && lines.length > 0 && (
+             <button 
+               onClick={handleFinalize}
+               disabled={isFinalizing}
+               className="bg-[#059669] hover:bg-[#047857] text-white font-bold h-10 px-6 rounded-lg text-xs shadow-md transition-all active:scale-95"
+             >
+               Finalize Cycle
+             </button>
+           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-white border-slate-200 p-5 shadow-sm space-y-2">
-            <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Base Salary</span>
-                <Wallet className="w-3 h-3 text-slate-400" />
-            </div>
-            <p className="text-xl font-bold text-slate-900">{formatCurrency(totals.base)}</p>
-        </Card>
-        <Card className="bg-white border-slate-200 p-5 shadow-sm space-y-2">
-            <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Enrollment</span>
-                <Users className="w-3 h-3 text-slate-400" />
-            </div>
-            <p className="text-xl font-bold text-slate-900">{lines.length} Staff</p>
-        </Card>
-        <Card className="bg-white border-slate-200 p-5 shadow-sm space-y-2">
-            <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Settled</span>
-                <CheckCircle className="w-3 h-3 text-emerald-500" />
-            </div>
-            <p className="text-xl font-bold text-slate-900">{totals.paid} / {lines.length}</p>
-        </Card>
-        <Card className="bg-white border-slate-200 p-5 shadow-sm space-y-2 border-l-4 border-l-violet-600">
-            <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-violet-600 uppercase tracking-widest">Net Payable</span>
-                <DollarSign className="w-3 h-3 text-violet-600" />
-            </div>
-            <p className="text-xl font-bold text-slate-900">{formatCurrency(totals.net)}</p>
-        </Card>
+      <div className="max-w-[1600px] mx-auto p-8 space-y-8">
+        {/* KPI Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white border border-[#e2e8f0] rounded-[10px] p-5 shadow-sm border-l-[3px] border-l-[#2563eb]">
+            <p className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.08em] mb-2">Cycle Allocation</p>
+            <p className="text-2xl font-extrabold text-[#0f172a] tracking-tighter">{formatCurrency(totals.base)}</p>
+            <p className="text-[11px] text-[#94a3b8] mt-1">Contract value</p>
+          </div>
+          <div className="bg-white border border-[#e2e8f0] rounded-[10px] p-5 shadow-sm border-l-[3px] border-l-[#059669]">
+            <p className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.08em] mb-2">Net Disbursement</p>
+            <p className="text-2xl font-extrabold text-[#0f172a] tracking-tighter">{formatCurrency(totals.net)}</p>
+            <p className="text-[11px] text-[#94a3b8] mt-1">Final payable</p>
+          </div>
+          <div className="bg-white border border-[#e2e8f0] rounded-[10px] p-5 shadow-sm border-l-[3px] border-l-[#7c3aed]">
+            <p className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.08em] mb-2">Settlement Rate</p>
+            <p className="text-2xl font-extrabold text-[#0f172a] tracking-tighter">{totals.paid} / {lines.length}</p>
+            <p className="text-[11px] text-[#94a3b8] mt-1">Resolved units</p>
+          </div>
+          <div className="bg-white border border-[#e2e8f0] rounded-[10px] p-5 shadow-sm border-l-[3px] border-l-[#d97706]">
+            <p className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.08em] mb-2">Pending Quantum</p>
+            <p className="text-2xl font-extrabold text-[#0f172a] tracking-tighter">{formatCurrency(totals.net - (totals.paid * totals.net / lines.length || 0))}</p>
+            <p className="text-[11px] text-[#94a3b8] mt-1">To be settled</p>
+          </div>
+        </div>
+
+        {/* Distribution Matrix Panel */}
+        <div className="bg-white border border-[#e2e8f0] rounded-[10px] shadow-sm overflow-hidden min-h-[500px]">
+          <div className="bg-[#f8fafc] border-b border-[#e2e8f0] px-6 py-4 flex items-center justify-between">
+             <h3 className="text-xs font-extrabold text-[#0f172a] uppercase tracking-widest italic">Distribution Matrix</h3>
+             <p className="text-[11px] text-[#94a3b8] font-bold uppercase tracking-widest">Enlisted: {lines.length}</p>
+          </div>
+          
+          <div>
+            {lines.length === 0 ? (
+               <div className="flex flex-col items-center justify-center p-40 gap-4 text-[#94a3b8]">
+                  <Users className="w-12 h-12 opacity-20" />
+                  <p className="text-xs font-bold uppercase tracking-widest">No personnel lines detected</p>
+               </div>
+            ) : (
+              <Table columns={columns} data={lines} className="border-none" />
+            )}
+          </div>
+        </div>
       </div>
-      
-      <Card className="bg-white border-slate-200 overflow-hidden shadow-sm p-0 min-h-[400px]">
-         <Table columns={columns} data={lines} className="border-none" />
-      </Card>
 
       <Modal theme="light"
         isOpen={!!selectedLine}
         onClose={() => setSelectedLine(null)}
-        title="Mark Salary as Paid"
+        title="Execute Settlement"
         size="md"
         footer={
-          <div className="flex gap-3 w-full sm:w-auto mt-4">
-            <Button variant="outline" onClick={() => setSelectedLine(null)} className="flex-1 sm:flex-none h-11 border-slate-200 text-slate-700 font-bold px-8">Cancel</Button>
-            <Button variant="primary" onClick={handleMarkPaid} isLoading={isMarkingPaid} className="flex-1 sm:flex-none px-10 bg-violet-600 hover:bg-violet-700 text-white border-none shadow-none font-bold h-11">Record Payment</Button>
+          <div className="flex gap-4 w-full sm:w-auto mt-6">
+            <Button variant="outline" onClick={() => setSelectedLine(null)} className="flex-1 sm:flex-none h-14 rounded-2xl border-slate-200 text-slate-700 font-black uppercase tracking-widest text-xs px-10">Cancel</Button>
+            <Button variant="primary" onClick={handleMarkPaid} isLoading={isMarkingPaid} className="flex-1 sm:flex-none px-12 h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white border-none shadow-2xl shadow-indigo-600/30 font-black uppercase tracking-widest text-xs">Record Transaction</Button>
           </div>
         }
       >
-        <div className="space-y-6 pt-4">
+        <div className="space-y-8 pt-4">
             {selectedLine && (
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
-                <div>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Staff Member</p>
-                  <p className="text-sm text-slate-900 font-bold">{selectedLine.staff_name}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Net Salary</p>
-                  <p className="text-lg text-slate-900 font-bold">{formatCurrency(selectedLine.net_salary)}</p>
+              <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-500/20 transition-all" />
+                <div className="relative z-10 flex justify-between items-end">
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-indigo-400 font-black uppercase tracking-[0.3em]">Beneficiary</p>
+                    <p className="text-2xl font-black text-white tracking-tight uppercase italic">{selectedLine.staff_name}</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">ID: {selectedLine.employee_code}</p>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em]">Calculation</p>
+                    <p className="text-3xl font-black text-white italic tracking-tighter">{formatCurrency(selectedLine.net_salary)}</p>
+                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Final Net Payable</p>
+                  </div>
                 </div>
               </div>
             )}
-            <Input 
-              label="PAID AMOUNT *" type="number"
-              value={paidAmount}
-              onChange={(e) => setPaidAmount(e.target.value)}
-              className="bg-white border-slate-200 h-12 text-lg font-bold"
-            />
-            <Input 
-              label="PAYMENT NOTE"
-              placeholder="e.g. Bank Transfer Ref"
-              value={paidNote}
-              onChange={(e) => setPaidNote(e.target.value)}
-              className="bg-white border-slate-200 h-12"
-            />
+
+            <div className="space-y-6">
+               <div className="space-y-2">
+                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">ALLOCATION AMOUNT</label>
+                 <div className="relative">
+                    <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
+                       <DollarSign className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <input 
+                      type="number"
+                      value={paidAmount}
+                      onChange={(e) => setPaidAmount(e.target.value)}
+                      className="w-full bg-slate-50 border-slate-200 h-16 rounded-2xl pl-14 pr-6 text-2xl font-black italic text-slate-900 focus:ring-4 focus:ring-indigo-600/5 focus:border-indigo-600 outline-none transition-all"
+                    />
+                 </div>
+               </div>
+
+               <div className="space-y-2">
+                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">REFERENCE / NOTE</label>
+                 <textarea 
+                   placeholder="e.g. Wired via Bank Omni #9921..."
+                   value={paidNote}
+                   onChange={(e) => setPaidNote(e.target.value)}
+                   className="w-full bg-slate-50 border-slate-200 rounded-2xl p-6 text-sm font-bold text-slate-900 focus:ring-4 focus:ring-indigo-600/5 focus:border-indigo-600 outline-none transition-all min-h-[120px] resize-none"
+                 />
+               </div>
+            </div>
         </div>
       </Modal>
     </div>

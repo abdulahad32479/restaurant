@@ -39,36 +39,36 @@ export const StaffService = {
 
   // --- Staff Members ---
   getStaffMembers: async (params?: Record<string, any>): Promise<StaffMember[]> => {
-    const response = await staffApi.get<StaffMember[]>('staff/', { params });
+    const response = await staffApi.get<StaffMember[]>('members/', { params });
     return response.data;
   },
 
   getStaffMemberById: async (id: string): Promise<StaffMember> => {
-    const response = await staffApi.get<StaffMember>(`staff/${id}/`);
+    const response = await staffApi.get<StaffMember>(`members/${id}/`);
     return response.data;
   },
 
   createStaffMember: async (data: Partial<StaffMember>): Promise<StaffMember> => {
-    const response = await staffApi.post<StaffMember>('staff/', data);
+    const response = await staffApi.post<StaffMember>('members/', data);
     return response.data;
   },
 
   updateStaffMember: async (id: string, data: Partial<StaffMember>): Promise<StaffMember> => {
-    const response = await staffApi.patch<StaffMember>(`staff/${id}/`, data);
+    const response = await staffApi.patch<StaffMember>(`members/${id}/`, data);
     return response.data;
   },
 
   replaceStaffMember: async (id: string, data: StaffMember): Promise<StaffMember> => {
-    const response = await staffApi.put<StaffMember>(`staff/${id}/`, data);
+    const response = await staffApi.put<StaffMember>(`members/${id}/`, data);
     return response.data;
   },
 
   deleteStaffMember: async (id: string): Promise<void> => {
-    await staffApi.delete(`staff/${id}/`);
+    await staffApi.delete(`members/${id}/`);
   },
 
   getStaffLedgerSummary: async (id: string, params?: { entry_type?: string; month?: number; year?: number }): Promise<LedgerSummaryResponse> => {
-    const response = await staffApi.get<LedgerSummaryResponse>(`staff/${id}/ledger/`, { params });
+    const response = await staffApi.get<LedgerSummaryResponse>(`members/${id}/ledger/`, { params });
     return response.data;
   },
 };
