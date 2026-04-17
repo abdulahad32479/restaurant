@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from 'react';
-import { Table } from '@/src/components/Table';
+import { LightTable as Table } from '@/src/components/LightTable';
 import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useStaff, useRoles, useStaffLedgerSummary } from '@/src/hooks/useStaff';
 import { StaffMember, StaffRole } from '@/src/types/staff';
 import { formatCurrency } from '@/src/utils/formatCurrency';
+import { LightTable } from '@/src/components/LightTable';
 
 export default function StaffManagement() {
   const router = useRouter();
@@ -189,14 +190,16 @@ export default function StaffManagement() {
     }
   };
 
+
+
   const columns = [
     { 
       key: 'employee', 
       header: 'NAME / CODE',
       render: (_: any, row: StaffMember) => (
         <div className="flex flex-col">
-          <p className="font-black text-white group-hover:text-primary transition-colors text-sm">{row.full_name}</p>
-          <p className="text-[10px] uppercase font-bold text-tertiary tracking-widest">{row.employee_code}</p>
+          <p className="font-semibold text-slate-800 text-sm">{row.full_name}</p>
+          <p className="text-xs text-slate-500 mt-0.5">{row.employee_code}</p>
         </div>
       )
     },
@@ -204,7 +207,7 @@ export default function StaffManagement() {
       key: 'role', 
       header: 'ROLE',
       render: (_: any, row: StaffMember) => (
-        <span className="text-xs font-bold text-tertiary uppercase tracking-widest">
+        <span className="text-slate-600 font-medium text-sm">
           {row.role_name || (typeof row.role === 'object' ? row.role?.name : row.role)}
         </span>
       )
@@ -212,13 +215,13 @@ export default function StaffManagement() {
     { 
       key: 'phone', 
       header: 'PHONE',
-      render: (v: string) => <span className="text-xs font-bold text-tertiary">{v || '—'}</span>
+      render: (v: string) => <span className="text-slate-600 text-sm">{v || '—'}</span>
     },
     { 
       key: 'salary', 
       header: 'BASE SALARY',
       render: (_: any, row: StaffMember) => (
-        <span className="text-white font-black text-sm">
+        <span className="text-slate-800 font-semibold text-sm">
           {formatCurrency(row.base_salary)}
         </span>
       )
@@ -227,15 +230,15 @@ export default function StaffManagement() {
       key: 'employment_status', 
       header: 'STATUS',
       render: (_: any, row: StaffMember) => (
-        <Badge variant={row.employment_status === 'active' ? 'success' : row.employment_status === 'terminated' ? 'error' : 'secondary'} size="sm" className="font-black uppercase tracking-widest text-[9px] bg-success/10 text-success border-success/20">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${row.employment_status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>
           {row.employment_status_display || row.employment_status}
-        </Badge>
+        </span>
       )
     },
     { 
       key: 'joined', 
       header: 'JOINED',
-      render: (v: string) => <span className="text-xs font-bold text-tertiary">{v}</span>
+      render: (v: string) => <span className="text-slate-600 text-sm">{v}</span>
     },
     {
       key: 'actions',
@@ -244,22 +247,10 @@ export default function StaffManagement() {
       render: (_: any, row: StaffMember) => (
         <div className="flex items-center justify-end gap-2">
           <button 
-            className="px-4 py-1.5 border border-base bg-white/5 hover:bg-white/10 rounded-lg transition-all text-[11px] font-bold text-tertiary hover:text-white"
-            onClick={() => { setSelectedStaffForLedger(row); setIsLedgerModalOpen(true); }}
-          >
-            Ledger
-          </button>
-          <button 
-            className="px-4 py-1.5 border border-base bg-white/5 hover:bg-white/10 rounded-lg transition-all text-[11px] font-bold text-tertiary hover:text-white"
+            className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 rounded bg-white transition-all text-xs font-semibold text-slate-700 shadow-sm"
             onClick={() => handleOpenModal(row)}
           >
             Edit
-          </button>
-          <button 
-            className="p-2 hover:bg-red-500/10 rounded-lg transition-all text-tertiary hover:text-red-500"
-            onClick={() => { if(window.confirm(`Delete ${row.full_name}?`)) deleteMember(row.id) }}
-          >
-            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       )
@@ -278,27 +269,27 @@ export default function StaffManagement() {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-success/10 border border-success/20 p-5 rounded-2xl shadow-inner group transition-all hover:bg-success/20">
-             <p className="text-[10px] text-success font-black uppercase tracking-widest mb-1.5 opacity-70">Total Credits</p>
-             <p className="text-2xl font-black text-white drop-shadow-sm">{formatCurrency(credits)}</p> 
+          <div className="bg-emerald-600/10 border border-emerald-400/20 p-5 rounded-2xl shadow-inner group transition-all hover:bg-emerald-600/20">
+             <p className="text-[10px] text-emerald-600 font-semibold uppercase tracking-widest mb-1.5 opacity-70">Total Credits</p>
+             <p className="text-2xl font-semibold text-slate-900 drop-shadow-sm">{formatCurrency(credits)}</p> 
           </div>
-          <div className="bg-error/10 border border-error/20 p-5 rounded-2xl shadow-inner group transition-all hover:bg-error/20">
-             <p className="text-[10px] text-error font-black uppercase tracking-widest mb-1.5 opacity-70">Total Debits</p>
-             <p className="text-2xl font-black text-white drop-shadow-sm">{formatCurrency(debits)}</p>
+          <div className="bg-rose-600/10 border border-rose-400/20 p-5 rounded-2xl shadow-inner group transition-all hover:bg-rose-600/20">
+             <p className="text-[10px] text-rose-600 font-semibold uppercase tracking-widest mb-1.5 opacity-70">Total Debits</p>
+             <p className="text-2xl font-semibold text-slate-900 drop-shadow-sm">{formatCurrency(debits)}</p>
           </div>
         </div>
         
         {summary?.entries && summary.entries.length > 0 && (
           <div className="mt-6 space-y-3">
-             <p className="text-[10px] text-tertiary font-black uppercase tracking-widest px-1">Recent Transactions</p>
-             <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+             <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest px-1">Recent Transactions</p>
+             <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar-light">
                 {summary.entries.slice(0, 5).map((entry) => (
-                  <div key={entry.id} className="bg-white/5 border border-white/5 p-3 rounded-xl flex items-center justify-between group hover:border-white/10 transition-all">
+                  <div key={entry.id} className="bg-white border border-slate-200 p-3 rounded-xl flex items-center justify-between group hover:border-white/10 transition-all">
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-white uppercase">{entry.entry_type_display || entry.entry_type}</span>
-                      <span className="text-[9px] text-tertiary font-medium">{entry.entry_date}</span>
+                      <span className="text-[10px] font-bold text-slate-900 uppercase">{entry.entry_type_display || entry.entry_type}</span>
+                      <span className="text-[9px] text-slate-500 font-medium">{entry.entry_date}</span>
                     </div>
-                    <span className={`text-xs font-black ${entry.direction === 'credit' ? 'text-success' : 'text-error'}`}>
+                    <span className={`text-xs font-semibold ${entry.direction === 'credit' ? 'text-emerald-600' : 'text-rose-600'}`}>
                       {entry.direction === 'credit' ? '+' : '-'}{formatCurrency(entry.amount)}
                     </span>
                   </div>
@@ -307,152 +298,136 @@ export default function StaffManagement() {
           </div>
         )}
 
-        <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest text-center mt-6 py-3 border-t border-white/5">Full transaction history is available in the Ledger Management module.</p>
+        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center mt-6 py-3 border-t border-white/5">Full transaction history is available in the Ledger Management module.</p>
       </div>
     );
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="animate-fade-in -m-6 p-6 min-h-screen bg-[#f4f6f8] font-sans text-slate-800">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-black text-white mb-1 uppercase tracking-tighter">Staff Directory</h1>
-          <p className="text-sm md:text-base text-tertiary font-bold uppercase tracking-widest">Manage staff members and roles</p>
+          <h1 className="text-2xl font-bold text-slate-900 mb-1">Staff Members</h1>
         </div>
-        <Button 
-          variant="primary" 
-          size="sm"
-          onClick={() => activeTab === 'members' ? handleOpenModal() : handleOpenRoleModal()}
-          className="font-black uppercase tracking-tighter shadow-glow-primary px-6"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          {activeTab === 'members' ? 'Add Member' : 'Add Role'}
-        </Button>
+        <div className="flex bg-slate-200/50 p-1 rounded-lg">
+          <button onClick={() => { setActiveTab('members'); setPage(1); }} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'members' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Members</button>
+          <button onClick={() => { setActiveTab('roles'); setPage(1); }} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'roles' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Roles</button>
+        </div>
       </div>
 
-      <div className="flex gap-2 p-1.5 bg-secondary w-full md:w-max rounded-2xl border border-base shadow-xl">
-        <button onClick={() => { setActiveTab('members'); setPage(1); }} className={`flex items-center gap-3 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'members' ? 'bg-primary text-white shadow-glow-primary' : 'text-tertiary hover:text-white hover:bg-white/5'}`}><Users className="w-4 h-4"/> Staff Directory</button>
-        <button onClick={() => { setActiveTab('roles'); setPage(1); }} className={`flex items-center gap-3 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'roles' ? 'bg-primary text-white shadow-glow-primary' : 'text-tertiary hover:text-white hover:bg-white/5'}`}><Briefcase className="w-4 h-4"/> Role Configurations</button>
-      </div>
-      
       {activeTab === 'members' && (
       <>
-      
-      <div className="bg-secondary border border-base rounded-2xl p-5 md:p-6 shadow-xl">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex-1 min-w-[250px] flex items-center gap-4">
-             <span className="text-sm font-black text-white uppercase tracking-widest whitespace-nowrap">All Staff</span>
-             <Input
-                placeholder="Search name / code"
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                className="bg-bg-main border-base"
-             />
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+          <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4 flex-1">
+               <span className="text-sm font-semibold text-slate-800 whitespace-nowrap">All Staff</span>
+               <Input
+                  placeholder="Search name / code"
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                  className="bg-white border-slate-200 text-slate-900 w-64 h-9 text-sm"
+               />
+               <Select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                className="bg-white border-slate-200 text-slate-900 min-w-[140px] h-9 text-sm"
+                options={[
+                  { value: '', label: 'All Status' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                  { value: 'terminated', label: 'Terminated' },
+                ]}
+              />
+              <Select
+                value={roleFilter}
+                onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
+                className="bg-white border-slate-200 text-slate-900 min-w-[140px] h-9 text-sm"
+                options={[
+                  { value: '', label: 'All Roles' },
+                  ...(roles?.map(r => ({ value: r.id, label: r.name })) || [])
+                ]}
+              />
+              <Select
+                value={isActiveFilter}
+                onChange={(e) => { setIsActiveFilter(e.target.value); setPage(1); }}
+                className="bg-white border-slate-200 text-slate-900 min-w-[80px] h-9 text-sm"
+                options={[
+                  { value: '', label: 'Status' },
+                  { value: 'true', label: 'Enabled' },
+                  { value: 'false', label: 'Disabled' },
+                ]}
+              />
+            </div>
+            <button 
+              onClick={() => handleOpenModal()}
+              className="bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center rounded-lg px-4 h-9 text-sm font-semibold shadow-sm transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2 text-white" />
+              Add Member
+            </button>
           </div>
-          <div className="w-full md:w-auto flex gap-4">
-            <Select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="bg-bg-main border-base min-w-[150px]"
-              options={[
-                { value: '', label: 'All Status' },
-                { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' },
-                { value: 'terminated', label: 'Terminated' },
-              ]}
-            />
-            <Select
-              value={roleFilter}
-              onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
-              className="bg-bg-main border-base min-w-[150px]"
-              options={[
-                { value: '', label: 'All Roles' },
-                ...(roles?.map(r => ({ value: r.id, label: r.name })) || [])
-              ]}
-            />
+          
+          <div className="min-h-[400px]">
+            {isLoadingMembers ? (
+              <div className="flex items-center justify-center p-20">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-violet-600"></div>
+              </div>
+            ) : membersResponse?.length === 0 ? (
+              <div className="p-10 text-center text-slate-500 font-medium text-sm">No staff members found matching your search.</div>
+            ) : (
+              <LightTable 
+                columns={columns} 
+                data={membersResponse || []} 
+              />
+            )}
           </div>
         </div>
-      </div>
-      
-      <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0 min-h-[400px]">
-        {isLoadingMembers ? (
-          <div className="flex items-center justify-center p-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-          </div>
-        ) : membersResponse?.results?.length === 0 ? (
-          <div className="p-10 text-center text-tertiary font-bold uppercase tracking-widest text-sm">No staff members found matching your search.</div>
-        ) : (
-          <Table 
-            columns={columns} 
-            data={membersResponse?.results || []} 
-            className="text-sm"
-          />
-        )}
-      </Card>
-      
-      {!isLoadingMembers && membersResponse && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-tertiary uppercase font-bold tracking-widest">
-            Showing <span className="text-white">{membersResponse.results?.length || 0}</span> of <span className="text-white">{membersResponse.count || 0}</span> records
-          </p>
-          <div className="flex gap-3">
-            <Button 
-              variant="secondary" 
-              size="sm" 
-              disabled={!membersResponse.previous}
-              onClick={() => setPage(p => p - 1)}
-              className="border-base hover:border-primary/50"
-            >
-              Previous
-            </Button>
-            <Button 
-              variant="secondary" 
-              size="sm" 
-              disabled={!membersResponse.next}
-              onClick={() => setPage(p => p + 1)}
-              className="border-base hover:border-primary/50"
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
       </>
       )}
 
       {activeTab === 'roles' && (
-        <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0 min-h-[400px]">
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm min-h-[400px]">
+          <div className="px-5 py-4 border-b border-slate-100 flex justify-end bg-white">
+            <button 
+              onClick={() => handleOpenRoleModal()}
+              className="bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center rounded-lg px-4 h-9 text-sm font-semibold shadow-sm transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2 text-white" />
+              Add Role
+            </button>
+          </div>
           {isLoadingRoles ? (
             <div className="flex items-center justify-center p-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-violet-600"></div>
             </div>
           ) : roles?.length === 0 ? (
-            <div className="p-10 text-center text-tertiary font-bold uppercase tracking-widest text-sm">No specific roles defined yet.</div>
+            <div className="p-10 text-center text-slate-500 font-medium text-sm">No specific roles defined yet.</div>
           ) : (
-            <Table 
+            <LightTable 
               columns={[
-                { key: 'name', header: 'Role Title', render: (v: string) => <span className="font-black text-white uppercase tracking-widest text-sm drop-shadow-sm">{v}</span> },
-                { key: 'description', header: 'Description', render: (v: string) => <span className="text-xs text-tertiary tracking-wide font-medium">{v || '—'}</span> },
-                { key: 'status', header: 'Status', render: (_: any, r: StaffRole) => (
-                  <Badge variant={r.is_active ? 'success' : 'error'} size="sm" className="font-black uppercase tracking-widest text-[9px]">
+                { key: 'name', header: 'NAME', render: (v: string) => <span className="font-semibold text-slate-900 text-sm">{v}</span> },
+                { key: 'description', header: 'DESCRIPTION', render: (v: string) => <span className="text-sm text-slate-600 font-medium">{v || '—'}</span> },
+                { key: 'status', header: 'STATUS', render: (_: any, r: StaffRole) => (
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${r.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
                     {r.is_active ? 'Active' : 'Inactive'}
-                  </Badge>
+                  </span>
                 )},
                 { key: 'actions', header: '', align: 'right' as const, render: (_: any, r: StaffRole) => (
-                  <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => handleOpenRoleModal(r)} className="p-2.5 bg-white/5 hover:bg-primary/10 text-tertiary hover:text-primary rounded-xl transition-all border border-white/5 hover:border-primary/20"><Edit className="w-4 h-4"/></button>
-                    <button onClick={() => { if(window.confirm('Delete this role? This will fail if in use.')) deleteRole(r.id) }} className="p-2.5 bg-white/5 hover:bg-error/10 text-tertiary hover:text-error rounded-xl transition-all border border-white/5 hover:border-error/20"><Trash2 className="w-4 h-4"/></button>
-                  </div>
+                  <button 
+                    onClick={() => handleOpenRoleModal(r)} 
+                    className="px-4 py-1.5 border border-slate-200 hover:bg-slate-50 rounded bg-white transition-all text-xs font-bold text-slate-700 shadow-sm"
+                  >
+                    Edit
+                  </button>
                 )}
               ]} 
               data={roles || []} 
-              className="text-sm"
             />
           )}
-        </Card>
+        </div>
       )}
       
-      <Modal
+      <Modal theme="light"
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         title={editingStaffId ? "Edit Staff Member" : "Add New Staff Member"}
@@ -471,14 +446,14 @@ export default function StaffManagement() {
               variant="primary" 
               onClick={handleSaveStaff} 
               isLoading={isCreatingMember || isUpdatingMember}
-              className="flex-1 sm:flex-none px-10 shadow-glow-primary"
+              className="flex-1 sm:flex-none px-10 bg-violet-600 hover:bg-violet-700 text-white shadow-none border-none font-semibold"
             >
               {editingStaffId ? "Save Changes" : "Confirm Enlistment"}
             </Button>
           </div>
         }
       >
-        <div className="space-y-6 py-2 overflow-y-auto max-h-[70vh] pr-2 custom-scrollbar">
+        <div className="space-y-6">
           {/* Section: Basic Information */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Input 
@@ -602,19 +577,19 @@ export default function StaffManagement() {
                   onChange={(e) => setFormData({...formData, is_delivery_staff: e.target.checked})} 
                   className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary" 
                 />
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest group-hover:text-primary transition-colors">Delivery Staff</span>
+                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest group-hover:text-primary transition-colors">Delivery Staff</span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer group">
                 <input type="checkbox" checked={formData.is_kitchen_staff} onChange={(e) => setFormData({...formData, is_kitchen_staff: e.target.checked})} className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary" />
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest group-hover:text-primary transition-colors">Kitchen Staff</span>
+                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest group-hover:text-primary transition-colors">Kitchen Staff</span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer group">
                 <input type="checkbox" checked={formData.is_cashier} onChange={(e) => setFormData({...formData, is_cashier: e.target.checked})} className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary" />
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest group-hover:text-primary transition-colors">Cashier</span>
+                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest group-hover:text-primary transition-colors">Cashier</span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer group">
                 <input type="checkbox" checked={formData.is_manager} onChange={(e) => setFormData({...formData, is_manager: e.target.checked})} className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary" />
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest group-hover:text-primary transition-colors">Manager</span>
+                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest group-hover:text-primary transition-colors">Manager</span>
               </label>
             </div>
           </div>
@@ -622,39 +597,39 @@ export default function StaffManagement() {
       </Modal>
 
       {/* Role Management Modal */}
-      <Modal
+      <Modal theme="light"
         isOpen={isRoleModalOpen}
         onClose={() => setIsRoleModalOpen(false)}
-        title={editingRoleId ? "Edit Role configuration" : "Create New Role"}
+        title={editingRoleId ? "Edit Role" : "Add Role"}
         size="sm"
         footer={
           <div className="flex gap-3 w-full sm:w-auto mt-2">
-            <Button variant="ghost" onClick={() => setIsRoleModalOpen(false)} disabled={isCreatingRole || isUpdatingRole} className="flex-1 sm:flex-none">Cancel</Button>
-            <Button variant="primary" onClick={handleSaveRole} isLoading={isCreatingRole || isUpdatingRole} className="flex-1 sm:flex-none px-10 shadow-glow-primary">{editingRoleId ? "Save Changes" : "Confirm Creation"}</Button>
+            <Button variant="outline" onClick={() => setIsRoleModalOpen(false)} disabled={isCreatingRole || isUpdatingRole} className="flex-1 sm:flex-none h-11 border-slate-200 text-slate-700 font-semibold px-8">Cancel</Button>
+            <Button variant="primary" onClick={handleSaveRole} isLoading={isCreatingRole || isUpdatingRole} className="flex-1 sm:flex-none px-10 bg-violet-600 hover:bg-violet-700 text-white border-none shadow-none font-bold h-11">Save</Button>
           </div>
         }
       >
-        <div className="space-y-6 py-2">
+        <div className="space-y-6 pt-4">
           <Input 
-            label="ROLE TITLE *" 
-            placeholder="e.g. Master Chef" 
+            label="ROLE NAME *" 
+            placeholder="e.g. Chef, Waiter" 
             value={roleForm.name}
             onChange={(e) => setRoleForm({...roleForm, name: e.target.value})}
-            className="bg-bg-main border-base"
+            className="bg-white border-slate-200"
           />
           <Input 
             label="DESCRIPTION" 
-            placeholder="Responsibilities and access level..." 
+            placeholder="Optional description" 
             value={roleForm.description}
             onChange={(e) => setRoleForm({...roleForm, description: e.target.value})}
-            className="bg-bg-main border-base"
+            className="bg-white border-slate-200"
           />
-          <div className="p-4 bg-bg-main rounded-2xl border border-base">
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
             <label className="flex items-center gap-3 cursor-pointer group">
-              <input type="checkbox" checked={roleForm.is_active} onChange={(e) => setRoleForm({...roleForm, is_active: e.target.checked})} className="w-5 h-5 rounded-lg bg-secondary border-base text-primary focus:ring-primary" />
+              <input type="checkbox" checked={roleForm.is_active} onChange={(e) => setRoleForm({...roleForm, is_active: e.target.checked})} className="w-5 h-5 rounded bg-white border-slate-300 text-violet-600 focus:ring-violet-600" />
               <div className="flex flex-col">
-                <span className="text-sm font-black text-white group-hover:text-primary transition-colors uppercase tracking-widest">Active Status</span>
-                <span className="text-[10px] text-tertiary uppercase tracking-widest">Can staff be assigned to this role?</span>
+                <span className="text-sm font-semibold text-slate-900 transition-colors">Active Status</span>
+                <span className="text-xs text-slate-500">Can staff be assigned to this role?</span>
               </div>
             </label>
           </div>
@@ -662,7 +637,7 @@ export default function StaffManagement() {
       </Modal>
 
       {/* Ledger Summary Modal */}
-      <Modal
+      <Modal theme="light"
         isOpen={isLedgerModalOpen}
         onClose={() => setIsLedgerModalOpen(false)}
         title={`Financial Summary: ${selectedStaffForLedger?.full_name}`}
@@ -673,7 +648,7 @@ export default function StaffManagement() {
           <div className="mt-8">
             <Button 
                variant="secondary" 
-               className="w-full uppercase font-black tracking-widest text-xs h-12 border-base hover:bg-white/5"
+               className="w-full text-sm font-semibold h-10 border-slate-200 text-slate-700 bg-white hover:bg-slate-50 border rounded-lg"
                onClick={() => router.push(`/dashboard/ledger?staff=${selectedStaffForLedger?.id}`)}
             >
               Go to Full Ledger History

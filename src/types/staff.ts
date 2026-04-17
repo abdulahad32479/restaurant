@@ -196,12 +196,20 @@ export interface PayrollLine {
   payment_note?: string;
 }
 
-// Sync API Result Model
+// Sync API Result Model — matches POST /api/v1/staff/attendance-devices/{id}/sync/
+export interface SyncPullResult {
+  created: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface SyncProcessResult {
+  processed: number;
+  skipped_unmatched: number;
+}
+
 export interface SyncDeviceResult {
-  device_id: string;
-  device_name: string;
-  created_count: number;
-  existing_count: number;
-  unmatched_count: number;
-  last_synced_at: string;
+  device: string;          // device name string
+  pull: SyncPullResult;
+  process: SyncProcessResult;
 }

@@ -106,26 +106,20 @@ export const useBiometricActions = () => {
     mutationFn: (deviceId: string) => AttendanceService.syncDevice(deviceId),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['punches'] });
-      toast.success(`Synced! Created ${data.created_count}, Unmatched: ${data.unmatched_count}`);
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      toast.success(
+        `${data.device} — Pulled ${data.pull.created} new punch${data.pull.created !== 1 ? 'es' : ''}, ` +
+        `${data.process.processed} processed, ${data.process.skipped_unmatched} unmatched`,
+        { duration: 5000 }
+      );
     },
     onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to sync device'),
-  });
-
-  const processAttendance = useMutation({
-    mutationFn: (date: string) => AttendanceService.processAttendance(date),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['attendance'] });
-      queryClient.invalidateQueries({ queryKey: ['punches'] });
-      toast.success('Attendance processed for date');
-    },
-    onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to process attendance'),
   });
 
   return {
     syncDevice: syncDevice.mutate,
     isSyncing: syncDevice.isPending,
-    processAttendance: processAttendance.mutate,
-    isProcessing: processAttendance.isPending,
   };
 };
 

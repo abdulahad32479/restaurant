@@ -10,9 +10,10 @@ interface ModalProps {
   children: React.ReactNode
   footer?: React.ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl' | '7xl'
+  theme?: 'light' | 'dark'
 }
 
-export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, footer, size = 'md', theme = 'dark' }: ModalProps) {
   
   const getSizeClasses = (s: string) => {
     switch (s) {
@@ -27,17 +28,21 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
     }
   }
 
+  const themeClasses = theme === 'light' 
+    ? "bg-white border-0 shadow-xl text-slate-900 rounded-xl p-0 gap-0 overflow-hidden [&>button]:text-slate-400 [&>button:hover]:text-slate-700 hover:[&>button]:bg-slate-100 [&>button]:!right-5 [&>button]:!top-5 [&>button]:rounded-md [&>button]:p-1.5" 
+    : "bg-[#1F1F1F] glass border-[#2A2A2A] shadow-2xl text-white";
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={cn("bg-[#1F1F1F] glass border-[#2A2A2A] shadow-2xl text-white", getSizeClasses(size))}>
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">{title}</DialogTitle>
+      <DialogContent className={cn(themeClasses, getSizeClasses(size))}>
+        <DialogHeader className={cn(theme === 'light' ? "px-6 py-5 border-b border-slate-100" : "")}>
+          <DialogTitle className={cn("text-lg font-bold", theme === 'light' ? "text-slate-800" : "text-xl")}>{title}</DialogTitle>
         </DialogHeader>
-        <div className="py-4 max-h-[calc(85vh-120px)] overflow-y-auto custom-scrollbar pr-1">
+        <div className={cn(theme === 'light' ? "custom-scrollbar-light px-6 py-6 pr-4 max-h-[500px] overflow-y-scroll" : "custom-scrollbar py-4 max-h-[calc(85vh-120px)] pr-1 overflow-y-auto")}>
           {children}
         </div>
         {footer && (
-          <DialogFooter className="gap-2 sm:justify-end">
+          <DialogFooter className={cn("gap-2 sm:justify-end", theme === 'light' ? "px-6 py-5 border-t border-slate-100 bg-white" : "")}>
             {footer}
           </DialogFooter>
         )}

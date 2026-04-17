@@ -83,13 +83,14 @@ export const AttendanceService = {
   },
 
   // --- Actions ---
-  syncDevice: async (device_id: string): Promise<SyncDeviceResult> => {
-    const response = await staffApi.post<SyncDeviceResult>(`attendance-devices/${device_id}/sync/`);
-    return response.data;
-  },
-
-  processAttendance: async (target_date: string): Promise<any> => {
-    const response = await staffApi.post<any>('biometric/process-attendance/', { target_date });
+  /**
+   * Syncs attendance from a specific device. 
+   * This is a two-phase operation on the backend: 
+   * 1. Pull (fetch raw punches)
+   * 2. Process (convert punches to Attendance records)
+   */
+  syncDevice: async (id: string): Promise<SyncDeviceResult> => {
+    const response = await staffApi.post<SyncDeviceResult>(`attendance-devices/${id}/sync/`);
     return response.data;
   },
 };

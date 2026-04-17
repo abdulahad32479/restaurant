@@ -1,12 +1,12 @@
 "use client"
 
 import React, { useState } from 'react';
-import { Table } from '@/src/components/Table';
+import { LightTable as Table } from '@/src/components/LightTable';
 import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
 import { Input, Select } from '@/src/components/Input';
 import { Modal } from '@/src/components/Modal';
-import { Plus, Loader2, ArrowUpRight, ArrowDownRight, FileText, Trash2, Edit, Filter, Search, Calendar, User, CreditCard } from 'lucide-react';
+import { Plus, Loader2, FileText, Trash2, Edit } from 'lucide-react';
 import { Card } from '@/src/components/Card';
 import { useLedger } from '@/src/hooks/useLedger';
 import { useStaff } from '@/src/hooks/useStaff';
@@ -15,10 +15,8 @@ import { formatCurrency } from '@/src/utils/formatCurrency';
 import toast from 'react-hot-toast';
 
 export default function LedgerManagement() {
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [yearFilter, setYearFilter] = useState<string>('');
+  const [monthFilter, setMonthFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState('');
   const [directionFilter, setDirectionFilter] = useState('');
   const [staffFilter, setStaffFilter] = useState('');
@@ -27,8 +25,8 @@ export default function LedgerManagement() {
   const [editingLedgerId, setEditingLedgerId] = useState<string | null>(null);
   
   const { ledgerData, isLoading, createEntry, isCreating, updateEntry, isUpdating, deleteEntry } = useLedger({
-    start_date: startDate,
-    end_date: endDate,
+    year: yearFilter || undefined,
+    month: monthFilter || undefined,
     entry_type: typeFilter || undefined,
     direction: directionFilter || undefined,
     staff: staffFilter || undefined,
@@ -110,62 +108,71 @@ export default function LedgerManagement() {
     { 
       key: 'entry_date', 
       header: 'DATE',
-      render: (v: string) => <span className="text-[11px] font-black text-white uppercase tracking-tighter opacity-80">{v}</span>
+      render: (v: string) => <span className="text-xs font-medium text-slate-500">{v}</span>
     },
     { 
       key: 'staff', 
-      header: 'STAFF MEMBER',
+      header: 'STAFF',
       render: (_: any, row: StaffLedgerEntry) => (
-        <span className="font-black text-white text-sm uppercase tracking-tighter drop-shadow-sm">{row.staff_name || 'Individual Staff'}</span>
+        <span className="font-bold text-slate-900 text-sm">{row.staff_name || 'Individual Staff'}</span>
       )
     },
     { 
       key: 'entry_type', 
-      header: 'ENTRY TYPE',
+      header: 'TYPE',
       render: (v: string, row: StaffLedgerEntry) => (
-        <div className="flex flex-col">
-          <span className="text-[10px] font-black text-white uppercase tracking-[0.1em]">{row.entry_type_display || v.replace('_', ' ')}</span>
-          <span className="text-[9px] font-bold text-tertiary uppercase tracking-widest opacity-60">
-            Cycle: {row.payroll_period_month}/{row.payroll_period_year}
-          </span>
-        </div>
+        <span className="text-sm text-slate-700">{row.entry_type_display || v.replace('_', ' ')}</span>
       )
     },
     { 
       key: 'direction', 
-      header: 'FINANCIAL STATE',
+      header: 'DIRECTION',
       render: (v: string) => (
-        <Badge variant={v === 'credit' ? 'success' : 'error'} size="sm" className="font-black uppercase tracking-widest text-[9px] border-none px-4">
-          {v === 'credit' ? 'Inward / Credit' : 'Outward / Debit'}
+        <Badge variant={v === 'credit' ? 'success' : 'error'} size="sm" className="font-bold uppercase tracking-widest text-[9px] px-3 py-0.5 rounded-full border-none">
+          {v === 'credit' ? 'Credit' : 'Debit'}
         </Badge>
       )
     },
     { 
       key: 'amount', 
-      header: 'VALUE',
+      header: 'AMOUNT',
       render: (v: string, row: StaffLedgerEntry) => (
-        <span className={`font-black text-sm whitespace-nowrap px-3 py-1 rounded-lg border ${row.direction === 'credit' ? 'text-success bg-success/5 border-success/10' : 'text-error bg-error/5 border-error/10'}`}>
-          {row.direction === 'credit' ? '+' : '-'}{formatCurrency(v)}
+        <span className={`font-bold text-sm ${row.direction === 'credit' ? 'text-emerald-600' : 'text-rose-600'}`}>
+          {formatCurrency(v)}
         </span>
       )
+    },
+    {
+      key: 'period',
+      header: 'PERIOD',
+      render: (_: any, row: StaffLedgerEntry) => (
+        <span className="text-sm text-slate-600 font-medium">
+          {row.payroll_period_month ? `${row.payroll_period_month}/${row.payroll_period_year}` : '—'}
+        </span>
+      )
+    },
+    {
+        key: 'note',
+        header: 'NOTE',
+        render: (v: string) => <span className="text-sm text-slate-400 max-w-[200px] truncate block">{v || '—'}</span>
     },
     {
       key: 'actions',
       header: '',
       align: 'right' as const,
       render: (_: any, row: StaffLedgerEntry) => (
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex items-center justify-end gap-2">
           <button 
-            className="p-2 border border-base bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all group"
+            className="px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-bold transition-all shadow-sm"
             onClick={() => handleOpenLedgerModal(row)}
           >
-            <Edit className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />
+            Edit
           </button>
           <button 
              onClick={() => { if(window.confirm('Are you sure you want to delete this ledger entry?')) deleteEntry(row.id) }} 
-             className="p-2 border border-base bg-white/5 hover:bg-error/20 hover:border-error/50 text-tertiary hover:text-white rounded-xl transition-all"
+             className="p-1.5 text-slate-400 hover:text-red-500 transition-all"
            >
-             <Trash2 className="w-3.5 h-3.5" />
+             <Trash2 className="w-4 h-4" />
            </button>
         </div>
       )
@@ -173,120 +180,106 @@ export default function LedgerManagement() {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl md:text-2xl font-black text-white mb-1 uppercase tracking-tighter">Staff Ledger</h1>
-          <p className="text-sm md:text-base text-tertiary font-bold uppercase tracking-widest">Financial audit trail for all staff movements</p>
-        </div>
-        <Button 
-          variant="primary" 
-          onClick={() => handleOpenLedgerModal()}
-          className="font-black uppercase tracking-tighter shadow-glow-primary px-8"
-        >
-          <Plus className="w-5 h-5 mr-3" />
-          Post New Entry
-        </Button>
+    <div className="animate-fade-in -m-6 p-6 min-h-screen bg-[#f4f6f8] font-sans text-slate-800 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Ledger Entries</h1>
       </div>
 
-      <div className="bg-secondary border border-base rounded-[2rem] p-6 shadow-2xl overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 relative z-10">
-           <div className="md:col-span-4 flex flex-col gap-2">
-              <label className="text-[10px] font-black text-tertiary uppercase tracking-widest ml-1">Staff Member</label>
-              <Select
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+             <span className="text-sm font-bold text-slate-800 mr-2">Ledger Entries</span>
+             <Select
                 value={staffFilter}
                 onChange={(e) => setStaffFilter(e.target.value)}
-                className="bg-bg-main border-base h-12"
+                className="bg-white border-slate-200 text-slate-900 w-48 h-9 text-sm font-medium"
                 options={[
-                  { value: '', label: 'VIEW ALL STAFF' },
-                  ...(membersResponse?.results || []).map(m => ({ value: m.id, label: m.full_name }))
+                  { value: '', label: 'All Staff' },
+                  ...(membersResponse || []).map(m => ({ value: m.id, label: m.full_name }))
                 ]}
               />
-           </div>
-           <div className="md:col-span-3 flex flex-col gap-2">
-              <label className="text-[10px] font-black text-tertiary uppercase tracking-widest ml-1">Inflow/Outflow</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button 
-                  onClick={() => setDirectionFilter(directionFilter === 'debit' ? '' : 'debit')}
-                  className={`h-12 rounded-xl border font-black text-[10px] uppercase tracking-widest transition-all ${directionFilter === 'debit' ? 'bg-error border-error text-white shadow-glow-error' : 'bg-bg-main border-base text-tertiary hover:text-white'}`}
-                >
-                  Debits
-                </button>
-                <button 
-                  onClick={() => setDirectionFilter(directionFilter === 'credit' ? '' : 'credit')}
-                  className={`h-12 rounded-xl border font-black text-[10px] uppercase tracking-widest transition-all ${directionFilter === 'credit' ? 'bg-success border-success text-white shadow-glow-success' : 'bg-bg-main border-base text-tertiary hover:text-white'}`}
-                >
-                  Credits
-                </button>
-              </div>
-           </div>
-           <div className="md:col-span-5 flex flex-col gap-2">
-              <label className="text-[10px] font-black text-tertiary uppercase tracking-widest ml-1">Category / Type</label>
               <Select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="bg-bg-main border-base h-12"
+                className="bg-white border-slate-200 text-slate-900 w-40 h-9 text-sm font-medium"
                 options={[
-                  { value: '', label: 'ALL FINANCIAL TYPES' },
+                  { value: '', label: 'All Types' },
                   ...entryTypes
                 ]}
               />
-           </div>
+              <Input 
+                placeholder="Year"
+                value={yearFilter}
+                onChange={(e) => setYearFilter(e.target.value)}
+                className="w-20 h-9 text-sm border-slate-200"
+              />
+              <Input 
+                placeholder="Month"
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
+                className="w-20 h-9 text-sm border-slate-200"
+              />
+          </div>
+          <button 
+            onClick={() => handleOpenLedgerModal()}
+            className="bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center rounded-lg px-4 h-9 text-sm font-bold shadow-sm transition-colors"
+          >
+            <Plus className="w-4 h-4 mr-2 text-white" />
+            Add Entry
+          </button>
+        </div>
+        
+        <div className="min-h-[400px]">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center p-40">
+              <Loader2 className="animate-spin text-violet-600 w-10 h-10" />
+            </div>
+          ) : !ledgerData || ledgerData.length === 0 ? (
+            <div className="p-20 text-center flex flex-col items-center gap-3">
+              <FileText className="w-12 h-12 text-slate-200"/>
+              <p className="text-slate-500 font-medium text-sm">No ledger entries found.</p>
+            </div>
+          ) : (
+            <Table columns={columns} data={ledgerData || []} className="border-none" />
+          )}
         </div>
       </div>
       
-      <Card className="bg-secondary border-base overflow-hidden shadow-2xl p-0 min-h-[400px]">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center p-40 gap-4">
-            <Loader2 className="animate-spin text-primary w-12 h-12" />
-            <p className="text-tertiary font-black uppercase tracking-[0.2em] text-xs text-center">Reading Ledger Tapes...</p>
-          </div>
-        ) : !ledgerData || ledgerData.length === 0 ? (
-          <div className="p-20 text-center flex flex-col items-center gap-4">
-            <div className="p-6 bg-white/5 rounded-full"><FileText className="w-12 h-12 text-tertiary opacity-30"/></div>
-            <p className="text-tertiary font-black uppercase tracking-widest text-xs">No records found for the active scope</p>
-          </div>
-        ) : (
-          <Table columns={columns} data={ledgerData || []} className="text-sm border-none" />
-        )}
-      </Card>
-      
-      <Modal
+      <Modal theme="light"
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        title={editingLedgerId ? "Modify Audit Record" : "Post New Ledger Entry"}
-        size="lg"
+        title="Add Ledger Entry"
+        size="md"
         footer={
-          <div className="flex gap-3 mt-2 w-full sm:w-auto">
-            <Button variant="ghost" onClick={() => setIsAddModalOpen(false)} className="flex-1 sm:flex-none uppercase tracking-widest font-black text-[10px]">Cancel</Button>
+          <div className="flex gap-3 mt-4 w-full sm:w-auto">
+            <Button variant="outline" onClick={() => setIsAddModalOpen(false)} className="flex-1 sm:flex-none h-11 border-slate-200 text-slate-700 font-bold px-8">Cancel</Button>
             <Button 
                variant="primary" 
                onClick={handleSaveEntry} 
                isLoading={isCreating || isUpdating}
-               className="flex-1 sm:flex-none px-12 shadow-glow-primary font-black uppercase text-[10px] tracking-widest"
+               className="flex-1 sm:flex-none px-10 bg-violet-600 hover:bg-violet-700 text-white border-none shadow-none font-bold h-11"
             >
-              {editingLedgerId ? "Overwrite Record" : "Commit to General Ledger"}
+              Save Entry
             </Button>
           </div>
         }
       >
-        <div className="space-y-6 py-2">
+        <div className="space-y-6 pt-4">
           <Select 
-              label="TARGET STAFF MEMBER *" 
+              label="STAFF MEMBER *" 
               value={formData.staff as string}
               onChange={(e) => setFormData({...formData, staff: e.target.value})}
               options={[
-                { value: '', label: '--- SELECT RECIPIENT ---' },
-                ...(membersResponse?.results || []).map(m => ({ value: m.id, label: m.full_name }))
+                { value: '', label: '--- select ---' },
+                ...(membersResponse || []).map(m => ({ value: m.id, label: m.full_name }))
               ]} 
               disabled={!!editingLedgerId}
-              className="bg-bg-main border-base text-white h-14 font-black uppercase tracking-tighter"
+              className="bg-white border-slate-200 text-slate-900"
            />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-2 gap-5">
             <Select 
-              label="TRANSACTION CATEGORY *" 
+              label="ENTRY TYPE *" 
               value={formData.entry_type}
               onChange={(e) => {
                 const type = e.target.value as any;
@@ -296,73 +289,59 @@ export default function LedgerManagement() {
                 setFormData({...formData, entry_type: type, direction: dir});
               }}
               options={entryTypes.filter(e => e.value !== 'salary_payment')} 
-              className="bg-bg-main border-base text-white"
+              className="bg-white border-slate-200 text-slate-900"
             />
             <Select 
-              label="DIRECTION / POLARITY *" 
+              label="DIRECTION *" 
               value={formData.direction}
               onChange={(e) => setFormData({...formData, direction: e.target.value as any})}
               options={[
-                { value: 'debit', label: 'DEBIT (Removes from Pay)' },
-                { value: 'credit', label: 'CREDIT (Adds to Pay)' },
+                { value: 'debit', label: 'Debit (reduces salary)' },
+                { value: 'credit', label: 'Credit (adds to salary)' },
               ]}
-              className="bg-bg-main border-base text-white font-black"
+              className="bg-white border-slate-200 text-slate-900"
             />
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-2 gap-5">
               <Input 
-                label="CURRENCY VALUE (PKR) *" type="number"
+                label="AMOUNT *" type="number"
                 placeholder="0.00"
                 value={formData.amount as string}
                 onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                className="bg-bg-main border-base text-white text-xl font-black h-14"
+                className="bg-white border-slate-200 text-slate-900"
               />
               <Input 
-                label="RECORDING DATE *" type="date"
+                label="ENTRY DATE *" type="date"
                 value={formData.entry_date}
                 onChange={(e) => setFormData({...formData, entry_date: e.target.value})}
-                className="bg-bg-main border-base text-white"
+                className="bg-white border-slate-200 text-slate-900"
               />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-2 gap-5">
               <Input 
-                label="PAYROLL CYCLE YEAR" type="number"
+                label="PAYROLL YEAR" type="number"
                 placeholder="2026"
                 value={formData.payroll_period_year?.toString() || ''}
                 onChange={(e) => setFormData({...formData, payroll_period_year: parseInt(e.target.value) || null})}
-                className="bg-bg-main border-base text-white"
+                className="bg-white border-slate-200 text-slate-900"
               />
-              <Select 
-                label="PAYROLL CYCLE MONTH"
+              <Input 
+                label="PAYROLL MONTH" type="number"
+                placeholder="4"
                 value={formData.payroll_period_month?.toString() || ''}
                 onChange={(e) => setFormData({...formData, payroll_period_month: parseInt(e.target.value) || null})}
-                className="bg-bg-main border-base text-white"
-                options={[
-                  { value: '', label: 'NOT ASSIGNED' },
-                  { value: '1', label: 'January' },
-                  { value: '2', label: 'February' },
-                  { value: '3', label: 'March' },
-                  { value: '4', label: 'April' },
-                  { value: '5', label: 'May' },
-                  { value: '6', label: 'June' },
-                  { value: '7', label: 'July' },
-                  { value: '8', label: 'August' },
-                  { value: '9', label: 'September' },
-                  { value: '10', label: 'October' },
-                  { value: '11', label: 'November' },
-                  { value: '12', label: 'December' },
-                ]}
+                className="bg-white border-slate-200 text-slate-900"
               />
           </div>
 
           <Input 
-            label="TRANSACTION AUDIT NOTE"
+            label="NOTE"
             value={formData.note || ''}
             onChange={(e) => setFormData({...formData, note: e.target.value})}
-            placeholder="Describe the nature of this transaction..."
-            className="bg-bg-main border-base text-white"
+            placeholder="Reason / description"
+            className="bg-white border-slate-200 text-slate-900"
           />
         </div>
       </Modal>

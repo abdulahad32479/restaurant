@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from 'react';
-import { Table } from '@/src/components/Table';
+import { LightTable as Table } from '@/src/components/LightTable';
 import { Badge } from '@/src/components/Badge';
 import { Button } from '@/src/components/Button';
 import { Input } from '@/src/components/Input';
@@ -95,14 +95,14 @@ export default function RolesManagement() {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
-      <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center justify-between">
-        <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Staff Roles</h2>
+    <div className="animate-fade-in -m-6 p-6 min-h-screen bg-[#f4f6f8] font-sans text-slate-800 space-y-6">
+      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex items-center justify-between">
+        <h2 className="text-xl font-bold text-slate-900">Staff Roles</h2>
         <Button 
           variant="primary" 
           size="sm"
           onClick={() => handleOpenModal()}
-          className="font-black uppercase tracking-tighter shadow-glow-primary px-6"
+          className="font-black uppercase tracking-tighter bg-violet-600 hover:bg-violet-700 text-white border-none shadow-none font-bold px-6"
         >
           <Plus className="w-4 h-4 mr-2" />
           Add Role
@@ -110,7 +110,7 @@ export default function RolesManagement() {
       </div>
       
       {/* Table Section */}
-      <Card className="bg-white border-slate-100 overflow-hidden shadow-sm p-0 min-h-[400px]">
+      <Card className="bg-white border-slate-200 overflow-hidden shadow-sm p-0 min-h-[400px]">
         {isLoadingRoles ? (
           <div className="flex items-center justify-center p-20">
             <Loader2 className="animate-spin text-primary w-12 h-12" />
@@ -122,15 +122,15 @@ export default function RolesManagement() {
         )}
       </Card>
 
-      <Modal
+      <Modal theme="light"
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingRoleId ? "Edit Role" : "Add Role"}
         size="md"
         footer={
           <div className="flex gap-3 w-full sm:w-auto mt-2">
-            <Button variant="ghost" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none">Cancel</Button>
-            <Button variant="primary" onClick={handleSave} isLoading={isCreatingRole || isUpdatingRole} className="flex-1 sm:flex-none px-10 shadow-glow-primary">Save</Button>
+            <Button variant="ghost" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 font-bold shadow-sm">Cancel</Button>
+            <Button variant="primary" onClick={handleSave} isLoading={isCreatingRole || isUpdatingRole} className="flex-1 sm:flex-none px-10 bg-violet-600 hover:bg-violet-700 text-white border-none shadow-none font-bold">Save</Button>
           </div>
         }
       >

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/src/lib/utils"
 import {
   LayoutDashboard,
@@ -78,6 +78,16 @@ const staffModuleGroups = [
   }
 ]
 
+// All route prefixes that belong to the staff module
+const staffModuleRoutes = [
+  '/dashboard/staff',
+  '/dashboard/roles',
+  '/dashboard/ledger',
+  '/dashboard/payroll',
+  '/dashboard/attendance',
+  '/dashboard/devices',
+]
+
 interface SidebarProps {
   isOpen: boolean
   onClose: () => void
@@ -88,9 +98,17 @@ import { getRoleLabel, getRoleColor } from "@/src/lib/rbac"
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const { logout, user, hasPermission } = useAuth()
   const [collapsed, setCollapsed] = React.useState(false)
-  const [isStaffModule, setIsStaffModule] = React.useState(false)
+
+  // Auto-detect staff module: true whenever the path is under any staff route
+  const isStaffModule = staffModuleRoutes.some(route => pathname.startsWith(route))
+
+  const handleStaffModuleClick = () => {
+    router.push('/dashboard/staff')
+    onClose()
+  }
   
   return (
     <>
@@ -153,7 +171,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <>
                 {/* Staff Module Toggle Button */}
                 <button
-                  onClick={() => setIsStaffModule(true)}
+                  onClick={handleStaffModuleClick}
                   className={cn(
                     "flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-bold transition-all duration-200 group mb-2 border border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white",
                     collapsed && !isOpen && "justify-center px-0"
@@ -195,7 +213,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             ) : (
               <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                 <button
-                  onClick={() => setIsStaffModule(false)}
+                  onClick={() => { router.push('/dashboard'); onClose(); }}
                   className={cn(
                     "flex items-center gap-3 w-full rounded-xl px-4 py-2.5 text-xs font-bold transition-all duration-200 text-white/40 hover:text-white mb-6 group",
                     collapsed && !isOpen && "justify-center px-0"
